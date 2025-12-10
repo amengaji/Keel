@@ -8,6 +8,11 @@ import vesselRoutes from "./routes/vessel.routes.js";
 import famSectionRoutes from "./routes/famSectionTemplate.routes.js";
 import famTaskRoutes from "./routes/famTaskTemplate.routes.js";
 import famTaskBulkRoutes from "./routes/famTaskTemplateBulk.routes.js";
+import famStructureBulkRoutes from "./routes/famStructureBulk.routes.js";
+import cadetFamiliarisationRoutes from "./routes/cadetFamiliarisation.routes.js";
+import familiarisationTaskRoutes from "./routes/familiarisationTask.routes.js";
+import progressRoutes from "./routes/familiarisationProgress.routes.js";
+import reviewRoutes from "./routes/familiarisationReview.routes.js";
 
 dotenv.config();
 
@@ -27,6 +32,11 @@ app.use("/vessels", vesselRoutes);
 app.use("/fam-sections", famSectionRoutes);
 app.use("/fam-tasks", famTaskRoutes);
 app.use("/fam-tasks/bulk", famTaskBulkRoutes);
+app.use("/fam-structure/bulk", famStructureBulkRoutes);
+app.use("/api", cadetFamiliarisationRoutes);
+app.use("/api", familiarisationTaskRoutes);
+app.use("/api", progressRoutes);
+app.use("/api", reviewRoutes);
 
 
 // Health check route

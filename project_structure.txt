@@ -1,0 +1,54 @@
++-- keel-backend
+¦   +-- src
+¦   ¦   +-- config
+¦   ¦   ¦   +-- database.ts
+¦   ¦   +-- controllers
+¦   ¦   ¦   +-- auth.controller.ts
+¦   ¦   ¦   +-- cadetFamiliarisation.controller.ts
+¦   ¦   ¦   +-- famSectionTemplate.controller.ts
+¦   ¦   ¦   +-- famTaskTemplate.controller.ts
+¦   ¦   ¦   +-- me.controller.ts
+¦   ¦   ¦   +-- shipType.controller.ts
+¦   ¦   ¦   +-- vessel.controller.ts
+¦   ¦   +-- middleware
+¦   ¦   ¦   +-- auth.middleware.ts
+¦   ¦   ¦   +-- role.middleware.ts
+¦   ¦   +-- models
+¦   ¦   ¦   +-- associations.ts
+¦   ¦   ¦   +-- CadetFamiliarisationState.ts
+¦   ¦   ¦   +-- CadetVesselAssignment.ts
+¦   ¦   ¦   +-- FamiliarisationSectionTemplate.ts
+¦   ¦   ¦   +-- FamiliarisationTaskTemplate.ts
+¦   ¦   ¦   +-- index.ts
+¦   ¦   ¦   +-- Role.ts
+¦   ¦   ¦   +-- ShipType.ts
+¦   ¦   ¦   +-- User.ts
+¦   ¦   ¦   +-- Vessel.ts
+¦   ¦   +-- routes
+¦   ¦   ¦   +-- auth.routes.ts
+¦   ¦   ¦   +-- famSectionTemplate.routes.ts
+¦   ¦   ¦   +-- famStructureBulk.routes.ts
+¦   ¦   ¦   +-- famTaskTemplate.routes.ts
+¦   ¦   ¦   +-- famTaskTemplateBulk.routes.ts
+¦   ¦   ¦   +-- me.routes.ts
+¦   ¦   ¦   +-- shipType.routes.ts
+¦   ¦   ¦   +-- vessel.routes.ts
+¦   ¦   +-- utils
+¦   ¦   ¦   +-- jwt.ts
+¦   ¦   +-- index.ts
+¦   +-- .env
+¦   +-- package.json
+¦   +-- tsconfig.json
++-- keel-docs
+¦   +-- backend-architecture.md
+¦   +-- domain-model.md
+¦   +-- frontend-architecture.md
+¦   +-- phases.md
+¦   +-- stack.md
+¦   +-- user-flows.md
+¦   +-- vision.md
++-- keel-mobile
++-- keel-web
++-- .gitignore
++-- project_structure.txt
++-- tree.ps1

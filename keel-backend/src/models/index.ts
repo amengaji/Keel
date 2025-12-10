@@ -5,6 +5,7 @@ import ShipType from "./ShipType.js";
 import Vessel from "./Vessel.js";
 import FamiliarisationSectionTemplate from "./FamiliarisationSectionTemplate.js";
 import FamiliarisationTaskTemplate from "./FamiliarisationTaskTemplate.js";
+import CadetFamiliarisationState from "./CadetFamiliarisationState";
 
 // Apply associations
 import "./associations.js";

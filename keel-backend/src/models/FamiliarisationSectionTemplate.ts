@@ -1,3 +1,4 @@
+//keel-backend/src/models/FamiliarisationSectionTemplate.ts
 import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/database.js";
 
