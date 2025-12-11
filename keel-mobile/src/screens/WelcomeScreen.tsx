@@ -1,37 +1,106 @@
+
 //keel-mobile/src/screens/WelcomeScreen.tsx
-import React, { useContext } from "react";
-import { View } from "react-native";
-import { Button, Text } from "react-native-paper";
+console.log(">>> WELCOME SCREEN <<<");
+import React from "react";
+import { View, StyleSheet, Image } from "react-native";
+import { Text, useTheme } from "react-native-paper";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { AuthStackParamList } from "../navigation/types";
-import { AuthContext } from "../context/AuthContext";
+import { KeelScreen } from "../components/ui/KeelScreen";
+import { KeelButton } from "../components/ui/KeelButton";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Welcome">;
 
-export default function WelcomeScreen({ navigation }: Props) {
-  const ctx = useContext(AuthContext);
+const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
+  const theme = useTheme();
 
   return (
-    <View style={{ flex: 1, justifyContent: "center", padding: 20 }}>
-      <Text style={{ fontSize: 28, textAlign: "center", marginBottom: 40 }}>
-        Welcome to KEEL
-      </Text>
-
-      <Button mode="contained" onPress={() => navigation.navigate("Login")}>
-        Login
-      </Button>
-
-      {ctx?.biometricEnabled === true && (
-        <Button
-          mode="outlined"
-          style={{ marginTop: 10 }}
-          onPress={async () => {
-            await ctx.biometricLogin();
-          }}
+    <KeelScreen>
+      <View style={styles.top}>
+        <Text
+          variant="headlineMedium"
+          style={[styles.appTitle, { color: theme.colors.primary }]}
         >
-          Login with Biometrics
-        </Button>
-      )}
-    </View>
+          KEEL
+        </Text>
+        <Text variant="titleMedium" style={styles.subtitle}>
+          Digital Training Record Book
+        </Text>
+        <Text variant="bodyMedium" style={styles.body}>
+          Track your onboard learning, complete tasks, and stay aligned with
+          company training standards – all in one place.
+        </Text>
+      </View>
+
+      <View style={styles.illustrationWrapper}>
+        {/* Optional illustration in the future */}
+        <Image
+          source={require("../../assets/splash-icon.png")}
+          style={styles.illustration}
+          resizeMode="contain"
+        />
+      </View>
+
+      <View style={styles.bottom}>
+        <KeelButton
+          mode="primary"
+          onPress={() => navigation.navigate("Login")}
+        >
+          Continue to Login
+        </KeelButton>
+
+        <KeelButton
+          mode="outline"
+          onPress={() => navigation.navigate("EnableBiometrics")}
+        >
+          Setup Biometrics
+        </KeelButton>
+
+        <Text variant="bodySmall" style={styles.footer}>
+          Keel is part of the Element Tree suite. Built for cadets, officers,
+          and training departments.
+        </Text>
+      </View>
+    </KeelScreen>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  top: {
+    flex: 1,
+    justifyContent: "flex-start",
+    paddingTop: 8,
+  },
+  appTitle: {
+    fontWeight: "800",
+    letterSpacing: 4,
+  },
+  subtitle: {
+    marginTop: 4,
+    fontWeight: "600",
+  },
+  body: {
+    marginTop: 12,
+    color: "#6B7280",
+  },
+  illustrationWrapper: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  illustration: {
+    width: "70%",
+    height: 180,
+    opacity: 0.9,
+  },
+  bottom: {
+    paddingBottom: 12,
+  },
+  footer: {
+    marginTop: 16,
+    textAlign: "center",
+    color: "#9CA3AF",
+  },
+});
+
+export default WelcomeScreen;

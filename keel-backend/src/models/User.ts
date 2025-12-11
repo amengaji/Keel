@@ -1,3 +1,4 @@
+//keel-backend/src/models/User.ts
 import {
   DataTypes,
   Model,

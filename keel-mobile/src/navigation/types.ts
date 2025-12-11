@@ -7,3 +7,8 @@ export type AuthStackParamList = {
 export type MainStackParamList = {
   Home: undefined;
 };
+
+export type AppStackParamList = {
+  TaskList: undefined;
+  TaskDetails: { id: number };
+};

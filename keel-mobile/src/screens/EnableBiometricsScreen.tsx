@@ -1,10 +1,11 @@
 //keel-mobile/src/screens/EnableBiometricsScreen.tsx
+console.log(">>> BIOMETRICS SCREEN <<<");
 import React, { useContext } from "react";
 import { View } from "react-native";
 import { Button, Text } from "react-native-paper";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { AuthStackParamList } from "../navigation/types";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../auth/AuthContext";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "EnableBiometrics">;
 

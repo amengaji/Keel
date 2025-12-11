@@ -1,44 +1,140 @@
-import React, { useContext, useState } from "react";
-import { View } from "react-native";
-import { Button, TextInput, Text } from "react-native-paper";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { AuthStackParamList } from "../navigation/types";
-import { AuthContext } from "../context/AuthContext";
+//keel-mobile/src/screens/LoginScreen.tsx
+console.log(">>> NEW LOGIN SCREEN IS RENDERING <<<");
 
-type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
+import React, { useState } from "react";
+import { View, StyleSheet, Image, KeyboardAvoidingView, Platform } from "react-native";
+import { Text, TextInput, useTheme } from "react-native-paper";
+import { KeelButton } from "../components/ui/KeelButton";
+import { useAuth } from "../auth/AuthContext";
 
-export default function LoginScreen({ navigation }: Props) {
-  const ctx = useContext(AuthContext);
+export default function LoginScreen() {
+  const theme = useTheme();
+  const { login, loading } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const [error, setError] = useState("");
+
   const handleLogin = async () => {
-    await ctx?.login(email, password);
-    navigation.navigate("EnableBiometrics");
+    setError("");
+    try {
+      await login(email, password);
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
+
   return (
-    <View style={{ flex: 1, justifyContent: "center", padding: 20 }}>
-      <Text style={{ fontSize: 28, marginBottom: 30 }}>Login</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={styles.container}>
+        
+        {/* Header section */}
+        <View style={styles.headerWrapper}>
+          <Image
+            source={require("../../assets/icon.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-      <TextInput 
-        label="Email" 
-        mode="outlined" 
-        value={email} 
-        onChangeText={setEmail}
-        style={{ marginBottom: 10 }}
-      />
+          <Text variant="headlineMedium" style={styles.title}>
+            Welcome Aboard
+          </Text>
 
-      <TextInput 
-        label="Password" 
-        mode="outlined" 
-        secureTextEntry 
-        value={password} 
-        onChangeText={setPassword}
-        style={{ marginBottom: 20 }}
-      />
+          <Text variant="bodyMedium" style={styles.subtitle}>
+            Sign in to continue your training
+          </Text>
+        </View>
 
-      <Button mode="contained" onPress={handleLogin}>Login</Button>
-    </View>
+        {/* Input section */}
+        <View style={styles.formWrapper}>
+          <TextInput
+            mode="outlined"
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            style={styles.input}
+            outlineColor="#C5C5C5"
+            activeOutlineColor={theme.colors.primary}
+          />
+
+          <TextInput
+            mode="outlined"
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            style={styles.input}
+            outlineColor="#C5C5C5"
+            activeOutlineColor={theme.colors.primary}
+          />
+
+          {error.length > 0 && (
+            <Text style={{ color: "red", marginBottom: 10 }}>{error}</Text>
+          )}
+
+
+
+          <KeelButton
+            mode="primary"
+            onPress={handleLogin}
+            loading={loading}
+            style={styles.loginButton}
+            disabled={loading}
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </KeelButton>
+
+        </View>
+
+        <View style={styles.footerSpace} />
+
+      </View>
+    </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 28,
+    paddingTop: 80,
+  },
+  headerWrapper: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  logo: {
+    width: 90,
+    height: 90,
+    marginBottom: 20,
+  },
+  title: {
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 6,
+  },
+  subtitle: {
+    color: "#64748B",
+  },
+  formWrapper: {
+    marginTop: 10,
+  },
+  input: {
+    marginBottom: 16,
+    backgroundColor: "#FFFFFF",
+  },
+  loginButton: {
+    marginTop: 10,
+  },
+  footerSpace: {
+    flex: 1,
+  },
+});

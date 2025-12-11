@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useState, useEffect, ReactNode, useContext } from "react";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import api from "../services/api";
@@ -20,6 +20,15 @@ interface AuthContextType {
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
+
+// ↓↓↓ 2. ADD THIS NEW CUSTOM HOOK ↓↓↓
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -44,15 +53,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
-  const login = async (email: string, password: string) => {
+const login = async (email: string, password: string) => {
+  try {
+    console.log("LOGIN → Sending request", { email, password });
+
     const res = await api.post("/auth/login", { email, password });
+
+    console.log("LOGIN → Response received", res.data);
 
     await SecureStore.setItemAsync("accessToken", res.data.accessToken);
     await SecureStore.setItemAsync("refreshToken", res.data.refreshToken);
     await SecureStore.setItemAsync("user", JSON.stringify(res.data.user));
 
     setUser(res.data.user);
-  };
+  } catch (err: any) {
+    console.log("LOGIN → ERROR RAW:", err);
+    console.log("LOGIN → ERROR RESPONSE:", err?.response);
+    console.log("LOGIN → ERROR DATA:", err?.response?.data);
+    console.log("LOGIN → ERROR MESSAGE:", err?.message);
+
+    throw new Error(err?.response?.data?.message || err?.message || "Login failed");
+  }
+};
+
+
 
   const enableBiometrics = async () => {
     await SecureStore.setItemAsync("biometricEnabled", "true");
