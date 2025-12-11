@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import Role from "../models/Role.js";
 import User from "../models/User.js";
+import { AuthRequest } from "../middleware/auth.middleware.js";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -20,14 +21,18 @@ class AuthController {
           .json({ message: "email, password and full_name are required" });
       }
 
-      // Check if an admin already exists
+      // Check if an ADMIN role exists
       const adminRole = await Role.findOne({ where: { role_name: "ADMIN" } });
       if (!adminRole) {
         return res.status(500).json({ message: "ADMIN role not found" });
       }
 
+      // IMPORTANT: cast id to number so TS is happy
+      const adminRoleId = adminRole.get("id") as number;
+
+      // Check if an admin already exists
       const existingAdmin = await User.findOne({
-        where: { role_id: adminRole.get("id") },
+        where: { role_id: adminRoleId },
       });
 
       if (existingAdmin) {
@@ -36,6 +41,7 @@ class AuthController {
           .json({ message: "An ADMIN already exists. Use login instead." });
       }
 
+      // Check if email already in use
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
         return res.status(400).json({ message: "Email already in use" });
@@ -43,19 +49,20 @@ class AuthController {
 
       const hash = await bcrypt.hash(password, 10);
 
+      // Create the ADMIN user
       const user = await User.create({
         email,
         password_hash: hash,
         full_name,
-        role_id: adminRole.get("id"),
+        role_id: adminRoleId, // use the typed number, not unknown
       });
 
       return res.status(201).json({
         message: "Admin user created successfully",
         user: {
-          id: user.get("id"),
-          email: user.get("email"),
-          full_name: user.get("full_name"),
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
         },
       });
     } catch (err) {
@@ -70,10 +77,15 @@ class AuthController {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        return res.status(400).json({ message: "email and password required" });
+        return res
+          .status(400)
+          .json({ message: "email and password required" });
       }
 
-      const user = await User.findOne({ where: { email }, include: [{ model: Role, as: "role" }] });
+      const user = await User.findOne({
+        where: { email },
+        include: [{ model: Role, as: "role" }],
+      });
 
       if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });
@@ -91,13 +103,14 @@ class AuthController {
       const roleInstance = user.get("role") as any;
       const roleName = roleInstance?.role_name || "UNKNOWN";
 
+      // JWT payload: userId + role (STRING, e.g. "ADMIN")
       const accessToken = generateAccessToken({
-        userId: user.get("id"),
+        userId: user.id,
         role: roleName,
       });
 
       const refreshToken = generateRefreshToken({
-        userId: user.get("id"),
+        userId: user.id,
       });
 
       user.set("refresh_token", refreshToken);
@@ -107,9 +120,9 @@ class AuthController {
         accessToken,
         refreshToken,
         user: {
-          id: user.get("id"),
-          email: user.get("email"),
-          full_name: user.get("full_name"),
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
           role: roleName,
         },
       });
@@ -125,7 +138,9 @@ class AuthController {
       const { refreshToken } = req.body;
 
       if (!refreshToken) {
-        return res.status(400).json({ message: "refreshToken is required" });
+        return res
+          .status(400)
+          .json({ message: "refreshToken is required" });
       }
 
       let payload: any;
@@ -144,16 +159,16 @@ class AuthController {
       }
 
       if (user.get("refresh_token") !== refreshToken) {
-        return res
-          .status(401)
-          .json({ message: "Refresh token does not match stored token" });
+        return res.status(401).json({
+          message: "Refresh token does not match stored token",
+        });
       }
 
       const roleInstance = user.get("role") as any;
       const roleName = roleInstance?.role_name || "UNKNOWN";
 
       const newAccessToken = generateAccessToken({
-        userId: user.get("id"),
+        userId: user.id,
         role: roleName,
       });
 
@@ -161,6 +176,60 @@ class AuthController {
     } catch (err) {
       console.error("refresh error:", err);
       return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  // 4) Admin-only: create user (CADET / CTO / MASTER / SHORE / ADMIN)
+  static async createUser(req: AuthRequest, res: Response) {
+    try {
+      const admin = req.user;
+
+      // Only ADMIN role can create users
+      if (!admin || admin.role !== "ADMIN") {
+        return res
+          .status(403)
+          .json({ message: "Access denied. Admin only." });
+      }
+
+      const { full_name, email, password, role_id } = req.body;
+
+      if (!full_name || !email || !password || !role_id) {
+        return res.status(400).json({
+          message: "full_name, email, password, role_id required",
+        });
+      }
+
+      // Check if email already exists
+      const existing = await User.findOne({ where: { email } });
+      if (existing) {
+        return res
+          .status(400)
+          .json({ message: "Email already in use" });
+      }
+
+      // Hash password
+      const password_hash = await bcrypt.hash(password, 10);
+
+      const newUser = await User.create({
+        full_name,
+        email,
+        password_hash,
+        role_id,
+      });
+
+      return res.json({
+        success: true,
+        message: "User created successfully",
+        user: {
+          id: newUser.id,
+          full_name: newUser.full_name,
+          email: newUser.email,
+          role_id: newUser.role_id,
+        },
+      });
+    } catch (err) {
+      console.error("Create User Error:", err);
+      return res.status(500).json({ message: "Server error" });
     }
   }
 }

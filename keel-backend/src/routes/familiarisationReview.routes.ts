@@ -18,4 +18,14 @@ router.get("/cto/history", authGuard, getCtoHistory);
 router.get("/master/pending", authGuard, getMasterPendingTasks);
 router.get("/master/history", authGuard, getMasterHistory);
 
+import { approveByCto, approveByMaster } from "../controllers/familiarisationReview.controller.js";
+
+// CTO Approve
+router.put("/cto/approve", authGuard, approveByCto);
+
+// Master Approve
+router.put("/master/approve", authGuard, approveByMaster);
+
+
+
 export default router;

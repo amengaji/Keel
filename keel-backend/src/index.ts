@@ -15,6 +15,10 @@ import progressRoutes from "./routes/familiarisationProgress.routes.js";
 import reviewRoutes from "./routes/familiarisationReview.routes.js";
 import trbFamiliarisationRoutes from "./routes/trbFamiliarisation.routes.js";
 import roleRoutes from "./routes/role.routes.js";
+import vesselAssignmentRoutes from "./routes/vesselAssignment.routes.js";
+import familiarisationInitRoutes from "./routes/familiarisationInit.routes.js";
+import familiarisationTaskUpdateRoutes from "./routes/familiarisationTaskUpdate.routes.js";
+import familiarisationSectionSubmitRoutes from "./routes/familiarisationSectionSubmit.routes.js";
 
 dotenv.config();
 
@@ -41,6 +45,10 @@ app.use("/api", progressRoutes);
 app.use("/api", reviewRoutes);
 app.use("/api", trbFamiliarisationRoutes);
 app.use("/api", roleRoutes);
+app.use("/vessels", vesselAssignmentRoutes);
+app.use("/api", familiarisationInitRoutes);
+app.use("/api", familiarisationTaskUpdateRoutes);
+app.use("/api", familiarisationSectionSubmitRoutes);
 
 
 // Health check route

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import AuthController from "../controllers/auth.controller.js";
+import { authGuard } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -11,5 +12,8 @@ router.post("/login", AuthController.login);
 
 // Refresh access token
 router.post("/refresh", AuthController.refresh);
+
+// Create ANY user (Admin only)
+router.post("/create-user", authGuard, AuthController.createUser);
 
 export default router;

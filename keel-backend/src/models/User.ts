@@ -1,8 +1,27 @@
-import { DataTypes, Model } from "sequelize";
+import {
+  DataTypes,
+  Model,
+  InferAttributes,
+  InferCreationAttributes,
+  CreationOptional,
+} from "sequelize";
 import sequelize from "../config/database.js";
-import Role from "./Role.js";
 
-class User extends Model {}
+class User extends Model<
+  InferAttributes<User>,
+  InferCreationAttributes<User>
+> {
+  declare id: CreationOptional<number>;
+  declare email: string;
+  declare password_hash: string;
+  declare full_name: string;
+  declare role_id: number;
+  declare current_vessel_id: number | null;
+  declare refresh_token: string | null;
+
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
 
 User.init(
   {
@@ -37,7 +56,6 @@ User.init(
       },
     },
 
-    // NEW: current vessel for this user (cadet/officer/etc.)
     current_vessel_id: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -50,6 +68,18 @@ User.init(
     refresh_token: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
     },
   },
   {

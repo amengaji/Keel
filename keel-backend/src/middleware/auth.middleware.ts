@@ -1,9 +1,13 @@
-//keel-backend/src/middleware/auth.middleware.ts
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
+export interface AuthUser {
+  userId: number;
+  role: string; // ADMIN | CTO | MASTER | CADET | SHORE
+}
+
 export interface AuthRequest extends Request {
-  user?: any;
+  user?: AuthUser;
 }
 
 export function authGuard(req: AuthRequest, res: Response, next: NextFunction) {
@@ -18,7 +22,7 @@ export function authGuard(req: AuthRequest, res: Response, next: NextFunction) {
     const decoded = jwt.verify(
       token,
       process.env.ACCESS_TOKEN_SECRET as string
-    );
+    ) as AuthUser;
 
     req.user = decoded;
     next();
