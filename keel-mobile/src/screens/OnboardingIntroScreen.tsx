@@ -1,20 +1,16 @@
-//keel-mobile/src/screens/WelcomeScreen.tsx
+//keel-mobile/src/screens/OnboardingIntroScreen.tsx
 
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import { Text, useTheme } from "react-native-paper";
-import { KeelButton } from "../components/ui/KeelButton";
+import { Text, Button, useTheme } from "react-native-paper";
 import { useAuth } from "../auth/AuthContext";
-import { useNavigation } from "@react-navigation/native";
 
-export default function WelcomeScreen() {
-  const { setHasSeenWelcome } = useAuth();
+export default function OnboardingIntroScreen() {
   const theme = useTheme();
-  const navigation = useNavigation<any>();
+  const { markOnboardingCompleted } = useAuth();
 
   const handleContinue = async () => {
-    await setHasSeenWelcome();
-    navigation.replace("Login");
+    await markOnboardingCompleted();
   };
 
   const styles = StyleSheet.create({
@@ -28,37 +24,39 @@ export default function WelcomeScreen() {
     },
     title: {
       fontWeight: "700",
-      marginBottom: 12,
       color: theme.colors.primary,
+      marginBottom: 16,
+      textAlign: "center",
     },
     subtitle: {
-      textAlign: "center",
-      marginBottom: 32,
       color: theme.colors.onSurfaceVariant,
+      textAlign: "center",
+      marginBottom: 40,
+      lineHeight: 22,
     },
-    primaryButton: {
-      marginTop: 24,
-      minWidth: 220,
+    button: {
+      width: "100%",
     },
   });
 
   return (
     <View style={styles.container}>
-      <Text variant="headlineLarge" style={styles.title}>
+      <Text variant="headlineMedium" style={styles.title}>
         Welcome to KEEL
       </Text>
 
       <Text variant="bodyMedium" style={styles.subtitle}>
-        Your digital cadet training record book
+        KEEL helps cadets track training, complete tasks, and maintain their
+        digital training record book — even when offline.
       </Text>
 
-      <KeelButton
-        mode="primary"
+      <Button
+        mode="contained"
         onPress={handleContinue}
-        style={styles.primaryButton}
+        style={styles.button}
       >
-        Get Started
-      </KeelButton>
+        Continue
+      </Button>
     </View>
   );
 }

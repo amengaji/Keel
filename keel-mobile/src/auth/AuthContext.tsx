@@ -1,3 +1,5 @@
+//keel-mobile/src/auth/AuthContext.tsx
+
 import React, { createContext, useState, useEffect, ReactNode, useContext } from "react";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
@@ -12,28 +14,43 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+
   biometricEnabled: boolean;
+  biometricPromptSeen: boolean;
+
+  onboardingCompleted: boolean;
+  markOnboardingCompleted: () => Promise<void>;
+
+  hasSeenWelcome: boolean;
+  setHasSeenWelcome: () => Promise<void>;
+
+  markBiometricPromptSeen: () => Promise<void>;
+
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+
   enableBiometrics: () => Promise<void>;
   biometricLogin: () => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-// ↓↓↓ 2. ADD THIS NEW CUSTOM HOOK ↓↓↓
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricPromptSeen, setBiometricPromptSeen] = useState(false);
+
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
 
   useEffect(() => {
     restoreSession();
@@ -42,9 +59,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const restoreSession = async () => {
     const token = await SecureStore.getItemAsync("accessToken");
     const storedUser = await SecureStore.getItemAsync("user");
+
     const bio = await SecureStore.getItemAsync("biometricEnabled");
+    const bioSeen = await SecureStore.getItemAsync("biometricPromptSeen");
+
+    const onboarding = await SecureStore.getItemAsync("onboardingCompleted");
+    const welcome = await SecureStore.getItemAsync("hasSeenWelcome");
 
     setBiometricEnabled(bio === "true");
+    setBiometricPromptSeen(bioSeen === "true");
+
+    setOnboardingCompleted(onboarding === "true");
+    setHasSeenWelcome(welcome === "true");
 
     if (token && storedUser) {
       setUser(JSON.parse(storedUser));
@@ -53,30 +79,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
-const login = async (email: string, password: string) => {
-  try {
-    console.log("LOGIN → Sending request", { email, password });
+  const markWelcomeSeen = async () => {
+    await SecureStore.setItemAsync("hasSeenWelcome", "true");
+    setHasSeenWelcome(true);
+  };
 
+  const markBiometricPromptSeen = async () => {
+    await SecureStore.setItemAsync("biometricPromptSeen", "true");
+    setBiometricPromptSeen(true);
+  };
+
+  const markOnboardingCompleted = async () => {
+    await SecureStore.setItemAsync("onboardingCompleted", "true");
+    setOnboardingCompleted(true);
+  };
+
+  const login = async (email: string, password: string) => {
     const res = await api.post("/auth/login", { email, password });
-
-    console.log("LOGIN → Response received", res.data);
 
     await SecureStore.setItemAsync("accessToken", res.data.accessToken);
     await SecureStore.setItemAsync("refreshToken", res.data.refreshToken);
     await SecureStore.setItemAsync("user", JSON.stringify(res.data.user));
 
     setUser(res.data.user);
-  } catch (err: any) {
-    console.log("LOGIN → ERROR RAW:", err);
-    console.log("LOGIN → ERROR RESPONSE:", err?.response);
-    console.log("LOGIN → ERROR DATA:", err?.response?.data);
-    console.log("LOGIN → ERROR MESSAGE:", err?.message);
-
-    throw new Error(err?.response?.data?.message || err?.message || "Login failed");
-  }
-};
-
-
+  };
 
   const enableBiometrics = async () => {
     await SecureStore.setItemAsync("biometricEnabled", "true");
@@ -84,9 +110,6 @@ const login = async (email: string, password: string) => {
   };
 
   const biometricLogin = async () => {
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    if (!hasHardware) return false;
-
     const auth = await LocalAuthentication.authenticateAsync({
       promptMessage: "Authenticate",
     });
@@ -96,7 +119,6 @@ const login = async (email: string, password: string) => {
     if (!refreshToken) return false;
 
     const res = await api.post("/auth/refresh", { refreshToken });
-
     await SecureStore.setItemAsync("accessToken", res.data.accessToken);
 
     const storedUser = await SecureStore.getItemAsync("user");
@@ -116,9 +138,21 @@ const login = async (email: string, password: string) => {
       value={{
         user,
         loading,
+
         biometricEnabled,
+        biometricPromptSeen,
+
+        onboardingCompleted,
+        markOnboardingCompleted,
+
+        hasSeenWelcome,
+        setHasSeenWelcome: markWelcomeSeen,
+
+        markBiometricPromptSeen,
+
         login,
         logout,
+
         enableBiometrics,
         biometricLogin,
       }}

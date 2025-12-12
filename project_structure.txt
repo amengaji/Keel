@@ -5,16 +5,25 @@
 ¦   ¦   +-- controllers
 ¦   ¦   ¦   +-- auth.controller.ts
 ¦   ¦   ¦   +-- cadetFamiliarisation.controller.ts
+¦   ¦   ¦   +-- familiarisationInit.controller.ts
+¦   ¦   ¦   +-- familiarisationProgress.controller.ts
+¦   ¦   ¦   +-- familiarisationReview.controller.ts
+¦   ¦   ¦   +-- familiarisationSectionSubmit.controller.ts
+¦   ¦   ¦   +-- familiarisationTask.controller.ts
+¦   ¦   ¦   +-- familiarisationTaskUpdate.controller.ts
 ¦   ¦   ¦   +-- famSectionTemplate.controller.ts
 ¦   ¦   ¦   +-- famTaskTemplate.controller.ts
 ¦   ¦   ¦   +-- me.controller.ts
 ¦   ¦   ¦   +-- shipType.controller.ts
+¦   ¦   ¦   +-- trbFamiliarisation.controller.ts
 ¦   ¦   ¦   +-- vessel.controller.ts
+¦   ¦   ¦   +-- vesselAssignment.controller.ts
 ¦   ¦   +-- middleware
 ¦   ¦   ¦   +-- auth.middleware.ts
 ¦   ¦   ¦   +-- role.middleware.ts
 ¦   ¦   +-- models
 ¦   ¦   ¦   +-- associations.ts
+¦   ¦   ¦   +-- CadetFamiliarisationAttachment.ts
 ¦   ¦   ¦   +-- CadetFamiliarisationState.ts
 ¦   ¦   ¦   +-- CadetVesselAssignment.ts
 ¦   ¦   ¦   +-- FamiliarisationSectionTemplate.ts
@@ -26,17 +35,30 @@
 ¦   ¦   ¦   +-- Vessel.ts
 ¦   ¦   +-- routes
 ¦   ¦   ¦   +-- auth.routes.ts
+¦   ¦   ¦   +-- cadetFamiliarisation.routes.ts
+¦   ¦   ¦   +-- familiarisationInit.routes.ts
+¦   ¦   ¦   +-- familiarisationProgress.routes.ts
+¦   ¦   ¦   +-- familiarisationReview.routes.ts
+¦   ¦   ¦   +-- familiarisationSectionSubmit.routes.ts
+¦   ¦   ¦   +-- familiarisationTask.routes.ts
+¦   ¦   ¦   +-- familiarisationTaskUpdate.routes.ts
 ¦   ¦   ¦   +-- famSectionTemplate.routes.ts
 ¦   ¦   ¦   +-- famStructureBulk.routes.ts
 ¦   ¦   ¦   +-- famTaskTemplate.routes.ts
 ¦   ¦   ¦   +-- famTaskTemplateBulk.routes.ts
 ¦   ¦   ¦   +-- me.routes.ts
+¦   ¦   ¦   +-- role.routes.ts
 ¦   ¦   ¦   +-- shipType.routes.ts
+¦   ¦   ¦   +-- trbFamiliarisation.routes.ts
 ¦   ¦   ¦   +-- vessel.routes.ts
+¦   ¦   ¦   +-- vesselAssignment.routes.ts
+¦   ¦   +-- scripts
+¦   ¦   ¦   +-- seedUsers.ts
 ¦   ¦   +-- utils
 ¦   ¦   ¦   +-- jwt.ts
 ¦   ¦   +-- index.ts
 ¦   +-- .env
+¦   +-- generate-hash.cjs
 ¦   +-- package.json
 ¦   +-- tsconfig.json
 +-- keel-docs
@@ -48,7 +70,53 @@
 ¦   +-- user-flows.md
 ¦   +-- vision.md
 +-- keel-mobile
+¦   +-- assets
+¦   ¦   +-- adaptive-icon.png
+¦   ¦   +-- favicon.png
+¦   ¦   +-- icon.png
+¦   ¦   +-- splash-icon.png
+¦   +-- src
+¦   ¦   +-- auth
+¦   ¦   ¦   +-- AuthContext.tsx
+¦   ¦   +-- components
+¦   ¦   ¦   +-- home
+¦   ¦   ¦   ¦   +-- PendingTasksCard.tsx
+¦   ¦   ¦   ¦   +-- ProgressCard.tsx
+¦   ¦   ¦   ¦   +-- QuickActionsRow.tsx
+¦   ¦   ¦   ¦   +-- VesselCard.tsx
+¦   ¦   ¦   +-- tasks
+¦   ¦   ¦   ¦   +-- TaskListItem.tsx
+¦   ¦   ¦   ¦   +-- TaskStatusChip.tsx
+¦   ¦   ¦   +-- ui
+¦   ¦   ¦       +-- KeelButton.tsx
+¦   ¦   ¦       +-- KeelCard.tsx
+¦   ¦   ¦       +-- KeelScreen.tsx
+¦   ¦   +-- navigation
+¦   ¦   ¦   +-- AppNavigator.tsx
+¦   ¦   ¦   +-- AuthNavigator.tsx
+¦   ¦   ¦   +-- MainNavigator.tsx
+¦   ¦   ¦   +-- types.ts
+¦   ¦   +-- screens
+¦   ¦   ¦   +-- EnableBiometricsScreen.tsx
+¦   ¦   ¦   +-- HomeScreen.tsx
+¦   ¦   ¦   +-- LoginScreen.tsx
+¦   ¦   ¦   +-- TaskDetailsScreen.tsx
+¦   ¦   ¦   +-- TaskListScreen.tsx
+¦   ¦   ¦   +-- WelcomeScreen.tsx
+¦   ¦   +-- services
+¦   ¦   ¦   +-- api.ts
+¦   ¦   +-- theme
+¦   ¦   ¦   +-- keelTheme.ts
+¦   ¦   +-- utils
+¦   ¦       +-- secureStore.ts
+¦   +-- .gitignore
+¦   +-- app.json
+¦   +-- App.tsx
+¦   +-- index.ts
+¦   +-- package.json
+¦   +-- tsconfig.json
 +-- keel-web
 +-- .gitignore
++-- package.json
 +-- project_structure.txt
 +-- tree.ps1

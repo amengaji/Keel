@@ -1,8 +1,15 @@
 //keel-mobile/src/screens/LoginScreen.tsx
+
 console.log(">>> NEW LOGIN SCREEN IS RENDERING <<<");
 
 import React, { useState } from "react";
-import { View, StyleSheet, Image, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { Text, TextInput, useTheme } from "react-native-paper";
 import { KeelButton } from "../components/ui/KeelButton";
 import { useAuth } from "../auth/AuthContext";
@@ -13,7 +20,6 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
@@ -25,15 +31,57 @@ export default function LoginScreen() {
     }
   };
 
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      paddingHorizontal: 28,
+      paddingTop: 80,
+    },
+    headerWrapper: {
+      alignItems: "center",
+      marginBottom: 48,
+    },
+    logo: {
+      width: 76,
+      height: 76,
+      marginBottom: 16,
+    },
+    title: {
+      fontWeight: "700",
+      color: theme.colors.primary,
+      marginBottom: 6,
+    },
+    subtitle: {
+      color: theme.colors.onSurfaceVariant,
+    },
+    formWrapper: {
+      marginTop: 16,
+    },
+    input: {
+      marginBottom: 16,
+      backgroundColor: theme.colors.surface,
+    },
+    errorText: {
+      color: theme.colors.error,
+      marginBottom: 12,
+      fontSize: 13,
+    },
+    loginButton: {
+      marginTop: 18,
+    },
+    footerSpace: {
+      flex: 1,
+    },
+  });
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.container}>
-        
-        {/* Header section */}
+        {/* Header */}
         <View style={styles.headerWrapper}>
           <Image
             source={require("../../assets/icon.png")}
@@ -50,7 +98,7 @@ export default function LoginScreen() {
           </Text>
         </View>
 
-        {/* Input section */}
+        {/* Form */}
         <View style={styles.formWrapper}>
           <TextInput
             mode="outlined"
@@ -60,7 +108,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             style={styles.input}
-            outlineColor="#C5C5C5"
+            outlineColor={theme.colors.outline}
             activeOutlineColor={theme.colors.primary}
           />
 
@@ -71,70 +119,27 @@ export default function LoginScreen() {
             onChangeText={setPassword}
             secureTextEntry
             style={styles.input}
-            outlineColor="#C5C5C5"
+            outlineColor={theme.colors.outline}
             activeOutlineColor={theme.colors.primary}
           />
 
           {error.length > 0 && (
-            <Text style={{ color: "red", marginBottom: 10 }}>{error}</Text>
+            <Text style={styles.errorText}>{error}</Text>
           )}
-
-
 
           <KeelButton
             mode="primary"
             onPress={handleLogin}
             loading={loading}
-            style={styles.loginButton}
             disabled={loading}
+            style={styles.loginButton}
           >
             {loading ? "Signing in..." : "Sign In"}
           </KeelButton>
-
         </View>
 
         <View style={styles.footerSpace} />
-
       </View>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 28,
-    paddingTop: 80,
-  },
-  headerWrapper: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  logo: {
-    width: 90,
-    height: 90,
-    marginBottom: 20,
-  },
-  title: {
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 6,
-  },
-  subtitle: {
-    color: "#64748B",
-  },
-  formWrapper: {
-    marginTop: 10,
-  },
-  input: {
-    marginBottom: 16,
-    backgroundColor: "#FFFFFF",
-  },
-  loginButton: {
-    marginTop: 10,
-  },
-  footerSpace: {
-    flex: 1,
-  },
-});
