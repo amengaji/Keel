@@ -84,6 +84,12 @@
 ¦   ¦   ¦   ¦   +-- ProgressCard.tsx
 ¦   ¦   ¦   ¦   +-- QuickActionsRow.tsx
 ¦   ¦   ¦   ¦   +-- VesselCard.tsx
+¦   ¦   ¦   +-- inputs
+¦   ¦   ¦   ¦   +-- DateInputField.tsx
+¦   ¦   ¦   ¦   +-- LatLongInput.tsx
+¦   ¦   ¦   ¦   +-- TimeInputField.tsx
+¦   ¦   ¦   +-- layout
+¦   ¦   ¦   ¦   +-- AppHeader.tsx
 ¦   ¦   ¦   +-- tasks
 ¦   ¦   ¦   ¦   +-- TaskListItem.tsx
 ¦   ¦   ¦   ¦   +-- TaskStatusChip.tsx
@@ -91,15 +97,25 @@
 ¦   ¦   ¦       +-- KeelButton.tsx
 ¦   ¦   ¦       +-- KeelCard.tsx
 ¦   ¦   ¦       +-- KeelScreen.tsx
+¦   ¦   +-- db
+¦   ¦   ¦   +-- dailyLogs.ts
+¦   ¦   ¦   +-- database.ts
 ¦   ¦   +-- navigation
 ¦   ¦   ¦   +-- AppNavigator.tsx
 ¦   ¦   ¦   +-- AuthNavigator.tsx
+¦   ¦   ¦   +-- BottomTabNavigator.tsx
 ¦   ¦   ¦   +-- MainNavigator.tsx
+¦   ¦   ¦   +-- OnboardingNavigator.tsx
 ¦   ¦   ¦   +-- types.ts
 ¦   ¦   +-- screens
+¦   ¦   ¦   +-- DailyScreen.tsx
 ¦   ¦   ¦   +-- EnableBiometricsScreen.tsx
 ¦   ¦   ¦   +-- HomeScreen.tsx
 ¦   ¦   ¦   +-- LoginScreen.tsx
+¦   ¦   ¦   +-- OnboardingIntroScreen.tsx
+¦   ¦   ¦   +-- ProfileScreen.tsx
+¦   ¦   ¦   +-- SeaServiceScreen.tsx
+¦   ¦   ¦   +-- SettingsScreen.tsx
 ¦   ¦   ¦   +-- TaskDetailsScreen.tsx
 ¦   ¦   ¦   +-- TaskListScreen.tsx
 ¦   ¦   ¦   +-- WelcomeScreen.tsx
@@ -115,7 +131,6 @@
 ¦   +-- index.ts
 ¦   +-- package.json
 ¦   +-- tsconfig.json
-+-- keel-web
 +-- .gitignore
 +-- package.json
 +-- project_structure.txt
