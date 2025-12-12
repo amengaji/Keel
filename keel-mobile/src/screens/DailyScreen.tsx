@@ -30,6 +30,8 @@ import {
 } from "../db/dailyLogs";
 import { calculateDailyWatchTotals } from "../utils/watchAggregation";
 import { calculateWeeklyWatchTotals } from "../utils/watchWeeklyAggregation";
+import { checkStcwCompliance } from "../utils/stcwCompliance";
+
 
 type LogType = "DAILY" | "BRIDGE" | "ENGINE";
 
@@ -164,6 +166,22 @@ export default function DailyScreen() {
     // Uses existing entries + selected date
     return calculateWeeklyWatchTotals(entries, date);
   }, [entries, date]);
+
+  /* =======================
+   STCW COMPLIANCE (STEP D6.1)
+   Read-only calculation for the selected date.
+   - No blocking
+   - No alerts
+   - UI will consume these values next
+   ======================= */
+
+  const stcwCompliance = useMemo(() => {
+    if (!date) return null;
+
+    // Uses the full log list and selected date
+    return checkStcwCompliance(entries, date);
+  }, [entries, date]);
+
 
 
   const [startTime, setStartTime] = useState<Date | null>(null);
@@ -625,6 +643,142 @@ export default function DailyScreen() {
       </Card.Content>
     </Card>
   )}
+
+  {/* =======================
+    STCW COMPLIANCE FLAGS (STEP D6.1)
+    Read-only visibility only.
+    ======================= */}
+{stcwCompliance && (
+  <Card style={[styles.card, styles.dashboardCard]}>
+    <Card.Content>
+      <Text
+        variant="titleMedium"
+        style={{ color: theme.colors.onSurface, fontWeight: "700" }}
+      >
+        STCW Compliance Status
+      </Text>
+
+      {/* 24-HOUR REST */}
+      <View style={styles.dashboardRow}>
+        <Text
+          style={[
+            styles.dashboardLabel,
+            { color: theme.colors.onSurfaceVariant },
+          ]}
+        >
+          24h Rest
+        </Text>
+
+        <Text
+          style={[
+            styles.dashboardValue,
+            {
+              color: stcwCompliance.rest24h.compliant
+                ? theme.colors.primary
+                : theme.colors.error,
+              fontWeight: "700",
+            },
+          ]}
+        >
+          {stcwCompliance.rest24h.compliant ? "OK" : "NOT OK"}
+        </Text>
+      </View>
+
+      {/* 7-DAY REST */}
+      <View style={styles.dashboardRow}>
+        <Text
+          style={[
+            styles.dashboardLabel,
+            { color: theme.colors.onSurfaceVariant },
+          ]}
+        >
+          7-Day Rest
+        </Text>
+
+        <Text
+          style={[
+            styles.dashboardValue,
+            {
+              color: stcwCompliance.rest7d.compliant
+                ? theme.colors.primary
+                : theme.colors.error,
+              fontWeight: "700",
+            },
+          ]}
+        >
+          {stcwCompliance.rest7d.compliant ? "OK" : "NOT OK"}
+        </Text>
+      </View>
+      {/* =======================
+    STCW COMPLIANCE DETAILS (STEP D6.2)
+    Explains WHY a status is OK / NOT OK
+    ======================= */}
+
+<View style={{ marginTop: 12 }}>
+  {/* 24-HOUR DETAILS */}
+  <Text
+    variant="bodySmall"
+    style={{
+      color: theme.colors.onSurfaceVariant,
+      fontWeight: "600",
+      marginBottom: 4,
+    }}
+  >
+    24-Hour Rest Details
+  </Text>
+
+  <Text
+    variant="bodySmall"
+    style={{ color: theme.colors.onSurfaceVariant }}
+  >
+    Watch:{" "}
+    {formatMinutesToHoursMinutes(
+      stcwCompliance.rest24h.watchMinutes
+    )}
+    {" · "}
+    Rest:{" "}
+    {formatMinutesToHoursMinutes(
+      stcwCompliance.rest24h.restMinutes
+    )}
+    {" · "}
+    Required: 10h
+  </Text>
+
+  {/* 7-DAY DETAILS */}
+  <Text
+    variant="bodySmall"
+    style={{
+      color: theme.colors.onSurfaceVariant,
+      fontWeight: "600",
+      marginTop: 8,
+      marginBottom: 4,
+    }}
+  >
+    7-Day Rest Details
+  </Text>
+
+  <Text
+    variant="bodySmall"
+    style={{ color: theme.colors.onSurfaceVariant }}
+  >
+    Watch:{" "}
+    {formatMinutesToHoursMinutes(
+      stcwCompliance.rest7d.watchMinutes
+    )}
+    {" · "}
+    Rest:{" "}
+    {formatMinutesToHoursMinutes(
+      stcwCompliance.rest7d.restMinutes
+    )}
+    {" · "}
+    Required: 77h
+  </Text>
+</View>
+
+    </Card.Content>
+  </Card>
+)}
+
 
 
         <Card style={styles.card}>
