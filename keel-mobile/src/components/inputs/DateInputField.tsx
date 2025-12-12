@@ -23,58 +23,82 @@ type Props = {
 
 function getDeviceLocale(): string {
   if (Platform.OS === "ios") {
-    return NativeModules.SettingsManager.settings.AppleLocale
-      || NativeModules.SettingsManager.settings.AppleLanguages[0];
+    return (
+      NativeModules.SettingsManager.settings.AppleLocale ||
+      NativeModules.SettingsManager.settings.AppleLanguages[0]
+    );
   }
   return NativeModules.I18nManager.localeIdentifier;
 }
 
 function getDatePattern(locale: string): DatePattern {
-  const parts = new Intl.DateTimeFormat(locale).formatToParts(
-    new Date(2000, 11, 31)
-  );
+  const parts = new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).formatToParts(new Date(2000, 11, 31));
 
   const order: DatePart[] = [];
   let separator = "-";
 
-  for (const p of parts) {
+  parts.forEach((p) => {
     if (p.type === "day" || p.type === "month" || p.type === "year") {
       order.push(p.type);
     }
     if (p.type === "literal") {
-      separator = p.value.trim() || "-";
+      separator = p.value;
     }
-  }
-
-  if (order.length !== 3) {
-    return { order: ["day", "month", "year"], separator: "-" };
-  }
+  });
 
   return { order, separator };
 }
 
-function placeholderFromPattern(pattern: DatePattern): string {
-  const map: Record<DatePart, string> = {
-    day: "DD",
-    month: "MM",
-    year: "YYYY",
-  };
-
-  return pattern.order.map(p => map[p]).join(pattern.separator);
+function placeholderFromPattern(p: DatePattern) {
+  const map = { day: "DD", month: "MM", year: "YYYY" };
+  return p.order.map((o) => map[o]).join(p.separator);
 }
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-function formatDate(date: Date, pattern: DatePattern) {
-  const map: Record<DatePart, string> = {
+function formatDate(date: Date, p: DatePattern) {
+  const map = {
     day: pad(date.getDate()),
     month: pad(date.getMonth() + 1),
     year: String(date.getFullYear()),
   };
+  return p.order.map((o) => map[o]).join(p.separator);
+}
 
-  return pattern.order.map(p => map[p]).join(pattern.separator);
+function extractDigits(text: string) {
+  return text.replace(/\D/g, "").slice(0, 8);
+}
+
+function buildText(digits: string, p: DatePattern) {
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4)
+    return `${digits.slice(0, 2)}${p.separator}${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}${p.separator}${digits.slice(
+    2,
+    4
+  )}${p.separator}${digits.slice(4)}`;
+}
+
+function parseDate(digits: string, p: DatePattern): Date | null {
+  if (digits.length !== 8) return null;
+
+  const nums = [
+    Number(digits.slice(0, 2)),
+    Number(digits.slice(2, 4)),
+    Number(digits.slice(4, 8)),
+  ];
+
+  const map: any = {};
+  p.order.forEach((k, i) => (map[k] = nums[i]));
+
+  const d = new Date(map.year, map.month - 1, map.day);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 export default function DateInputField({
@@ -91,18 +115,23 @@ export default function DateInputField({
   const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
-    if (value) {
-      setText(formatDate(value, pattern));
-    }
+    if (value) setText(formatDate(value, pattern));
   }, [value, pattern]);
 
-  const handlePickerChange = (
-    event: DateTimePickerEvent,
+  const handleChange = (t: string) => {
+    const digits = extractDigits(t);
+    const display = buildText(digits, pattern);
+    setText(display);
+
+    const parsed = parseDate(digits, pattern);
+    if (parsed) onChange(parsed);
+  };
+
+  const handlePicker = (
+    e: DateTimePickerEvent,
     selected?: Date
   ) => {
     if (Platform.OS === "android") setShowPicker(false);
-    if (event.type === "dismissed") return;
-
     if (selected) {
       onChange(selected);
       setText(formatDate(selected, pattern));
@@ -115,9 +144,9 @@ export default function DateInputField({
         mode="outlined"
         label={required ? `${label} *` : label}
         value={text}
-        onChangeText={setText}
-        placeholder={placeholderFromPattern(pattern)}
+        onChangeText={handleChange}
         keyboardType="number-pad"
+        placeholder={placeholderFromPattern(pattern)}
         outlineColor={theme.colors.outline}
         activeOutlineColor={theme.colors.primary}
         right={
@@ -133,7 +162,7 @@ export default function DateInputField({
           value={value ?? new Date()}
           mode="date"
           display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={handlePickerChange}
+          onChange={handlePicker}
         />
       )}
     </View>

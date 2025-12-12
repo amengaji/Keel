@@ -5,10 +5,18 @@ export type AuthStackParamList = {
 };
 
 export type MainStackParamList = {
-  Home: undefined;
+  MainTabs: undefined;
 };
 
 export type AppStackParamList = {
   TaskList: undefined;
   TaskDetails: { id: number };
+};
+
+export type BottomTabParamList = {
+  Home: undefined;
+  SeaService: undefined;
+  Daily: undefined;
+  Tasks: undefined;
+  Profile: undefined;
 };
