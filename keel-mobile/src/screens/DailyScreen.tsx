@@ -16,6 +16,7 @@ import {
   TextInput,
   Chip,
   IconButton,
+  Checkbox,
   useTheme,
 } from "react-native-paper";
 
@@ -143,7 +144,7 @@ export default function DailyScreen() {
 
   const [logType, setLogType] = useState<LogType>("DAILY");
   const [date, setDate] = useState<Date | null>(today);
-const [startTime, setStartTime] = useState<Date | null>(null);
+  const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [summary, setSummary] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -165,6 +166,65 @@ const [startTime, setStartTime] = useState<Date | null>(null);
   const [steeringMinutes, setSteeringMinutes] = useState<number | null>(null);
   const [weather, setWeather] = useState("");
   const [lookoutRole, setLookoutRole] = useState("");
+
+
+    /* ============================================================
+     ENGINE WATCH STATE (PHASE D7.3.4)
+     These states are UI-only for now.
+     No DB persistence in this phase.
+     ============================================================ */
+
+  // --- Engine Watch Overview ---
+  const [engineWatchType, setEngineWatchType] = useState<
+    "UMS" | "MANNED" | "STANDBY" | null
+  >(null);
+
+  const [engineRunning, setEngineRunning] = useState<boolean>(false);
+  const [manoeuvring, setManoeuvring] = useState<boolean>(false);
+
+  const [engineRoomAttendance, setEngineRoomAttendance] = useState<
+    "SOLO" | "WITH_SENIOR" | "TEAM" | null
+  >(null);
+
+  // --- Machinery Status (enabled only if engineRunning === true) ---
+  const [mainEngineRunning, setMainEngineRunning] = useState<boolean>(false);
+
+  const [generatorsRunning, setGeneratorsRunning] = useState<{
+    DG1: boolean;
+    DG2: boolean;
+    DG3: boolean;
+  }>({
+    DG1: false,
+    DG2: false,
+    DG3: false,
+  });
+
+  const [boilerInService, setBoilerInService] = useState<boolean>(false);
+  const [steeringGearInUse, setSteeringGearInUse] = useState<boolean>(false);
+
+  // --- Engine Parameters (Accordion – optional) ---
+  const [engineLoadPercent, setEngineLoadPercent] = useState<number | null>(
+    null
+  );
+
+  const [engineRpmRange, setEngineRpmRange] = useState<
+    "LOW" | "MEDIUM" | "HIGH" | null
+  >(null);
+
+  const [fuelType, setFuelType] = useState<
+    "HFO" | "MGO" | "LSFO" | "OTHER" | null
+  >(null);
+
+  const [generatorsLoadBalanced, setGeneratorsLoadBalanced] =
+    useState<boolean>(true);
+
+  // --- Abnormalities & Rounds ---
+  const [roundsCompleted, setRoundsCompleted] = useState<boolean>(false);
+  const [roundsCount, setRoundsCount] = useState<number | null>(null);
+
+  const [alarmsObserved, setAlarmsObserved] = useState<boolean>(false);
+  const [abnormalRemarks, setAbnormalRemarks] = useState("");
+
 
   const isTimeRequired = logType !== "DAILY";
 
@@ -474,308 +534,556 @@ const [startTime, setStartTime] = useState<Date | null>(null);
         {/* ================= LOG TAB ================= */}
         {activeTab === "LOG" && (
           <Card style={styles.card}>
-<Card.Content>
-  {/* ============================================================
-     PHASE D7.3.3 — LOG WATCH FORM UX CLEANUP
-     Goal: Make the form easier to understand for cadets.
-     - No DB / logic changes
-     - Only visual grouping + helper guidance
-     - Light/Dark mode supported (colors pulled from theme)
-     ============================================================ */}
+            <Card.Content>
+              {/* ============================================================
+                PHASE D7.3.3 — LOG WATCH FORM UX CLEANUP
+                Goal: Make the form easier to understand for cadets.
+                - No DB / logic changes
+                - Only visual grouping + helper guidance
+                - Light/Dark mode supported (colors pulled from theme)
+                ============================================================ */}
 
-  {/* ---------------- SECTION: LOG TYPE ---------------- */}
-  <View style={styles.formSection}>
-    <Text
-      variant="titleSmall"
-      style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-    >
-      Log Type
-    </Text>
+              {/* ---------------- SECTION: LOG TYPE ---------------- */}
+              <View style={styles.formSection}>
+                <Text
+                  variant="titleSmall"
+                  style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+                >
+                  Log Type
+                </Text>
 
-    <Text
-      variant="bodySmall"
-      style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-    >
-      Select what you are logging. Bridge/Engine watches require time range.
-    </Text>
+                <Text
+                  variant="bodySmall"
+                  style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  Select what you are logging. Bridge/Engine watches require time range.
+                </Text>
 
-    <View style={styles.filterRow}>
-      {(Object.keys(LOG_TYPE_LABEL) as LogType[]).map((t) => {
-        const isSelected = logType === t;
+                <View style={styles.filterRow}>
+                  {(Object.keys(LOG_TYPE_LABEL) as LogType[]).map((t) => {
+                    const isSelected = logType === t;
 
-        // Theme-safe chip colors (works in both light/dark mode)
-        const chipBackground = isSelected
-          ? theme.colors.primary
-          : (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface;
+                    // Theme-safe chip colors (works in both light/dark mode)
+                    const chipBackground = isSelected
+                      ? theme.colors.primary
+                      : (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface;
 
-        const chipTextColor = isSelected
-          ? theme.colors.onPrimary
-          : theme.colors.onSurface;
+                    const chipTextColor = isSelected
+                      ? theme.colors.onPrimary
+                      : theme.colors.onSurface;
 
-        return (
-          <Chip
-            key={t}
-            selected={isSelected}
-            onPress={() => setLogType(t)}
-            style={[styles.chip, { backgroundColor: chipBackground }]}
-            textStyle={[styles.chipText, { color: chipTextColor }]}
-          >
-            {LOG_TYPE_LABEL[t]}
-          </Chip>
-        );
-      })}
-    </View>
-  </View>
+                    return (
+                      <Chip
+                        key={t}
+                        selected={isSelected}
+                        onPress={() => setLogType(t)}
+                        style={[styles.chip, { backgroundColor: chipBackground }]}
+                        textStyle={[styles.chipText, { color: chipTextColor }]}
+                      >
+                        {LOG_TYPE_LABEL[t]}
+                      </Chip>
+                    );
+                  })}
+                </View>
+              </View>
 
-  {/* ---------------- SECTION: DATE ---------------- */}
-  <View style={styles.formSection}>
-    <Text
-      variant="titleSmall"
-      style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-    >
-      Date
-    </Text>
+              {/* ---------------- SECTION: DATE ---------------- */}
+              <View style={styles.formSection}>
+                <Text
+                  variant="titleSmall"
+                  style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+                >
+                  Date
+                </Text>
 
-    <Text
-      variant="bodySmall"
-      style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-    >
-      Log date (defaults to today). Use the calendar icon if needed.
-    </Text>
+                <Text
+                  variant="bodySmall"
+                  style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  Log date (defaults to today). Use the calendar icon if needed.
+                </Text>
 
-    <DateInputField label="Date" value={date} onChange={setDate} required />
-  </View>
+                <DateInputField label="Date" value={date} onChange={setDate} required />
+              </View>
 
-  {/* ---------------- SECTION: TIME & WATCH (only for BRIDGE/ENGINE) ---------------- */}
-  {isTimeRequired && (
-    <View style={styles.formSection}>
-      <Text
-        variant="titleSmall"
-        style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-      >
-        Time & Watch
-      </Text>
+              {/* ---------------- SECTION: TIME & WATCH (only for BRIDGE/ENGINE) ---------------- */}
+              {isTimeRequired && (
+                <View style={styles.formSection}>
+                  <Text
+                    variant="titleSmall"
+                    style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+                  >
+                    Time & Watch
+                  </Text>
 
-      <Text
-        variant="bodySmall"
-        style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-      >
-        Start and End time are required for Bridge/Engine watch logs.
-      </Text>
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+                  >
+                    Start and End time are required for Bridge/Engine watch logs.
+                  </Text>
 
-      <View style={styles.timeRow}>
-        <TimeInputField
-          label="Start Time"
-          value={startTime}
-          onChange={setStartTime}
-          required
-        />
-        <View style={{ width: 12 }} />
-        <TimeInputField
-          label="End Time"
-          value={endTime}
-          onChange={setEndTime}
-          required
-        />
-      </View>
-    </View>
-  )}
+                  <View style={styles.timeRow}>
+                    <TimeInputField
+                      label="Start Time"
+                      value={startTime}
+                      onChange={setStartTime}
+                      required
+                    />
+                    <View style={{ width: 12 }} />
+                    <TimeInputField
+                      label="End Time"
+                      value={endTime}
+                      onChange={setEndTime}
+                      required
+                    />
+                  </View>
+                </View>
+              )}
 
-  {/* ---------------- SECTION: BRIDGE NAVIGATION (only for BRIDGE) ---------------- */}
-  {logType === "BRIDGE" && (
-    <View
-      style={[
-        styles.bridgeSectionCard,
-        {
-          // Theme-safe card background
-          backgroundColor:
-            (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface,
-          borderColor: theme.colors.outlineVariant ?? theme.colors.outline,
-        },
-      ]}
-    >
-      <Text
-        variant="titleSmall"
-        style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-      >
-        Position & Navigation (Bridge Watch)
-      </Text>
+            {/* ---------------- SECTION: ENGINE WATCH OVERVIEW ---------------- */}
+            {logType === "ENGINE" && (
+              <View style={styles.formSection}>
+                <Text
+                  variant="titleSmall"
+                  style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+                >
+                  Engine Watch Overview
+                </Text>
 
-      <Text
-        variant="bodySmall"
-        style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-      >
-        Latitude, Longitude, and Course are mandatory for Bridge watch entries.
-      </Text>
+                <Text
+                  variant="bodySmall"
+                  style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  Basic engine room watch context. Use toggles instead of typing wherever
+                  possible.
+                </Text>
 
-      <LatLongInput
-        label="Latitude"
-        type="LAT"
-        degrees={latDeg}
-        minutes={latMin}
-        direction={latDir}
-        onChange={(v) => {
-          // Step 1: Store parsed values
-          setLatDeg(v.degrees);
-          setLatMin(v.minutes);
-          setLatDir(v.direction as any);
+                {/* --- Watch Type --- */}
+                <Text
+                  variant="labelMedium"
+                  style={{ marginTop: 8, color: theme.colors.onSurface }}
+                >
+                  Watch Type
+                </Text>
 
-          // Step 2: Store validity for form validation
-          setIsLatValid(v.isValid);
-        }}
-      />
+                <View style={styles.filterRow}>
+                  {[
+                    { key: "UMS", label: "UMS" },
+                    { key: "MANNED", label: "Manned" },
+                    { key: "STANDBY", label: "Standby" },
+                  ].map((opt) => {
+                    const selected = engineWatchType === opt.key;
 
-      <LatLongInput
-        label="Longitude"
-        type="LON"
-        degrees={lonDeg}
-        minutes={lonMin}
-        direction={lonDir}
-        onChange={(v) => {
-          // Step 1: Store parsed values
-          setLonDeg(v.degrees);
-          setLonMin(v.minutes);
-          setLonDir(v.direction as any);
+                    return (
+                      <Chip
+                        key={opt.key}
+                        selected={selected}
+                        onPress={() =>
+                          setEngineWatchType(opt.key as typeof engineWatchType)
+                        }
+                        style={[
+                          styles.chip,
+                          {
+                            backgroundColor: selected
+                              ? theme.colors.primary
+                              : (theme as any)?.colors?.elevation?.level1 ??
+                                theme.colors.surface,
+                          },
+                        ]}
+                        textStyle={{
+                          color: selected
+                            ? theme.colors.onPrimary
+                            : theme.colors.onSurface,
+                        }}
+                      >
+                        {opt.label}
+                      </Chip>
+                    );
+                  })}
+                </View>
 
-          // Step 2: Store validity for form validation
-          setIsLonValid(v.isValid);
-        }}
-      />
+                {/* --- Engine Running Toggle --- */}
+                <View
+                  style={{
+                    marginTop: 12,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ color: theme.colors.onSurface }}>
+                    Engine Running
+                  </Text>
 
-      <TextInput
-        label="Course (°T)"
-        mode="outlined"
-        keyboardType="numeric"
-        value={courseDeg?.toString() ?? ""}
-        onChangeText={(t) => {
-          // Convert text to number (or null if empty/invalid)
-          const v = Number(t);
-          const next = Number.isNaN(v) ? null : v;
+                  <IconButton
+                    icon={engineRunning ? "toggle-switch" : "toggle-switch-off-outline"}
+                    iconColor={
+                      engineRunning ? theme.colors.primary : theme.colors.onSurfaceVariant
+                    }
+                    size={32}
+                    onPress={() => setEngineRunning((p) => !p)}
+                    accessibilityLabel="Toggle engine running"
+                  />
+                </View>
 
-          setCourseDeg(next);
+                {/* --- Manoeuvring Toggle --- */}
+                <View
+                  style={{
+                    marginTop: 8,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ color: theme.colors.onSurface }}>
+                    Manoeuvring
+                  </Text>
 
-          // Valid course range: 0–359 degrees
-          if (next == null) {
-            setIsCourseValid(true);
-          } else {
-            setIsCourseValid(next >= 0 && next <= 359);
-          }
-        }}
-        error={!isCourseValid}
-        style={styles.input}
-      />
+                  <IconButton
+                    icon={manoeuvring ? "toggle-switch" : "toggle-switch-off-outline"}
+                    iconColor={
+                      manoeuvring ? theme.colors.primary : theme.colors.onSurfaceVariant
+                    }
+                    size={32}
+                    onPress={() => setManoeuvring((p) => !p)}
+                    accessibilityLabel="Toggle manoeuvring"
+                  />
+                </View>
 
-      <Text
-        variant="bodySmall"
-        style={[
-          styles.inlineValidationText,
-          { color: theme.colors.onSurfaceVariant },
-        ]}
-      >
-        Valid range: 0–359
-      </Text>
+                {/* --- Attendance --- */}
+                <Text
+                  variant="labelMedium"
+                  style={{ marginTop: 12, color: theme.colors.onSurface }}
+                >
+                  Engine Room Attendance
+                </Text>
 
-      <TextInput
-        label="Speed (knots)"
-        mode="outlined"
-        keyboardType="decimal-pad"
-        value={speedKn?.toString() ?? ""}
-        onChangeText={(t) => setSpeedKn(t === "" ? null : Number(t))}
-        style={styles.input}
-      />
+                <View style={styles.filterRow}>
+                  {[
+                    { key: "SOLO", label: "Solo" },
+                    { key: "WITH_SENIOR", label: "With Senior" },
+                    { key: "TEAM", label: "Team" },
+                  ].map((opt) => {
+                    const selected = engineRoomAttendance === opt.key;
 
-      <TextInput
-        label="Steering Time (minutes)"
-        mode="outlined"
-        keyboardType="numeric"
-        value={steeringMinutes?.toString() ?? ""}
-        onChangeText={(t) => setSteeringMinutes(t === "" ? null : Number(t))}
-        style={styles.input}
-      />
+                    return (
+                      <Chip
+                        key={opt.key}
+                        selected={selected}
+                        onPress={() =>
+                          setEngineRoomAttendance(
+                            opt.key as typeof engineRoomAttendance
+                          )
+                        }
+                        style={[
+                          styles.chip,
+                          {
+                            backgroundColor: selected
+                              ? theme.colors.primary
+                              : (theme as any)?.colors?.elevation?.level1 ??
+                                theme.colors.surface,
+                          },
+                        ]}
+                        textStyle={{
+                          color: selected
+                            ? theme.colors.onPrimary
+                            : theme.colors.onSurface,
+                        }}
+                      >
+                        {opt.label}
+                      </Chip>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
-      <TextInput
-        label="Weather / Visibility"
-        mode="outlined"
-        value={weather}
-        onChangeText={setWeather}
-        style={styles.input}
-      />
+            {/* ---------------- SECTION: MACHINERY STATUS (ENGINE RUNNING ONLY) ---------------- */}
+            {logType === "ENGINE" && engineRunning && (
+              <View
+                style={[
+                  styles.bridgeSectionCard,
+                  {
+                    backgroundColor:
+                      (theme as any)?.colors?.elevation?.level1 ??
+                      theme.colors.surface,
+                    borderColor: theme.colors.outlineVariant ?? theme.colors.outline,
+                  },
+                ]}
+              >
+                <Text
+                  variant="titleSmall"
+                  style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+                >
+                  Machinery Status
+                </Text>
 
-      <TextInput
-        label="Lookout Role"
-        mode="outlined"
-        value={lookoutRole}
-        onChangeText={setLookoutRole}
-        style={styles.input}
-      />
-    </View>
-  )}
+                <Text
+                  variant="bodySmall"
+                  style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  Select machinery in operation during this watch.
+                </Text>
 
-  {/* ---------------- SECTION: ACTIVITY DETAILS ---------------- */}
-  <View style={styles.formSection}>
-    <Text
-      variant="titleSmall"
-      style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-    >
-      Activity Details
-    </Text>
+                {/* --- Main Engine --- */}
+                <View style={styles.checkRow}>
+                  <Text style={{ color: theme.colors.onSurface }}>
+                    Main Engine Running
+                  </Text>
 
-    <Text
-      variant="bodySmall"
-      style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-    >
-      Summary is mandatory. Use Remarks for extra notes if needed.
-    </Text>
+                  <Checkbox
+                    status={mainEngineRunning ? "checked" : "unchecked"}
+                    onPress={() => setMainEngineRunning((p) => !p)}
+                  />
+                </View>
 
-    <TextInput
-      label="Activity Summary"
-      mode="outlined"
-      value={summary}
-      onChangeText={setSummary}
-      multiline
-      numberOfLines={3}
-      style={styles.input}
-    />
+                {/* --- Generators --- */}
+                <Text
+                  variant="labelMedium"
+                  style={{ marginTop: 8, color: theme.colors.onSurface }}
+                >
+                  Generators Running
+                </Text>
 
-    <TextInput
-      label="Remarks (optional)"
-      mode="outlined"
-      value={remarks}
-      onChangeText={setRemarks}
-      multiline
-      numberOfLines={2}
-      style={styles.input}
-    />
+                {(["DG1", "DG2", "DG3"] as const).map((dg) => (
+                  <View key={dg} style={styles.checkRow}>
+                    <Text style={{ color: theme.colors.onSurface }}>{dg}</Text>
 
-    {/* Inline “why Save is disabled” guidance (no alerts, no popups) */}
-    {!isFormValid && (
-      <Text
-        variant="bodySmall"
-        style={[
-          styles.formHint,
-          { color: theme.colors.onSurfaceVariant },
-        ]}
-      >
-        To enable Save: select a Date, enter Activity Summary, and for Bridge/Engine
-        logs enter Start/End time. Bridge logs also require valid Lat/Lon and Course.
-      </Text>
-    )}
-  </View>
+                    <Checkbox
+                      status={generatorsRunning[dg] ? "checked" : "unchecked"}
+                      onPress={() =>
+                        setGeneratorsRunning((p) => ({
+                          ...p,
+                          [dg]: !p[dg],
+                        }))
+                      }
+                    />
+                  </View>
+                ))}
 
-  {/* ---------------- SECTION: ACTIONS ---------------- */}
-  <View style={styles.actions}>
-    {editingLogId && <Button onPress={resetForm}>Cancel</Button>}
+                {/* --- Boiler --- */}
+                <View style={styles.checkRow}>
+                  <Text style={{ color: theme.colors.onSurface }}>
+                    Boiler in Service
+                  </Text>
 
-    <Button
-      mode="contained"
-      onPress={editingLogId ? handleUpdate : handleSave}
-      disabled={!isFormValid}
-    >
-      {editingLogId ? "Update Entry" : "Save Entry"}
-    </Button>
-  </View>
-</Card.Content>
+                  <Checkbox
+                    status={boilerInService ? "checked" : "unchecked"}
+                    onPress={() => setBoilerInService((p) => !p)}
+                  />
+                </View>
 
+                {/* --- Steering Gear --- */}
+                <View style={styles.checkRow}>
+                  <Text style={{ color: theme.colors.onSurface }}>
+                    Steering Gear in Use
+                  </Text>
+
+                  <Checkbox
+                    status={steeringGearInUse ? "checked" : "unchecked"}
+                    onPress={() => setSteeringGearInUse((p) => !p)}
+                  />
+                </View>
+              </View>
+            )}
+
+
+
+              {/* ---------------- SECTION: BRIDGE NAVIGATION (only for BRIDGE) ---------------- */}
+              {logType === "BRIDGE" && (
+                <View
+                  style={[
+                    styles.bridgeSectionCard,
+                    {
+                      // Theme-safe card background
+                      backgroundColor:
+                        (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface,
+                      borderColor: theme.colors.outlineVariant ?? theme.colors.outline,
+                    },
+                  ]}
+                >
+                  <Text
+                    variant="titleSmall"
+                    style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+                  >
+                    Position & Navigation (Bridge Watch)
+                  </Text>
+
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+                  >
+                    Latitude, Longitude, and Course are mandatory for Bridge watch entries.
+                  </Text>
+
+                  <LatLongInput
+                    label="Latitude"
+                    type="LAT"
+                    degrees={latDeg}
+                    minutes={latMin}
+                    direction={latDir}
+                    onChange={(v) => {
+                      // Step 1: Store parsed values
+                      setLatDeg(v.degrees);
+                      setLatMin(v.minutes);
+                      setLatDir(v.direction as any);
+
+                      // Step 2: Store validity for form validation
+                      setIsLatValid(v.isValid);
+                    }}
+                  />
+
+                  <LatLongInput
+                    label="Longitude"
+                    type="LON"
+                    degrees={lonDeg}
+                    minutes={lonMin}
+                    direction={lonDir}
+                    onChange={(v) => {
+                      // Step 1: Store parsed values
+                      setLonDeg(v.degrees);
+                      setLonMin(v.minutes);
+                      setLonDir(v.direction as any);
+
+                      // Step 2: Store validity for form validation
+                      setIsLonValid(v.isValid);
+                    }}
+                  />
+
+                  <TextInput
+                    label="Course (°T)"
+                    mode="outlined"
+                    keyboardType="numeric"
+                    value={courseDeg?.toString() ?? ""}
+                    onChangeText={(t) => {
+                      // Convert text to number (or null if empty/invalid)
+                      const v = Number(t);
+                      const next = Number.isNaN(v) ? null : v;
+
+                      setCourseDeg(next);
+
+                      // Valid course range: 0–359 degrees
+                      if (next == null) {
+                        setIsCourseValid(true);
+                      } else {
+                        setIsCourseValid(next >= 0 && next <= 359);
+                      }
+                    }}
+                    error={!isCourseValid}
+                    style={styles.input}
+                  />
+
+                  <Text
+                    variant="bodySmall"
+                    style={[
+                      styles.inlineValidationText,
+                      { color: theme.colors.onSurfaceVariant },
+                    ]}
+                  >
+                    Valid range: 0–359
+                  </Text>
+
+                  <TextInput
+                    label="Speed (knots)"
+                    mode="outlined"
+                    keyboardType="decimal-pad"
+                    value={speedKn?.toString() ?? ""}
+                    onChangeText={(t) => setSpeedKn(t === "" ? null : Number(t))}
+                    style={styles.input}
+                  />
+
+                  <TextInput
+                    label="Steering Time (minutes)"
+                    mode="outlined"
+                    keyboardType="numeric"
+                    value={steeringMinutes?.toString() ?? ""}
+                    onChangeText={(t) => setSteeringMinutes(t === "" ? null : Number(t))}
+                    style={styles.input}
+                  />
+
+                  <TextInput
+                    label="Weather / Visibility"
+                    mode="outlined"
+                    value={weather}
+                    onChangeText={setWeather}
+                    style={styles.input}
+                  />
+
+                  <TextInput
+                    label="Lookout Role"
+                    mode="outlined"
+                    value={lookoutRole}
+                    onChangeText={setLookoutRole}
+                    style={styles.input}
+                  />
+                </View>
+              )}
+
+              {/* ---------------- SECTION: ACTIVITY DETAILS ---------------- */}
+              <View style={styles.formSection}>
+                <Text
+                  variant="titleSmall"
+                  style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+                >
+                  Activity Details
+                </Text>
+
+                <Text
+                  variant="bodySmall"
+                  style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  Summary is mandatory. Use Remarks for extra notes if needed.
+                </Text>
+
+                <TextInput
+                  label="Activity Summary"
+                  mode="outlined"
+                  value={summary}
+                  onChangeText={setSummary}
+                  multiline
+                  numberOfLines={3}
+                  style={styles.input}
+                />
+
+                <TextInput
+                  label="Remarks (optional)"
+                  mode="outlined"
+                  value={remarks}
+                  onChangeText={setRemarks}
+                  multiline
+                  numberOfLines={2}
+                  style={styles.input}
+                />
+
+                {/* Inline “why Save is disabled” guidance (no alerts, no popups) */}
+                {!isFormValid && (
+                  <Text
+                    variant="bodySmall"
+                    style={[
+                      styles.formHint,
+                      { color: theme.colors.onSurfaceVariant },
+                    ]}
+                  >
+                    To enable Save: select a Date, enter Activity Summary, and for Bridge/Engine
+                    logs enter Start/End time. Bridge logs also require valid Lat/Lon and Course.
+                  </Text>
+                )}
+              </View>
+
+              {/* ---------------- SECTION: ACTIONS ---------------- */}
+              <View style={styles.actions}>
+                {editingLogId && <Button onPress={resetForm}>Cancel</Button>}
+
+                <Button
+                  mode="contained"
+                  onPress={editingLogId ? handleUpdate : handleSave}
+                  disabled={!isFormValid}
+                >
+                  {editingLogId ? "Update Entry" : "Save Entry"}
+                </Button>
+              </View>
+            </Card.Content>
           </Card>
         )}
 
@@ -1140,5 +1448,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
+  checkRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+
 
 });
