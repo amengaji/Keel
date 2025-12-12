@@ -1,4 +1,3 @@
-//keel-backend/src/controllers/auth.controller.ts
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import Role from "../models/Role.js";
@@ -11,7 +10,7 @@ import {
 } from "../utils/jwt.js";
 
 class AuthController {
-  // 1) Register first ADMIN user
+  // 1) Register first ADMIN user (locked via route env flag)
   static async registerAdmin(req: Request, res: Response) {
     try {
       const { email, password, full_name } = req.body;
@@ -22,16 +21,13 @@ class AuthController {
           .json({ message: "email, password and full_name are required" });
       }
 
-      // Check if an ADMIN role exists
       const adminRole = await Role.findOne({ where: { role_name: "ADMIN" } });
       if (!adminRole) {
         return res.status(500).json({ message: "ADMIN role not found" });
       }
 
-      // IMPORTANT: cast id to number so TS is happy
       const adminRoleId = adminRole.get("id") as number;
 
-      // Check if an admin already exists
       const existingAdmin = await User.findOne({
         where: { role_id: adminRoleId },
       });
@@ -42,20 +38,18 @@ class AuthController {
           .json({ message: "An ADMIN already exists. Use login instead." });
       }
 
-      // Check if email already in use
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
         return res.status(400).json({ message: "Email already in use" });
       }
 
-      const hash = await bcrypt.hash(password, 10);
+      const password_hash = await bcrypt.hash(password, 10);
 
-      // Create the ADMIN user
       const user = await User.create({
         email,
-        password_hash: hash,
+        password_hash,
         full_name,
-        role_id: adminRoleId, // use the typed number, not unknown
+        role_id: adminRoleId,
       });
 
       return res.status(201).json({
@@ -72,9 +66,10 @@ class AuthController {
     }
   }
 
-  // 2) Login (all roles: CADET, CTO, MASTER, SHORE, ADMIN)
+  // 2) Login (all roles)
   static async login(req: Request, res: Response) {
     console.log("🔥 LOGIN CONTROLLER HIT 🔥");
+
     try {
       console.log("REQ BODY:", req.body);
 
@@ -92,27 +87,28 @@ class AuthController {
       });
 
       if (!user) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        console.warn("LOGIN FAILED: user not found →", email);
+        return res
+          .status(401)
+          .json({ message: "Invalid email or password" });
       }
 
-      console.log("LOGIN EMAIL:", email);
-      console.log("LOGIN HASH FROM DB:", user.get("password_hash"));
+      const hash = user.get("password_hash") as string;
 
-      const valid = await bcrypt.compare(
-        password,
-        user.get("password_hash") as string
-      );
+      const valid = await bcrypt.compare(password, hash);
 
       console.log("PASSWORD MATCH RESULT:", valid);
 
       if (!valid) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        console.warn("LOGIN FAILED: password mismatch →", email);
+        return res
+          .status(401)
+          .json({ message: "Invalid email or password" });
       }
 
       const roleInstance = user.get("role") as any;
       const roleName = roleInstance?.role_name || "UNKNOWN";
 
-      // JWT payload: userId + role (STRING, e.g. "ADMIN")
       const accessToken = generateAccessToken({
         userId: user.id,
         role: roleName,
@@ -155,7 +151,7 @@ class AuthController {
       let payload: any;
       try {
         payload = verifyRefreshToken(refreshToken);
-      } catch (err) {
+      } catch {
         return res.status(401).json({ message: "Invalid refresh token" });
       }
 
@@ -188,12 +184,11 @@ class AuthController {
     }
   }
 
-  // 4) Admin-only: create user (CADET / CTO / MASTER / SHORE / ADMIN)
+  // 4) Admin-only: create user
   static async createUser(req: AuthRequest, res: Response) {
     try {
       const admin = req.user;
 
-      // Only ADMIN role can create users
       if (!admin || admin.role !== "ADMIN") {
         return res
           .status(403)
@@ -208,7 +203,6 @@ class AuthController {
         });
       }
 
-      // Check if email already exists
       const existing = await User.findOne({ where: { email } });
       if (existing) {
         return res
@@ -216,7 +210,6 @@ class AuthController {
           .json({ message: "Email already in use" });
       }
 
-      // Hash password
       const password_hash = await bcrypt.hash(password, 10);
 
       const newUser = await User.create({
