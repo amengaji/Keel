@@ -32,6 +32,9 @@ import { calculateDailyWatchTotals } from "../utils/watchAggregation";
 import { calculateWeeklyWatchTotals } from "../utils/watchWeeklyAggregation";
 import { checkStcwCompliance } from "../utils/stcwCompliance";
 
+/* ============================================================
+   TYPES
+   ============================================================ */
 
 type LogType = "DAILY" | "BRIDGE" | "ENGINE";
 
@@ -66,12 +69,26 @@ const LOG_TYPE_LABEL: Record<LogType, string> = {
 
 const OCEAN_GREEN = "#3194A0";
 
+/* ============================================================
+   SCREEN
+   ============================================================ */
 export default function DailyScreen() {
   const theme = useTheme();
   const today = useMemo(() => new Date(), []);
 
+    /* ---------------- DATA ---------------- */
+
   const [entries, setEntries] = useState<DailyLogEntry[]>([]);
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
+
+    /* =======================
+     TAB STATE (PHASE D7)
+     Controls which major mode the screen is in.
+     ======================= */
+
+  type DailyTab = "LOG" | "STATUS" | "HISTORY";
+  const [activeTab, setActiveTab] = useState<DailyTab>("LOG");
+
 
   /* =======================
      HELPERS
@@ -126,20 +143,38 @@ export default function DailyScreen() {
 
   const [logType, setLogType] = useState<LogType>("DAILY");
   const [date, setDate] = useState<Date | null>(today);
+const [startTime, setStartTime] = useState<Date | null>(null);
+  const [endTime, setEndTime] = useState<Date | null>(null);
+  const [summary, setSummary] = useState("");
+  const [remarks, setRemarks] = useState("");
 
-  /* =======================
-     DAILY WATCH DASHBOARD (PHASE D4 — STEP 4.3)
-     Placement: below title, above entry form (Option B)
+  const [latDeg, setLatDeg] = useState<number | null>(null);
+  const [latMin, setLatMin] = useState<number | null>(null);
+  const [latDir, setLatDir] = useState<"N" | "S">("N");
+  const [isLatValid, setIsLatValid] = useState(false);
 
-     STEP C.2 (UI POLISH + DARK MODE FIXES) - DASHBOARD ONLY
-     - We do NOT change any calculations.
-     - We do NOT change validation.
-     - We do NOT change DB logic.
-     - We only improve how the dashboard is displayed and how it adapts in dark mode.
-     ======================= */
+  const [lonDeg, setLonDeg] = useState<number | null>(null);
+  const [lonMin, setLonMin] = useState<number | null>(null);
+  const [lonDir, setLonDir] = useState<"E" | "W">("E");
+  const [isLonValid, setIsLonValid] = useState(false);
 
-  // Build daily totals whenever logs change (Bridge/Engine only).
-  // This is used only for display here; STCW compliance checks come later.
+  const [courseDeg, setCourseDeg] = useState<number | null>(null);
+  const [isCourseValid, setIsCourseValid] = useState(true);
+
+  const [speedKn, setSpeedKn] = useState<number | null>(null);
+  const [steeringMinutes, setSteeringMinutes] = useState<number | null>(null);
+  const [weather, setWeather] = useState("");
+  const [lookoutRole, setLookoutRole] = useState("");
+
+  const isTimeRequired = logType !== "DAILY";
+
+  const isFormValid =
+    !!date &&
+    summary.trim().length > 0 &&
+    (!isTimeRequired || (startTime && endTime)) &&
+    (logType !== "BRIDGE" || (isLatValid && isLonValid && isCourseValid));
+
+  /* ---------------- DASHBOARD CALCULATIONS ---------------- */
   const dailyWatchTotals = useMemo(
     () => calculateDailyWatchTotals(entries),
     [entries]
@@ -181,40 +216,6 @@ export default function DailyScreen() {
     // Uses the full log list and selected date
     return checkStcwCompliance(entries, date);
   }, [entries, date]);
-
-
-
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [endTime, setEndTime] = useState<Date | null>(null);
-  const [summary, setSummary] = useState("");
-  const [remarks, setRemarks] = useState("");
-
-  // Bridge navigation
-  const [latDeg, setLatDeg] = useState<number | null>(null);
-  const [latMin, setLatMin] = useState<number | null>(null);
-  const [latDir, setLatDir] = useState<"N" | "S">("N");
-  const [isLatValid, setIsLatValid] = useState(false);
-
-  const [lonDeg, setLonDeg] = useState<number | null>(null);
-  const [lonMin, setLonMin] = useState<number | null>(null);
-  const [lonDir, setLonDir] = useState<"E" | "W">("E");
-  const [isLonValid, setIsLonValid] = useState(false);
-
-  const [courseDeg, setCourseDeg] = useState<number | null>(null);
-  const [isCourseValid, setIsCourseValid] = useState(true);
-
-  const [speedKn, setSpeedKn] = useState<number | null>(null);
-  const [steeringMinutes, setSteeringMinutes] = useState<number | null>(null);
-  const [weather, setWeather] = useState("");
-  const [lookoutRole, setLookoutRole] = useState("");
-
-  const isTimeRequired = logType !== "DAILY";
-
-  const isFormValid =
-    !!date &&
-    summary.trim().length > 0 &&
-    (!isTimeRequired || (startTime && endTime)) &&
-    (logType !== "BRIDGE" || (isLatValid && isLonValid && isCourseValid));
 
   /* =======================
      AUTO-CLEAR BRIDGE FIELDS
@@ -272,7 +273,6 @@ export default function DailyScreen() {
       endTime: isTimeRequired ? endTime!.toISOString() : undefined,
       summary: summary.trim(),
       remarks: remarks.trim() || undefined,
-
       latDeg,
       latMin,
       latDir,
@@ -321,22 +321,18 @@ export default function DailyScreen() {
     setEndTime(log.endTime ?? null);
     setSummary(log.summary);
     setRemarks(log.remarks ?? "");
-
     setLatDeg(log.latDeg ?? null);
     setLatMin(log.latMin ?? null);
     setLatDir(log.latDir ?? "N");
     setIsLatValid(log.latDeg != null && log.latMin != null);
-
     setLonDeg(log.lonDeg ?? null);
     setLonMin(log.lonMin ?? null);
     setLonDir(log.lonDir ?? "E");
     setIsLonValid(log.lonDeg != null && log.lonMin != null);
-
     setCourseDeg(log.courseDeg ?? null);
     setIsCourseValid(
       log.courseDeg == null || (log.courseDeg >= 0 && log.courseDeg <= 359)
     );
-
     setSpeedKn(log.speedKn ?? null);
     setSteeringMinutes(log.steeringMinutes ?? null);
     setWeather(log.weather ?? "");
@@ -354,7 +350,6 @@ export default function DailyScreen() {
       endTime: isTimeRequired ? endTime!.toISOString() : undefined,
       summary: summary.trim(),
       remarks: remarks.trim() || undefined,
-
       latDeg,
       latMin,
       latDir,
@@ -399,662 +394,751 @@ export default function DailyScreen() {
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 80}
     >
       <ScrollView
         style={{ backgroundColor: theme.colors.background }}
-        contentContainerStyle={[
-          styles.container,
-          { backgroundColor: theme.colors.background },
-        ]}
+        contentContainerStyle={styles.container}
       >
-
         <Text variant="headlineMedium">Diary & Watchkeeping</Text>
 
-        {/* =======================
-           DAILY WATCH SUMMARY (STEP C.2)
-           UI polish + dark-mode safe colors (dashboard only)
-           Notes for beginners:
-           - We DO NOT change any calculations here.
-           - We only display totals that were already computed above.
-           ======================= */}
-          <Card
-            style={[
-              styles.card,
-              styles.dashboardCard,
-              {
-                // Dark-mode safe background (Paper theme controls this)
-                backgroundColor:
-                  (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface,
-              },
-            ]}
-          >
-            <Card.Content>
-              <View style={styles.dashboardHeaderRow}>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    variant="titleMedium"
-                    style={[styles.dashboardTitle, { color: theme.colors.onSurface }]}
-                  >
-                    Daily Watch Summary
+        {/* ---------------- TAB BAR ---------------- */}
+        <View style={styles.tabBar}>
+          {[
+            { key: "LOG", label: "Log Watch" },
+            { key: "STATUS", label: "My Status" },
+            { key: "HISTORY", label: "History" },
+          ].map((tab) => (
+            <Button
+              key={tab.key}
+              mode={activeTab === tab.key ? "contained" : "text"}
+              onPress={() => setActiveTab(tab.key as DailyTab)}
+              style={styles.tabButton}
+            >
+              {tab.label}
+            </Button>
+          ))}
+        </View>
+
+        {/* ================= STATUS TAB ================= */}
+        {activeTab === "STATUS" && (
+          <>
+            {/* DAILY SUMMARY */}
+            {selectedDayTotals && (
+              <Card style={[styles.card, styles.dashboardCard]}>
+                <Card.Content>
+                  <Text variant="titleMedium">Daily Watch Summary</Text>
+                  <Text>
+                    {formatMinutesToHoursMinutes(
+                      selectedDayTotals.totalMinutes
+                    )}
                   </Text>
+                </Card.Content>
+              </Card>
+            )}
 
-                  <Text
-                    variant="bodySmall"
-                    style={{ color: theme.colors.onSurfaceVariant }}
-                  >
-                    {date ? date.toDateString() : ""}
+            {/* WEEKLY SUMMARY */}
+            {weeklyWatchTotals && (
+              <Card style={[styles.card, styles.dashboardCard]}>
+                <Card.Content>
+                  <Text variant="titleMedium">Weekly Watch Summary</Text>
+                  <Text>
+                    {formatMinutesToHoursMinutes(
+                      weeklyWatchTotals.totalMinutes
+                    )}
                   </Text>
-                </View>
-              </View>
-
-              {/* Divider */}
-              <View
-                style={[
-                  styles.dashboardDivider,
-                  {
-                    backgroundColor:
-                      (theme as any)?.colors?.outlineVariant ?? theme.colors.outline,
-                  },
-                ]}
-              />
-
-              {selectedDayTotals ? (
-                <>
-                  {/* TOTAL (primary metric) */}
-                  <View style={styles.dashboardTotalBlock}>
-                    <Text
-                      variant="bodySmall"
-                      style={{ color: theme.colors.onSurfaceVariant }}
-                    >
-                      TOTAL WATCH
-                    </Text>
-                    <Text
-                      variant="headlineSmall"
-                      style={[
-                        styles.dashboardTotalValue,
-                        { color: theme.colors.onSurface },
-                      ]}
-                    >
-                      {formatMinutesToHoursMinutes(selectedDayTotals.totalMinutes)}
-                    </Text>
-                  </View>
-
-                  {/* Secondary metrics */}
-                  <View style={styles.dashboardRow}>
-                    <Text
-                      style={[
-                        styles.dashboardLabel,
-                        { color: theme.colors.onSurfaceVariant },
-                      ]}
-                    >
-                      Bridge Watch
-                    </Text>
-                    <Text
-                      style={[
-                        styles.dashboardValue,
-                        { color: theme.colors.onSurface },
-                      ]}
-                    >
-                      {formatMinutesToHoursMinutes(selectedDayTotals.bridgeMinutes)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.dashboardRow}>
-                    <Text
-                      style={[
-                        styles.dashboardLabel,
-                        { color: theme.colors.onSurfaceVariant },
-                      ]}
-                    >
-                      Engine Watch
-                    </Text>
-                    <Text
-                      style={[
-                        styles.dashboardValue,
-                        { color: theme.colors.onSurface },
-                      ]}
-                    >
-                      {formatMinutesToHoursMinutes(selectedDayTotals.engineMinutes)}
-                    </Text>
-                  </View>
-                </>
-              ) : (
-                <Text
-                  variant="bodySmall"
-                  style={[
-                    styles.dashboardEmptyText,
-                    { color: theme.colors.onSurfaceVariant },
-                  ]}
-                >
-                  No watch logs recorded for this date yet.
-                </Text>
-              )}
-            </Card.Content>
-          </Card>
-
-          {/* =======================
-      WEEKLY WATCH SUMMARY (STEP 4.4)
-      Rolling 7-day window ending on selected date.
-      - STCW-style (NOT calendar week)
-      - Read-only dashboard
-      ======================= */}
-  {weeklyWatchTotals && (
-    <Card style={[styles.card, styles.dashboardCard]}>
-      <Card.Content>
-        {/* Header */}
-        <View style={{ marginBottom: 6 }}>
-          <Text
-            variant="titleMedium"
-            style={{ color: theme.colors.onSurface, fontWeight: "700" }}
-          >
-            Weekly Watch Summary
-          </Text>
-
-          <Text
-            variant="bodySmall"
-            style={{ color: theme.colors.onSurfaceVariant }}
-          >
-            {weeklyWatchTotals.startDateKey} →{" "}
-            {weeklyWatchTotals.endDateKey}
-          </Text>
-        </View>
-
-        {/* Divider */}
-        <View
-          style={[
-            styles.dashboardDivider,
-            {
-              backgroundColor:
-                (theme as any)?.colors?.outlineVariant ??
-                theme.colors.outline,
-            },
-          ]}
-        />
-
-        {/* Total */}
-        <View style={styles.dashboardTotalBlock}>
-          <Text
-            variant="bodySmall"
-            style={{ color: theme.colors.onSurfaceVariant }}
-          >
-            TOTAL WATCH (LAST 7 DAYS)
-          </Text>
-
-          <Text
-            variant="headlineSmall"
-            style={{
-              color: theme.colors.onSurface,
-              fontWeight: "800",
-              marginTop: 4,
-            }}
-          >
-            {formatMinutesToHoursMinutes(
-              weeklyWatchTotals.totalMinutes
+                </Card.Content>
+              </Card>
             )}
-          </Text>
-        </View>
 
-        {/* Bridge */}
-        <View style={styles.dashboardRow}>
-          <Text
-            style={[
-              styles.dashboardLabel,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
-          >
-            Bridge Watch
-          </Text>
-
-          <Text
-            style={[
-              styles.dashboardValue,
-              { color: theme.colors.onSurface },
-            ]}
-          >
-            {formatMinutesToHoursMinutes(
-              weeklyWatchTotals.bridgeMinutes
+            {/* STCW */}
+            {stcwCompliance && (
+              <Card style={[styles.card, styles.dashboardCard]}>
+                <Card.Content>
+                  <Text variant="titleMedium">
+                    STCW Compliance Status
+                  </Text>
+                  <Text>
+                    24h:{" "}
+                    {stcwCompliance.rest24h.compliant ? "OK" : "NOT OK"}
+                  </Text>
+                  <Text>
+                    7d:{" "}
+                    {stcwCompliance.rest7d.compliant ? "OK" : "NOT OK"}
+                  </Text>
+                </Card.Content>
+              </Card>
             )}
-          </Text>
-        </View>
+          </>
+        )}
 
-        {/* Engine */}
-        <View style={styles.dashboardRow}>
-          <Text
-            style={[
-              styles.dashboardLabel,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
+        {/* ================= LOG TAB ================= */}
+        {activeTab === "LOG" && (
+          <Card style={styles.card}>
+<Card.Content>
+  {/* ============================================================
+     PHASE D7.3.3 — LOG WATCH FORM UX CLEANUP
+     Goal: Make the form easier to understand for cadets.
+     - No DB / logic changes
+     - Only visual grouping + helper guidance
+     - Light/Dark mode supported (colors pulled from theme)
+     ============================================================ */}
+
+  {/* ---------------- SECTION: LOG TYPE ---------------- */}
+  <View style={styles.formSection}>
+    <Text
+      variant="titleSmall"
+      style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+    >
+      Log Type
+    </Text>
+
+    <Text
+      variant="bodySmall"
+      style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+    >
+      Select what you are logging. Bridge/Engine watches require time range.
+    </Text>
+
+    <View style={styles.filterRow}>
+      {(Object.keys(LOG_TYPE_LABEL) as LogType[]).map((t) => {
+        const isSelected = logType === t;
+
+        // Theme-safe chip colors (works in both light/dark mode)
+        const chipBackground = isSelected
+          ? theme.colors.primary
+          : (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface;
+
+        const chipTextColor = isSelected
+          ? theme.colors.onPrimary
+          : theme.colors.onSurface;
+
+        return (
+          <Chip
+            key={t}
+            selected={isSelected}
+            onPress={() => setLogType(t)}
+            style={[styles.chip, { backgroundColor: chipBackground }]}
+            textStyle={[styles.chipText, { color: chipTextColor }]}
           >
-            Engine Watch
-          </Text>
+            {LOG_TYPE_LABEL[t]}
+          </Chip>
+        );
+      })}
+    </View>
+  </View>
 
-          <Text
-            style={[
-              styles.dashboardValue,
-              { color: theme.colors.onSurface },
-            ]}
-          >
-            {formatMinutesToHoursMinutes(
-              weeklyWatchTotals.engineMinutes
-            )}
-          </Text>
-        </View>
-      </Card.Content>
-    </Card>
-  )}
+  {/* ---------------- SECTION: DATE ---------------- */}
+  <View style={styles.formSection}>
+    <Text
+      variant="titleSmall"
+      style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+    >
+      Date
+    </Text>
 
-  {/* =======================
-    STCW COMPLIANCE FLAGS (STEP D6.1)
-    Read-only visibility only.
-    ======================= */}
-{stcwCompliance && (
-  <Card style={[styles.card, styles.dashboardCard]}>
-    <Card.Content>
+    <Text
+      variant="bodySmall"
+      style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+    >
+      Log date (defaults to today). Use the calendar icon if needed.
+    </Text>
+
+    <DateInputField label="Date" value={date} onChange={setDate} required />
+  </View>
+
+  {/* ---------------- SECTION: TIME & WATCH (only for BRIDGE/ENGINE) ---------------- */}
+  {isTimeRequired && (
+    <View style={styles.formSection}>
       <Text
-        variant="titleMedium"
-        style={{ color: theme.colors.onSurface, fontWeight: "700" }}
+        variant="titleSmall"
+        style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
       >
-        STCW Compliance Status
+        Time & Watch
       </Text>
 
-      {/* 24-HOUR REST */}
-      <View style={styles.dashboardRow}>
-        <Text
-          style={[
-            styles.dashboardLabel,
-            { color: theme.colors.onSurfaceVariant },
-          ]}
-        >
-          24h Rest
-        </Text>
+      <Text
+        variant="bodySmall"
+        style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+      >
+        Start and End time are required for Bridge/Engine watch logs.
+      </Text>
 
-        <Text
-          style={[
-            styles.dashboardValue,
-            {
-              color: stcwCompliance.rest24h.compliant
-                ? theme.colors.primary
-                : theme.colors.error,
-              fontWeight: "700",
-            },
-          ]}
-        >
-          {stcwCompliance.rest24h.compliant ? "OK" : "NOT OK"}
-        </Text>
+      <View style={styles.timeRow}>
+        <TimeInputField
+          label="Start Time"
+          value={startTime}
+          onChange={setStartTime}
+          required
+        />
+        <View style={{ width: 12 }} />
+        <TimeInputField
+          label="End Time"
+          value={endTime}
+          onChange={setEndTime}
+          required
+        />
       </View>
+    </View>
+  )}
 
-      {/* 7-DAY REST */}
-      <View style={styles.dashboardRow}>
-        <Text
-          style={[
-            styles.dashboardLabel,
-            { color: theme.colors.onSurfaceVariant },
-          ]}
-        >
-          7-Day Rest
-        </Text>
+  {/* ---------------- SECTION: BRIDGE NAVIGATION (only for BRIDGE) ---------------- */}
+  {logType === "BRIDGE" && (
+    <View
+      style={[
+        styles.bridgeSectionCard,
+        {
+          // Theme-safe card background
+          backgroundColor:
+            (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface,
+          borderColor: theme.colors.outlineVariant ?? theme.colors.outline,
+        },
+      ]}
+    >
+      <Text
+        variant="titleSmall"
+        style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+      >
+        Position & Navigation (Bridge Watch)
+      </Text>
 
-        <Text
-          style={[
-            styles.dashboardValue,
-            {
-              color: stcwCompliance.rest7d.compliant
-                ? theme.colors.primary
-                : theme.colors.error,
-              fontWeight: "700",
-            },
-          ]}
-        >
-          {stcwCompliance.rest7d.compliant ? "OK" : "NOT OK"}
-        </Text>
-      </View>
-      {/* =======================
-    STCW COMPLIANCE DETAILS (STEP D6.2)
-    Explains WHY a status is OK / NOT OK
-    ======================= */}
+      <Text
+        variant="bodySmall"
+        style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+      >
+        Latitude, Longitude, and Course are mandatory for Bridge watch entries.
+      </Text>
 
-<View style={{ marginTop: 12 }}>
-  {/* 24-HOUR DETAILS */}
-  <Text
-    variant="bodySmall"
-    style={{
-      color: theme.colors.onSurfaceVariant,
-      fontWeight: "600",
-      marginBottom: 4,
-    }}
-  >
-    24-Hour Rest Details
-  </Text>
+      <LatLongInput
+        label="Latitude"
+        type="LAT"
+        degrees={latDeg}
+        minutes={latMin}
+        direction={latDir}
+        onChange={(v) => {
+          // Step 1: Store parsed values
+          setLatDeg(v.degrees);
+          setLatMin(v.minutes);
+          setLatDir(v.direction as any);
 
-  <Text
-    variant="bodySmall"
-    style={{ color: theme.colors.onSurfaceVariant }}
-  >
-    Watch:{" "}
-    {formatMinutesToHoursMinutes(
-      stcwCompliance.rest24h.watchMinutes
+          // Step 2: Store validity for form validation
+          setIsLatValid(v.isValid);
+        }}
+      />
+
+      <LatLongInput
+        label="Longitude"
+        type="LON"
+        degrees={lonDeg}
+        minutes={lonMin}
+        direction={lonDir}
+        onChange={(v) => {
+          // Step 1: Store parsed values
+          setLonDeg(v.degrees);
+          setLonMin(v.minutes);
+          setLonDir(v.direction as any);
+
+          // Step 2: Store validity for form validation
+          setIsLonValid(v.isValid);
+        }}
+      />
+
+      <TextInput
+        label="Course (°T)"
+        mode="outlined"
+        keyboardType="numeric"
+        value={courseDeg?.toString() ?? ""}
+        onChangeText={(t) => {
+          // Convert text to number (or null if empty/invalid)
+          const v = Number(t);
+          const next = Number.isNaN(v) ? null : v;
+
+          setCourseDeg(next);
+
+          // Valid course range: 0–359 degrees
+          if (next == null) {
+            setIsCourseValid(true);
+          } else {
+            setIsCourseValid(next >= 0 && next <= 359);
+          }
+        }}
+        error={!isCourseValid}
+        style={styles.input}
+      />
+
+      <Text
+        variant="bodySmall"
+        style={[
+          styles.inlineValidationText,
+          { color: theme.colors.onSurfaceVariant },
+        ]}
+      >
+        Valid range: 0–359
+      </Text>
+
+      <TextInput
+        label="Speed (knots)"
+        mode="outlined"
+        keyboardType="decimal-pad"
+        value={speedKn?.toString() ?? ""}
+        onChangeText={(t) => setSpeedKn(t === "" ? null : Number(t))}
+        style={styles.input}
+      />
+
+      <TextInput
+        label="Steering Time (minutes)"
+        mode="outlined"
+        keyboardType="numeric"
+        value={steeringMinutes?.toString() ?? ""}
+        onChangeText={(t) => setSteeringMinutes(t === "" ? null : Number(t))}
+        style={styles.input}
+      />
+
+      <TextInput
+        label="Weather / Visibility"
+        mode="outlined"
+        value={weather}
+        onChangeText={setWeather}
+        style={styles.input}
+      />
+
+      <TextInput
+        label="Lookout Role"
+        mode="outlined"
+        value={lookoutRole}
+        onChangeText={setLookoutRole}
+        style={styles.input}
+      />
+    </View>
+  )}
+
+  {/* ---------------- SECTION: ACTIVITY DETAILS ---------------- */}
+  <View style={styles.formSection}>
+    <Text
+      variant="titleSmall"
+      style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+    >
+      Activity Details
+    </Text>
+
+    <Text
+      variant="bodySmall"
+      style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+    >
+      Summary is mandatory. Use Remarks for extra notes if needed.
+    </Text>
+
+    <TextInput
+      label="Activity Summary"
+      mode="outlined"
+      value={summary}
+      onChangeText={setSummary}
+      multiline
+      numberOfLines={3}
+      style={styles.input}
+    />
+
+    <TextInput
+      label="Remarks (optional)"
+      mode="outlined"
+      value={remarks}
+      onChangeText={setRemarks}
+      multiline
+      numberOfLines={2}
+      style={styles.input}
+    />
+
+    {/* Inline “why Save is disabled” guidance (no alerts, no popups) */}
+    {!isFormValid && (
+      <Text
+        variant="bodySmall"
+        style={[
+          styles.formHint,
+          { color: theme.colors.onSurfaceVariant },
+        ]}
+      >
+        To enable Save: select a Date, enter Activity Summary, and for Bridge/Engine
+        logs enter Start/End time. Bridge logs also require valid Lat/Lon and Course.
+      </Text>
     )}
-    {" · "}
-    Rest:{" "}
-    {formatMinutesToHoursMinutes(
-      stcwCompliance.rest24h.restMinutes
-    )}
-    {" · "}
-    Required: 10h
-  </Text>
+  </View>
 
-  {/* 7-DAY DETAILS */}
-  <Text
-    variant="bodySmall"
-    style={{
-      color: theme.colors.onSurfaceVariant,
-      fontWeight: "600",
-      marginTop: 8,
-      marginBottom: 4,
-    }}
-  >
-    7-Day Rest Details
-  </Text>
+  {/* ---------------- SECTION: ACTIONS ---------------- */}
+  <View style={styles.actions}>
+    {editingLogId && <Button onPress={resetForm}>Cancel</Button>}
 
-  <Text
-    variant="bodySmall"
-    style={{ color: theme.colors.onSurfaceVariant }}
-  >
-    Watch:{" "}
-    {formatMinutesToHoursMinutes(
-      stcwCompliance.rest7d.watchMinutes
-    )}
-    {" · "}
-    Rest:{" "}
-    {formatMinutesToHoursMinutes(
-      stcwCompliance.rest7d.restMinutes
-    )}
-    {" · "}
-    Required: 77h
-  </Text>
-</View>
+    <Button
+      mode="contained"
+      onPress={editingLogId ? handleUpdate : handleSave}
+      disabled={!isFormValid}
+    >
+      {editingLogId ? "Update Entry" : "Save Entry"}
+    </Button>
+  </View>
+</Card.Content>
 
-    </Card.Content>
-  </Card>
+          </Card>
+        )}
+
+        {/* ================= HISTORY TAB ================= */}
+{activeTab === "HISTORY" && (
+  <>
+    <Text variant="titleMedium" style={styles.sectionTitle}>
+      Previous Logs
+    </Text>
+
+    {entries.map((e) => (
+      <Card
+        key={e.id}
+        style={[
+          styles.logCard,
+          {
+            backgroundColor:
+              (theme as any)?.colors?.elevation?.level1 ??
+              theme.colors.surface,
+          },
+        ]}
+      >
+        <Card.Content>
+          {/* Header Row */}
+          <View style={styles.logHeader}>
+            <View>
+              <Text
+                variant="titleSmall"
+                style={{ fontWeight: "700", color: theme.colors.onSurface }}
+              >
+                {LOG_TYPE_LABEL[e.type]}
+              </Text>
+
+              <Text
+                variant="bodySmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
+                {e.date.toDateString()}
+              </Text>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.iconRow}>
+              <IconButton
+                icon="pencil-outline"
+                size={20}
+                onPress={() => handleEdit(e)}
+                accessibilityLabel="Edit log"
+              />
+
+              <IconButton
+                icon="trash-can-outline"
+                size={20}
+                iconColor={theme.colors.error}
+                onPress={() => confirmDelete(e.id)}
+                accessibilityLabel="Delete log"
+              />
+            </View>
+          </View>
+
+          {/* Time Range */}
+          {e.startTime && e.endTime && (
+            <Text
+              variant="bodySmall"
+              style={{ marginTop: 6, color: theme.colors.onSurfaceVariant }}
+            >
+              {`${e.startTime.toLocaleTimeString()} – ${e.endTime.toLocaleTimeString()}`}
+            </Text>
+          )}
+
+          {/* Summary */}
+          <Text
+            style={{
+              marginTop: 8,
+              color: theme.colors.onSurface,
+              lineHeight: 20,
+            }}
+          >
+            {e.summary}
+          </Text>
+        </Card.Content>
+      </Card>
+    ))}
+  </>
 )}
 
-
-
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={styles.filterRow}>
-              {(Object.keys(LOG_TYPE_LABEL) as LogType[]).map((t) => (
-                <Chip
-                  key={t}
-                  selected={logType === t}
-                  onPress={() => setLogType(t)}
-                  style={styles.chip}
-                  textStyle={styles.chipText}
-                >
-                  {LOG_TYPE_LABEL[t]}
-                </Chip>
-              ))}
-            </View>
-
-            <DateInputField label="Date" value={date} onChange={setDate} required />
-
-            {isTimeRequired && (
-              <View style={styles.timeRow}>
-                <TimeInputField
-                  label="Start Time"
-                  value={startTime}
-                  onChange={setStartTime}
-                  required
-                />
-                <View style={{ width: 12 }} />
-                <TimeInputField
-                  label="End Time"
-                  value={endTime}
-                  onChange={setEndTime}
-                  required
-                />
-              </View>
-            )}
-
-            {logType === "BRIDGE" && (
-              <>
-                <LatLongInput
-                  label="Latitude"
-                  type="LAT"
-                  degrees={latDeg}
-                  minutes={latMin}
-                  direction={latDir}
-                  onChange={(v) => {
-                    setLatDeg(v.degrees);
-                    setLatMin(v.minutes);
-                    setLatDir(v.direction as any);
-                    setIsLatValid(v.isValid);
-                  }}
-                />
-
-                <LatLongInput
-                  label="Longitude"
-                  type="LON"
-                  degrees={lonDeg}
-                  minutes={lonMin}
-                  direction={lonDir}
-                  onChange={(v) => {
-                    setLonDeg(v.degrees);
-                    setLonMin(v.minutes);
-                    setLonDir(v.direction as any);
-                    setIsLonValid(v.isValid);
-                  }}
-                />
-
-                <TextInput
-                  label="Course (°T)"
-                  mode="outlined"
-                  keyboardType="numeric"
-                  value={courseDeg?.toString() ?? ""}
-                  onChangeText={(t) => {
-                    const v = Number(t);
-                    setCourseDeg(Number.isNaN(v) ? null : v);
-                    setIsCourseValid(v >= 0 && v <= 359);
-                  }}
-                  error={!isCourseValid}
-                  style={styles.input}
-                />
-
-                <TextInput
-                  label="Speed (knots)"
-                  mode="outlined"
-                  keyboardType="decimal-pad"
-                  value={speedKn?.toString() ?? ""}
-                  onChangeText={(t) => setSpeedKn(t === "" ? null : Number(t))}
-                  style={styles.input}
-                />
-
-                <TextInput
-                  label="Steering Time (minutes)"
-                  mode="outlined"
-                  keyboardType="numeric"
-                  value={steeringMinutes?.toString() ?? ""}
-                  onChangeText={(t) =>
-                    setSteeringMinutes(t === "" ? null : Number(t))
-                  }
-                  style={styles.input}
-                />
-
-                <TextInput
-                  label="Weather / Visibility"
-                  mode="outlined"
-                  value={weather}
-                  onChangeText={setWeather}
-                  style={styles.input}
-                />
-
-                <TextInput
-                  label="Lookout Role"
-                  mode="outlined"
-                  value={lookoutRole}
-                  onChangeText={setLookoutRole}
-                  style={styles.input}
-                />
-              </>
-            )}
-
-            <TextInput
-              label="Activity Summary"
-              mode="outlined"
-              value={summary}
-              onChangeText={setSummary}
-              multiline
-              numberOfLines={3}
-              style={styles.input}
-            />
-
-            <TextInput
-              label="Remarks (optional)"
-              mode="outlined"
-              value={remarks}
-              onChangeText={setRemarks}
-              multiline
-              numberOfLines={2}
-              style={styles.input}
-            />
-
-            <View style={styles.actions}>
-              {editingLogId && <Button onPress={resetForm}>Cancel</Button>}
-              <Button
-                mode="contained"
-                onPress={editingLogId ? handleUpdate : handleSave}
-                disabled={!isFormValid}
-              >
-                {editingLogId ? "Update Entry" : "Save Entry"}
-              </Button>
-            </View>
-          </Card.Content>
-        </Card>
-
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Previous Logs
-        </Text>
-
-        {entries.map((e) => (
-          <Card key={e.id} style={styles.logCard}>
-            <Card.Content>
-              <View style={styles.logHeader}>
-                <Text variant="titleSmall">{LOG_TYPE_LABEL[e.type]}</Text>
-                <View style={styles.iconRow}>
-                  <IconButton icon="pencil" size={18} onPress={() => handleEdit(e)} />
-                  <IconButton
-                    icon="trash-can-outline"
-                    size={18}
-                    iconColor={theme.colors.error}
-                    onPress={() => confirmDelete(e.id)}
-                  />
-                </View>
-              </View>
-
-              <Text variant="bodySmall">{e.date.toDateString()}</Text>
-
-              {e.startTime && e.endTime && (
-                <Text variant="bodySmall">
-                  {`${e.startTime.toLocaleTimeString()} – ${e.endTime.toLocaleTimeString()}`}
-                </Text>
-              )}
-
-              <Text style={{ marginTop: 6 }}>{e.summary}</Text>
-            </Card.Content>
-          </Card>
-        ))}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
+// const styles = StyleSheet.create({
+//   container: { padding: 16, paddingBottom: 40 },
+//   card: { marginBottom: 20 },
+//   filterRow: {
+//     flexDirection: "row",
+//     flexWrap: "wrap",
+//     gap: 8,
+//     marginBottom: 12,
+//   },
+//   chip: {
+//     backgroundColor: OCEAN_GREEN,
+//     borderRadius: 20,
+//   },
+//   chipText: {
+//     color: "#FFFFFF",
+//     fontWeight: "500",
+//   },
+//   timeRow: { flexDirection: "row", marginBottom: 12 },
+//   input: { marginTop: 12 },
+//   actions: {
+//     flexDirection: "row",
+//     justifyContent: "flex-end",
+//     gap: 12,
+//     marginTop: 16,
+//   },
+//   sectionTitle: {
+//     fontWeight: "600",
+//     marginBottom: 8,
+//   },
+//   logCard: {
+//     marginBottom: 12,
+//   },
+//   logHeader: {
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     alignItems: "center",
+//   },
+//   iconRow: {
+//     flexDirection: "row",
+//   },
+
+//   /* =======================
+//      DASHBOARD STYLES (STEP C.2)
+//      - Colors are NOT hard-coded here (we use theme colors inline in JSX)
+//      - These styles only control spacing/layout so they are safe in dark mode
+//      ======================= */
+//   dashboardCard: {
+//     marginTop: 12,
+//     borderRadius: 14,
+//   },
+//   dashboardHeaderRow: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     justifyContent: "space-between",
+//     marginBottom: 10,
+//   },
+//   dashboardTitle: {
+//     fontWeight: "700",
+//   },
+//   dashboardDivider: {
+//     height: 1,
+//     opacity: 0.5,
+//     marginBottom: 12,
+//   },
+//   dashboardTotalBlock: {
+//     marginBottom: 10,
+//   },
+//   dashboardTotalValue: {
+//     marginTop: 4,
+//     fontWeight: "800",
+//   },
+//   dashboardRow: {
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     alignItems: "center",
+//     paddingVertical: 6,
+//   },
+//   dashboardLabel: {
+//     fontSize: 14,
+//   },
+//   dashboardValue: {
+//     fontSize: 14,
+//     fontWeight: "700",
+//   },
+//   dashboardEmptyText: {
+//     marginTop: 4,
+//     opacity: 0.9,
+//   },
+//     /* =======================
+//      TAB BAR STYLES (PHASE D7.1)
+//      - Layout only
+//      - Colors handled by Paper Button modes
+//      ======================= */
+//   tabBar: {
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     marginTop: 12,
+//     marginBottom: 16,
+//   },
+//   tabButton: {
+//     flex: 1,
+//     marginHorizontal: 4,
+//     borderRadius: 20,
+//   },
+//   tabButtonActive: {
+//     // Visual emphasis only; theme handles colors
+//   },
+
+// });
+
+
+/* ============================================================
+   STYLES
+   ============================================================ */
+
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 40 },
-  card: { marginBottom: 20 },
+  /* =======================
+     LAYOUT
+     ======================= */
+  container: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+
+  card: {
+    marginBottom: 20,
+  },
+
+  sectionTitle: {
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+
+  logCard: {
+    marginBottom: 12,
+  },
+
+  /* =======================
+     FORM STYLES
+     (required by JSX)
+     ======================= */
   filterRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
     marginBottom: 12,
   },
+
   chip: {
     backgroundColor: OCEAN_GREEN,
     borderRadius: 20,
   },
+
   chipText: {
     color: "#FFFFFF",
     fontWeight: "500",
   },
-  timeRow: { flexDirection: "row", marginBottom: 12 },
-  input: { marginTop: 12 },
+
+  timeRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+
+  input: {
+    marginTop: 12,
+  },
+
   actions: {
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 12,
     marginTop: 16,
   },
-  sectionTitle: {
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  logCard: {
-    marginBottom: 12,
-  },
-  logHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  iconRow: {
-    flexDirection: "row",
-  },
 
   /* =======================
-     DASHBOARD STYLES (STEP C.2)
-     - Colors are NOT hard-coded here (we use theme colors inline in JSX)
-     - These styles only control spacing/layout so they are safe in dark mode
+     DASHBOARD
      ======================= */
   dashboardCard: {
     marginTop: 12,
     borderRadius: 14,
   },
+
   dashboardHeaderRow: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 10,
   },
-  dashboardTitle: {
-    fontWeight: "700",
-  },
+
   dashboardDivider: {
     height: 1,
     opacity: 0.5,
     marginBottom: 12,
   },
+
   dashboardTotalBlock: {
     marginBottom: 10,
   },
-  dashboardTotalValue: {
-    marginTop: 4,
-    fontWeight: "800",
-  },
+
   dashboardRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 6,
   },
-  dashboardLabel: {
-    fontSize: 14,
+
+  /* =======================
+     TAB BAR
+     ======================= */
+  tabBar: {
+    flexDirection: "row",
+    marginVertical: 16,
   },
-  dashboardValue: {
-    fontSize: 14,
+
+  tabButton: {
+    flex: 1,
+    marginHorizontal: 4,
+    borderRadius: 20,
+  },
+    /* =======================
+     HISTORY LOG STYLES (D7.3.2)
+     Restores edit/delete layout
+     ======================= */
+
+  logHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  iconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  /* ============================================================
+     PHASE D7.3.3 — LOG FORM UX HELPERS
+     These styles are layout-only and theme-safe.
+     No hard-coded colors here.
+     ============================================================ */
+
+  formSection: {
+    marginBottom: 20,
+  },
+
+  sectionHeader: {
     fontWeight: "700",
+    marginBottom: 4,
   },
-  dashboardEmptyText: {
+
+  helperText: {
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+
+  formHint: {
+    marginTop: 8,
+    fontStyle: "italic",
+    lineHeight: 18,
+  },
+
+  inlineValidationText: {
     marginTop: 4,
-    opacity: 0.9,
+    fontSize: 12,
   },
+
+  bridgeSectionCard: {
+    marginTop: 8,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+
 });
