@@ -6,6 +6,7 @@ import { useTheme } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import HomeScreen from "../screens/HomeScreen";
+import SeaServiceScreen from "../screens/SeaServiceScreen";
 import TaskListScreen from "../screens/TaskListScreen";
 import DailyScreen from "../screens/DailyScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -16,8 +17,6 @@ const Tab = createBottomTabNavigator();
 function TaskListTab(props: any) {
   return <TaskListScreen {...props} />;
 }
-
-
 
 export default function BottomTabNavigator() {
   const theme = useTheme();
@@ -39,6 +38,21 @@ export default function BottomTabNavigator() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="home" color={color} size={size} />
+          ),
+        }}
+      />
+
+      <Tab.Screen
+        name="SeaService"
+        component={SeaServiceScreen}
+        options={{
+          title: "Sea Service",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons
+              name="ship-wheel"
+              color={color}
+              size={size}
+            />
           ),
         }}
       />

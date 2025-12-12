@@ -1,6 +1,12 @@
 //keel-mobile/src/auth/AuthContext.tsx
 
-import React, { createContext, useState, useEffect, ReactNode, useContext } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useContext,
+} from "react";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import api from "../services/api";
@@ -10,6 +16,8 @@ interface User {
   name: string;
   email: string;
 }
+
+type ThemeMode = "light" | "dark";
 
 interface AuthContextType {
   user: User | null;
@@ -26,6 +34,9 @@ interface AuthContextType {
 
   markBiometricPromptSeen: () => Promise<void>;
 
+  themeMode: ThemeMode;
+  toggleTheme: () => Promise<void>;
+
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 
@@ -37,7 +48,9 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
   return context;
 };
 
@@ -49,8 +62,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [biometricPromptSeen, setBiometricPromptSeen] = useState(false);
 
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
-
   const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
+
+  const [themeMode, setThemeMode] = useState<ThemeMode>("light");
 
   useEffect(() => {
     restoreSession();
@@ -66,11 +80,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const onboarding = await SecureStore.getItemAsync("onboardingCompleted");
     const welcome = await SecureStore.getItemAsync("hasSeenWelcome");
 
+    const storedTheme = await SecureStore.getItemAsync("themeMode");
+
     setBiometricEnabled(bio === "true");
     setBiometricPromptSeen(bioSeen === "true");
 
     setOnboardingCompleted(onboarding === "true");
     setHasSeenWelcome(welcome === "true");
+
+    if (storedTheme === "dark" || storedTheme === "light") {
+      setThemeMode(storedTheme);
+    }
 
     if (token && storedUser) {
       setUser(JSON.parse(storedUser));
@@ -92,6 +112,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const markOnboardingCompleted = async () => {
     await SecureStore.setItemAsync("onboardingCompleted", "true");
     setOnboardingCompleted(true);
+  };
+
+  const toggleTheme = async () => {
+    const nextTheme: ThemeMode = themeMode === "light" ? "dark" : "light";
+    await SecureStore.setItemAsync("themeMode", nextTheme);
+    setThemeMode(nextTheme);
   };
 
   const login = async (email: string, password: string) => {
@@ -149,6 +175,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setHasSeenWelcome: markWelcomeSeen,
 
         markBiometricPromptSeen,
+
+        themeMode,
+        toggleTheme,
 
         login,
         logout,

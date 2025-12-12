@@ -1,16 +1,29 @@
-// App.tsx
+//keel-mobile/App.tsx
+
 import React from "react";
 import { Provider as PaperProvider } from "react-native-paper";
-import { AuthProvider } from "./src/auth/AuthContext";
+
+import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import AppNavigator from "./src/navigation/AppNavigator";
-import { keelLightTheme } from "./src/theme/keelTheme";
+import { keelLightTheme, keelDarkTheme } from "./src/theme/keelTheme";
+
+function ThemedApp() {
+  const { themeMode } = useAuth();
+
+  const theme =
+    themeMode === "dark" ? keelDarkTheme : keelLightTheme;
+
+  return (
+    <PaperProvider theme={theme}>
+      <AppNavigator />
+    </PaperProvider>
+  );
+}
 
 export default function App() {
   return (
-    <PaperProvider theme={keelLightTheme}>
-      <AuthProvider>
-        <AppNavigator />
-      </AuthProvider>
-    </PaperProvider>
+    <AuthProvider>
+      <ThemedApp />
+    </AuthProvider>
   );
 }
