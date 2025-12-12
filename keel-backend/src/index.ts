@@ -1,3 +1,5 @@
+//keel-backend/src/index.ts
+console.log("🔥 KEEL BACKEND STARTED FROM SRC 🔥");
 import express, { Application } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -22,8 +24,15 @@ import familiarisationSectionSubmitRoutes from "./routes/familiarisationSectionS
 
 dotenv.config();
 
-import { sequelize } from "./models/index.js";
+import sequelize from "./config/database.js";
 import Role from "./models/Role.js";
+import User from "./models/User.js";
+
+// Associations
+User.belongsTo(Role, { foreignKey: "role_id", as: "role" });
+Role.hasMany(User, { foreignKey: "role_id" });
+
+export { User, Role };
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
@@ -74,6 +83,8 @@ sequelize
   .sync({ alter: true })
   .then(async () => {
     console.log("🟢 Database connected + models synced");
+    console.log("🔍 DB NAME:", process.env.DB_NAME);
+    console.log("🔍 DB HOST:", process.env.DB_HOST);
 
     // ENSURE ROLES EXIST
     await seedRoles();

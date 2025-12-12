@@ -87,6 +87,7 @@ User.init(
     sequelize,
     modelName: "User",
     tableName: "users",
+    schema: "public",
     timestamps: true,
   }
 );

@@ -1,3 +1,4 @@
+//keel-backend/src/controllers/auth.controller.ts
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import Role from "../models/Role.js";
@@ -73,7 +74,10 @@ class AuthController {
 
   // 2) Login (all roles: CADET, CTO, MASTER, SHORE, ADMIN)
   static async login(req: Request, res: Response) {
+    console.log("🔥 LOGIN CONTROLLER HIT 🔥");
     try {
+      console.log("REQ BODY:", req.body);
+
       const { email, password } = req.body;
 
       if (!email || !password) {
@@ -91,10 +95,15 @@ class AuthController {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
+      console.log("LOGIN EMAIL:", email);
+      console.log("LOGIN HASH FROM DB:", user.get("password_hash"));
+
       const valid = await bcrypt.compare(
         password,
         user.get("password_hash") as string
       );
+
+      console.log("PASSWORD MATCH RESULT:", valid);
 
       if (!valid) {
         return res.status(401).json({ message: "Invalid credentials" });
