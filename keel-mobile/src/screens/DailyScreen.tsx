@@ -19,6 +19,7 @@ import {
   Checkbox,
   useTheme,
 } from "react-native-paper";
+import Toast from "react-native-toast-message";
 
 import DateInputField from "../components/inputs/DateInputField";
 import TimeInputField from "../components/inputs/TimeInputField";
@@ -282,6 +283,8 @@ export default function DailyScreen() {
      ======================= */
 
   useEffect(() => {
+    // 🚫 Do not auto-reset fields when editing an existing entry
+    if (editingLogId) return;
     if (logType !== "BRIDGE") {
       setLatDeg(null);
       setLatMin(null);
@@ -300,21 +303,32 @@ export default function DailyScreen() {
       setWeather("");
       setLookoutRole("");
     }
-  }, [logType]);
+  }, [logType, editingLogId]);
 
-  /* =======================
-     RESET
-     ======================= */
+/**
+ * resetForm
+ * ---------
+ * Resets the form back to "new entry" mode.
+ * This MUST NOT be called when entering edit mode.
+ */
+const resetForm = () => {
+  // Exit edit mode
+  setEditingLogId(null);
 
-  const resetForm = () => {
-    setEditingLogId(null);
-    setLogType("DAILY");
-    setDate(today);
-    setStartTime(null);
-    setEndTime(null);
-    setSummary("");
-    setRemarks("");
-  };
+  // Reset form fields for a NEW entry only
+  setLogType("DAILY");
+  setDate(today);
+  setStartTime(null);
+  setEndTime(null);
+  setSummary("");
+  setRemarks("");
+
+  // Reset Bridge validity safely
+  setIsLatValid(true);
+  setIsLonValid(true);
+  setIsCourseValid(true);
+};
+
 
   /* =======================
      CRUD
@@ -346,6 +360,43 @@ export default function DailyScreen() {
       lookoutRole: lookoutRole || null,
     });
 
+        /**
+     * STCW PREVIEW CALCULATION (CRITICAL)
+     * ----------------------------------
+     * We create a temporary preview list that includes
+     * the log being saved, because `entries` has not
+     * updated yet at this point.
+     */
+
+    const previewEntries = [
+      {
+        id,
+        date: date!,
+        type: logType,
+        startTime: startTime ?? undefined,
+        endTime: endTime ?? undefined,
+        summary,
+        remarks,
+        latDeg,
+        latMin,
+        latDir,
+        lonDeg,
+        lonMin,
+        lonDir,
+        courseDeg,
+        speedKn,
+        weather,
+        steeringMinutes,
+        lookoutRole,
+      },
+      ...entries,
+    ];
+
+    const previewStcwCompliance = checkStcwCompliance(
+      previewEntries,
+      date!
+    );
+
     setEntries((p) => [
       {
         id,
@@ -369,35 +420,211 @@ export default function DailyScreen() {
       },
       ...p,
     ]);
+        // Success feedback (non-blocking, mobile UX standard)
+    Toast.show({
+      type: "success",
+      text1: "Log entry saved",
+      text2: "Your watch entry has been recorded successfully.",
+      position: "bottom",
+    });
+        /**
+     * Advisory toasts
+     * ----------------
+     * These are delayed intentionally to avoid overlap.
+     * This guarantees clear visibility on all mobile devices.
+     */
+
+    // ENGINE-specific advisories
+    if (logType === "ENGINE") {
+      // Engine running OFF → machinery skipped
+      if (!engineRunning) {
+        setTimeout(() => {
+          Toast.show({
+            type: "info",
+            text1: "Engine not running",
+            text2: "Machinery status was skipped for this watch.",
+            position: "bottom",
+          });
+        }, 500);
+      }
+
+      // Engine parameters provided (optional)
+      if (engineLoadPercent != null || engineRpmRange || fuelType) {
+        setTimeout(() => {
+          Toast.show({
+            type: "info",
+            text1: "Engine parameters recorded",
+            text2: "Optional engine parameters were saved.",
+            position: "bottom",
+          });
+        }, 1000);
+      }
+    }
+
+    // BRIDGE-specific advisory
+    if (logType === "BRIDGE" && !weather) {
+      setTimeout(() => {
+        Toast.show({
+          type: "info",
+          text1: "Weather not recorded",
+          text2: "Weather / visibility was left blank.",
+          position: "bottom",
+        });
+      }, 500);
+    }
+    /**
+     * STCW ADVISORY TOASTS (NON-BLOCKING)
+     * ---------------------------------
+     * - Uses existing utilities only
+     * - Informational / warning only
+     * - Sequential delays to avoid overlap
+     * - Never blocks Save
+     */
+
+    // --- STCW 24-hour rest advisory ---
+    if (previewStcwCompliance && !previewStcwCompliance.rest24h.compliant) {
+      setTimeout(() => {
+        Toast.show({
+          type: "info",
+          text1: "24-hour rest advisory",
+          text2:
+            "Rest in the last 24 hours may be below STCW guidance. Monitor upcoming watches.",
+          position: "bottom",
+        });
+      }, 1500);
+    }
+
+    // --- STCW 7-day rest advisory ---
+    if (stcwCompliance && !stcwCompliance.rest7d.compliant) {
+      setTimeout(() => {
+        Toast.show({
+          type: "info",
+          text1: "7-day rest advisory",
+          text2:
+            "Weekly rest may be insufficient. Review watch distribution.",
+          position: "bottom",
+        });
+      }, 2000);
+    }
+
+    // --- High daily watch load (awareness only) ---
+    if (
+      selectedDayTotals &&
+      selectedDayTotals.totalMinutes >= 600 // ≥ 10 hours (advisory, not enforcement)
+    ) {
+      setTimeout(() => {
+        Toast.show({
+          type: "info",
+          text1: "High daily watch load",
+          text2:
+            "High total watch hours recorded for this day.",
+          position: "bottom",
+        });
+      }, 2500);
+    }
+
+    // --- Weekly watch trend (awareness only) ---
+    if (
+      weeklyWatchTotals &&
+      weeklyWatchTotals.totalMinutes >= 3600 // ≥ 60 hours (trend awareness)
+    ) {
+      setTimeout(() => {
+        Toast.show({
+          type: "info",
+          text1: "Weekly watch trend",
+          text2:
+            "Watch hours are trending high this week.",
+          position: "bottom",
+        });
+      }, 3000);
+    }
+
 
     resetForm();
   };
 
-  const handleEdit = (log: DailyLogEntry) => {
-    setEditingLogId(log.id);
-    setLogType(log.type);
-    setDate(log.date);
-    setStartTime(log.startTime ?? null);
-    setEndTime(log.endTime ?? null);
-    setSummary(log.summary);
-    setRemarks(log.remarks ?? "");
-    setLatDeg(log.latDeg ?? null);
-    setLatMin(log.latMin ?? null);
-    setLatDir(log.latDir ?? "N");
-    setIsLatValid(log.latDeg != null && log.latMin != null);
-    setLonDeg(log.lonDeg ?? null);
-    setLonMin(log.lonMin ?? null);
-    setLonDir(log.lonDir ?? "E");
-    setIsLonValid(log.lonDeg != null && log.lonMin != null);
-    setCourseDeg(log.courseDeg ?? null);
-    setIsCourseValid(
-      log.courseDeg == null || (log.courseDeg >= 0 && log.courseDeg <= 359)
-    );
-    setSpeedKn(log.speedKn ?? null);
-    setSteeringMinutes(log.steeringMinutes ?? null);
-    setWeather(log.weather ?? "");
-    setLookoutRole(log.lookoutRole ?? "");
-  };
+    /**
+     * handleEdit
+     * ----------
+     * Loads an existing log entry into the LOG form.
+     * Also shows a diagnostic toast so we can confirm what data is received.
+     */
+    const handleEdit = (entry: DailyLogEntry) => {
+    // 1️⃣ Switch to LOG tab
+    setActiveTab("LOG");
+
+    // 2️⃣ Mark edit mode
+    setEditingLogId(entry.id);
+
+    // 3️⃣ Common fields
+    setLogType(entry.type);
+    setDate(entry.date);
+    setStartTime(entry.startTime ?? null);
+    setEndTime(entry.endTime ?? null);
+    setSummary(entry.summary ?? ""); // safety
+    setRemarks(entry.remarks ?? "");
+
+    // 4️⃣ Bridge fields (hydration + validity)
+    if (entry.type === "BRIDGE") {
+        setLatDeg(entry.latDeg ?? null);
+        setLatMin(entry.latMin ?? null);
+        setLatDir((entry.latDir as any) ?? "N");
+
+        setLonDeg(entry.lonDeg ?? null);
+        setLonMin(entry.lonMin ?? null);
+        setLonDir((entry.lonDir as any) ?? "E");
+
+        setCourseDeg(entry.courseDeg ?? null);
+        setSpeedKn(entry.speedKn ?? null);
+        setWeather((entry.weather as any) ?? "");
+        setSteeringMinutes(entry.steeringMinutes ?? null);
+        setLookoutRole((entry.lookoutRole as any) ?? "");
+
+        // IMPORTANT:
+        // For edit mode, we mark these valid so the user can update without fighting validation.
+        setIsLatValid(true);
+        setIsLonValid(true);
+        setIsCourseValid(true);
+    } else {
+        // Reset Bridge-only state if not Bridge
+        setLatDeg(null);
+        setLatMin(null);
+        setLatDir("N");
+        setLonDeg(null);
+        setLonMin(null);
+        setLonDir("E");
+        setCourseDeg(null);
+        setSpeedKn(null);
+        setSteeringMinutes(null);
+        setWeather("");
+        setLookoutRole("");
+
+        setIsLatValid(true);
+        setIsLonValid(true);
+        setIsCourseValid(true);
+    }
+
+    // 5️⃣ Engine UI state (restore or reset)
+    if (entry.type === "ENGINE") {
+        // Keep engine UI visible when editing Engine logs
+        setEngineRunning(true);
+    } else {
+        setEngineRunning(false);
+        setManoeuvring(false);
+        setEngineWatchType(null);
+    }
+
+    // 6️⃣ DIAGNOSTIC TOAST (TEMPORARY)
+    // This confirms whether the entry passed into handleEdit actually contains data.
+    Toast.show({
+        type: "info",
+        text1: "Edit diagnostic",
+        text2: `type=${entry.type} | summaryLen=${(entry.summary ?? "").length} | start=${entry.startTime ? "Y" : "N"} | end=${entry.endTime ? "Y" : "N"} | remarksLen=${(entry.remarks ?? "").length}`,
+        position: "bottom",
+    });
+    };
+
+
 
   const handleUpdate = () => {
     if (!editingLogId || !isFormValid) return;
@@ -428,6 +655,13 @@ export default function DailyScreen() {
         e.id === editingLogId ? { ...e, ...arguments[0] } : e
       )
     );
+        // Success feedback for update
+    Toast.show({
+      type: "success",
+      text1: "Log entry updated",
+      text2: "Changes have been saved.",
+      position: "bottom",
+    });
 
     resetForm();
   };
@@ -441,6 +675,14 @@ export default function DailyScreen() {
         onPress: () => {
           deleteDailyLogById(id);
           setEntries((p) => p.filter((e) => e.id !== id));
+
+            // Success feedback for delete
+            Toast.show({
+                type: "success",
+                text1: "Log entry deleted",
+                text2: "The selected entry has been removed.",
+                position: "bottom",
+            });
         },
       },
     ]);
@@ -888,6 +1130,210 @@ export default function DailyScreen() {
               </View>
             )}
 
+{/* ---------------- SECTION: ENGINE PARAMETERS (ACCORDION, OPTIONAL) ---------------- */}
+{logType === "ENGINE" && engineRunning && (
+  <View
+    style={[
+      styles.bridgeSectionCard,
+      {
+        backgroundColor:
+          (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface,
+        borderColor: theme.colors.outlineVariant ?? theme.colors.outline,
+      },
+    ]}
+  >
+    {/* Accordion Header */}
+    <View style={styles.accordionHeaderRow}>
+      <View>
+        <Text
+          variant="titleSmall"
+          style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
+        >
+          Engine Parameters (Optional)
+        </Text>
+
+        <Text
+          variant="bodySmall"
+          style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
+        >
+          Add quick operational parameters without typing.
+        </Text>
+      </View>
+
+      <IconButton
+        icon={engineLoadPercent != null || engineRpmRange || fuelType
+          ? "chevron-up"
+          : "chevron-down"}
+        onPress={() => {
+          // Helper behavior:
+          // If any parameter is set, we treat the accordion as “open” visually by showing the up icon.
+          // If nothing is set, we show down icon. This avoids adding extra state variable.
+          //
+          // Tapping the icon toggles between:
+          // - Clearing values (collapse)
+          // - Setting a default “open” value placeholder (expand)
+          //
+          // NOTE: This is UI-only; you can adjust later if you want a dedicated open/close state.
+          const isOpen = engineLoadPercent != null || engineRpmRange || fuelType;
+          if (isOpen) {
+            setEngineLoadPercent(null);
+            setEngineRpmRange(null);
+            setFuelType(null);
+            setGeneratorsLoadBalanced(true);
+          } else {
+            // Opening: set a safe default slider midpoint so the controls appear
+            setEngineLoadPercent(50);
+          }
+        }}
+      />
+    </View>
+
+    {/* Accordion Content:
+       We show content when any value is present (including default 50 on open). */}
+    {(engineLoadPercent != null || engineRpmRange || fuelType) && (
+      <>
+        {/* --- Load Percent (Slider substitute: tap-based quick chips) --- */}
+        <Text
+          variant="labelMedium"
+          style={{ marginTop: 6, color: theme.colors.onSurface }}
+        >
+          Main Engine Load
+        </Text>
+
+        <View style={styles.filterRow}>
+          {[
+            { label: "Low (0–30%)", value: 20 },
+            { label: "Med (31–70%)", value: 50 },
+            { label: "High (71–100%)", value: 85 },
+          ].map((opt) => {
+            const selected = engineLoadPercent === opt.value;
+
+            return (
+              <Chip
+                key={opt.label}
+                selected={selected}
+                onPress={() => setEngineLoadPercent(opt.value)}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: selected
+                      ? theme.colors.primary
+                      : (theme as any)?.colors?.elevation?.level1 ??
+                        theme.colors.surface,
+                  },
+                ]}
+                textStyle={{
+                  color: selected
+                    ? theme.colors.onPrimary
+                    : theme.colors.onSurface,
+                }}
+              >
+                {opt.label}
+              </Chip>
+            );
+          })}
+        </View>
+
+        {/* --- RPM Range --- */}
+        <Text
+          variant="labelMedium"
+          style={{ marginTop: 4, color: theme.colors.onSurface }}
+        >
+          RPM Range
+        </Text>
+
+        <View style={styles.filterRow}>
+          {[
+            { key: "LOW", label: "Low" },
+            { key: "MEDIUM", label: "Medium" },
+            { key: "HIGH", label: "High" },
+          ].map((opt) => {
+            const selected = engineRpmRange === opt.key;
+
+            return (
+              <Chip
+                key={opt.key}
+                selected={selected}
+                onPress={() => setEngineRpmRange(opt.key as any)}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: selected
+                      ? theme.colors.primary
+                      : (theme as any)?.colors?.elevation?.level1 ??
+                        theme.colors.surface,
+                  },
+                ]}
+                textStyle={{
+                  color: selected
+                    ? theme.colors.onPrimary
+                    : theme.colors.onSurface,
+                }}
+              >
+                {opt.label}
+              </Chip>
+            );
+          })}
+        </View>
+
+        {/* --- Fuel Type --- */}
+        <Text
+          variant="labelMedium"
+          style={{ marginTop: 4, color: theme.colors.onSurface }}
+        >
+          Fuel Type
+        </Text>
+
+        <View style={styles.filterRow}>
+          {[
+            { key: "HFO", label: "HFO" },
+            { key: "MGO", label: "MGO" },
+            { key: "LSFO", label: "LSFO" },
+            { key: "OTHER", label: "Other" },
+          ].map((opt) => {
+            const selected = fuelType === opt.key;
+
+            return (
+              <Chip
+                key={opt.key}
+                selected={selected}
+                onPress={() => setFuelType(opt.key as any)}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: selected
+                      ? theme.colors.primary
+                      : (theme as any)?.colors?.elevation?.level1 ??
+                        theme.colors.surface,
+                  },
+                ]}
+                textStyle={{
+                  color: selected
+                    ? theme.colors.onPrimary
+                    : theme.colors.onSurface,
+                }}
+              >
+                {opt.label}
+              </Chip>
+            );
+          })}
+        </View>
+
+        {/* --- Generator Load Balanced --- */}
+        <View style={[styles.checkRow, { marginTop: 6 }]}>
+          <Text style={{ color: theme.colors.onSurface }}>
+            Generators Load Balanced
+          </Text>
+
+          <Checkbox
+            status={generatorsLoadBalanced ? "checked" : "unchecked"}
+            onPress={() => setGeneratorsLoadBalanced((p) => !p)}
+          />
+        </View>
+      </>
+    )}
+  </View>
+)}
 
 
               {/* ---------------- SECTION: BRIDGE NAVIGATION (only for BRIDGE) ---------------- */}
@@ -918,6 +1364,7 @@ export default function DailyScreen() {
                   </Text>
 
                   <LatLongInput
+                    key={`lat-${editingLogId ?? "new"}`}
                     label="Latitude"
                     type="LAT"
                     degrees={latDeg}
@@ -935,6 +1382,7 @@ export default function DailyScreen() {
                   />
 
                   <LatLongInput
+                    key={`lon-${editingLogId ?? "new"}`}
                     label="Longitude"
                     type="LON"
                     degrees={lonDeg}
@@ -1065,8 +1513,14 @@ export default function DailyScreen() {
                       { color: theme.colors.onSurfaceVariant },
                     ]}
                   >
-                    To enable Save: select a Date, enter Activity Summary, and for Bridge/Engine
-                    logs enter Start/End time. Bridge logs also require valid Lat/Lon and Course.
+                    To enable Save, please complete the following:
+                    {!date && "\n• Select a Date"}
+                    {summary.trim().length === 0 && "\n• Enter Activity Summary"}
+                    {isTimeRequired && (!startTime || !endTime) && "\n• Enter Start and End Time"}
+                    {logType === "BRIDGE" && !isLatValid && "\n• Enter valid Latitude"}
+                    {logType === "BRIDGE" && !isLonValid && "\n• Enter valid Longitude"}
+                    {logType === "BRIDGE" && !isCourseValid && "\n• Enter valid Course (0–359)"}
+
                   </Text>
                 )}
               </View>
@@ -1088,203 +1542,92 @@ export default function DailyScreen() {
         )}
 
         {/* ================= HISTORY TAB ================= */}
-{activeTab === "HISTORY" && (
-  <>
-    <Text variant="titleMedium" style={styles.sectionTitle}>
-      Previous Logs
-    </Text>
-
-    {entries.map((e) => (
-      <Card
-        key={e.id}
-        style={[
-          styles.logCard,
-          {
-            backgroundColor:
-              (theme as any)?.colors?.elevation?.level1 ??
-              theme.colors.surface,
-          },
-        ]}
-      >
-        <Card.Content>
-          {/* Header Row */}
-          <View style={styles.logHeader}>
-            <View>
-              <Text
-                variant="titleSmall"
-                style={{ fontWeight: "700", color: theme.colors.onSurface }}
-              >
-                {LOG_TYPE_LABEL[e.type]}
-              </Text>
-
-              <Text
-                variant="bodySmall"
-                style={{ color: theme.colors.onSurfaceVariant }}
-              >
-                {e.date.toDateString()}
-              </Text>
-            </View>
-
-            {/* Actions */}
-            <View style={styles.iconRow}>
-              <IconButton
-                icon="pencil-outline"
-                size={20}
-                onPress={() => handleEdit(e)}
-                accessibilityLabel="Edit log"
-              />
-
-              <IconButton
-                icon="trash-can-outline"
-                size={20}
-                iconColor={theme.colors.error}
-                onPress={() => confirmDelete(e.id)}
-                accessibilityLabel="Delete log"
-              />
-            </View>
-          </View>
-
-          {/* Time Range */}
-          {e.startTime && e.endTime && (
-            <Text
-              variant="bodySmall"
-              style={{ marginTop: 6, color: theme.colors.onSurfaceVariant }}
-            >
-              {`${e.startTime.toLocaleTimeString()} – ${e.endTime.toLocaleTimeString()}`}
+        {activeTab === "HISTORY" && (
+        <>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+            Previous Logs
             </Text>
-          )}
 
-          {/* Summary */}
-          <Text
-            style={{
-              marginTop: 8,
-              color: theme.colors.onSurface,
-              lineHeight: 20,
-            }}
-          >
-            {e.summary}
-          </Text>
-        </Card.Content>
-      </Card>
-    ))}
-  </>
-)}
+            {entries.map((e) => (
+            <Card
+                key={e.id}
+                style={[
+                styles.logCard,
+                {
+                    backgroundColor:
+                    (theme as any)?.colors?.elevation?.level1 ??
+                    theme.colors.surface,
+                },
+                ]}
+            >
+                <Card.Content>
+                {/* Header Row */}
+                <View style={styles.logHeader}>
+                    <View>
+                    <Text
+                        variant="titleSmall"
+                        style={{ fontWeight: "700", color: theme.colors.onSurface }}
+                    >
+                        {LOG_TYPE_LABEL[e.type]}
+                    </Text>
+
+                    <Text
+                        variant="bodySmall"
+                        style={{ color: theme.colors.onSurfaceVariant }}
+                    >
+                        {e.date.toDateString()}
+                    </Text>
+                    </View>
+
+                    {/* Actions */}
+                    <View style={styles.iconRow}>
+                    <IconButton
+                        icon="pencil-outline"
+                        size={20}
+                        onPress={() => handleEdit(e)}
+                        accessibilityLabel="Edit log"
+                    />
+
+                    <IconButton
+                        icon="trash-can-outline"
+                        size={20}
+                        iconColor={theme.colors.error}
+                        onPress={() => confirmDelete(e.id)}
+                        accessibilityLabel="Delete log"
+                    />
+                    </View>
+                </View>
+
+                {/* Time Range */}
+                {e.startTime && e.endTime && (
+                    <Text
+                    variant="bodySmall"
+                    style={{ marginTop: 6, color: theme.colors.onSurfaceVariant }}
+                    >
+                    {`${e.startTime.toLocaleTimeString()} – ${e.endTime.toLocaleTimeString()}`}
+                    </Text>
+                )}
+
+                {/* Summary */}
+                <Text
+                    style={{
+                    marginTop: 8,
+                    color: theme.colors.onSurface,
+                    lineHeight: 20,
+                    }}
+                >
+                    {e.summary}
+                </Text>
+                </Card.Content>
+            </Card>
+            ))}
+        </>
+        )}
 
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-// const styles = StyleSheet.create({
-//   container: { padding: 16, paddingBottom: 40 },
-//   card: { marginBottom: 20 },
-//   filterRow: {
-//     flexDirection: "row",
-//     flexWrap: "wrap",
-//     gap: 8,
-//     marginBottom: 12,
-//   },
-//   chip: {
-//     backgroundColor: OCEAN_GREEN,
-//     borderRadius: 20,
-//   },
-//   chipText: {
-//     color: "#FFFFFF",
-//     fontWeight: "500",
-//   },
-//   timeRow: { flexDirection: "row", marginBottom: 12 },
-//   input: { marginTop: 12 },
-//   actions: {
-//     flexDirection: "row",
-//     justifyContent: "flex-end",
-//     gap: 12,
-//     marginTop: 16,
-//   },
-//   sectionTitle: {
-//     fontWeight: "600",
-//     marginBottom: 8,
-//   },
-//   logCard: {
-//     marginBottom: 12,
-//   },
-//   logHeader: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//   },
-//   iconRow: {
-//     flexDirection: "row",
-//   },
-
-//   /* =======================
-//      DASHBOARD STYLES (STEP C.2)
-//      - Colors are NOT hard-coded here (we use theme colors inline in JSX)
-//      - These styles only control spacing/layout so they are safe in dark mode
-//      ======================= */
-//   dashboardCard: {
-//     marginTop: 12,
-//     borderRadius: 14,
-//   },
-//   dashboardHeaderRow: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     justifyContent: "space-between",
-//     marginBottom: 10,
-//   },
-//   dashboardTitle: {
-//     fontWeight: "700",
-//   },
-//   dashboardDivider: {
-//     height: 1,
-//     opacity: 0.5,
-//     marginBottom: 12,
-//   },
-//   dashboardTotalBlock: {
-//     marginBottom: 10,
-//   },
-//   dashboardTotalValue: {
-//     marginTop: 4,
-//     fontWeight: "800",
-//   },
-//   dashboardRow: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     paddingVertical: 6,
-//   },
-//   dashboardLabel: {
-//     fontSize: 14,
-//   },
-//   dashboardValue: {
-//     fontSize: 14,
-//     fontWeight: "700",
-//   },
-//   dashboardEmptyText: {
-//     marginTop: 4,
-//     opacity: 0.9,
-//   },
-//     /* =======================
-//      TAB BAR STYLES (PHASE D7.1)
-//      - Layout only
-//      - Colors handled by Paper Button modes
-//      ======================= */
-//   tabBar: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     marginTop: 12,
-//     marginBottom: 16,
-//   },
-//   tabButton: {
-//     flex: 1,
-//     marginHorizontal: 4,
-//     borderRadius: 20,
-//   },
-//   tabButtonActive: {
-//     // Visual emphasis only; theme handles colors
-//   },
-
-// });
-
 
 /* ============================================================
    STYLES
@@ -1454,6 +1797,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 4,
   },
-
+  accordionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
 
 });
