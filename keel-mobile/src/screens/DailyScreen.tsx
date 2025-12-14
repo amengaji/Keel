@@ -61,6 +61,13 @@ type DailyLogEntry = {
   weather?: string | null;
   steeringMinutes?: number | null;
   lookoutRole?: string | null;
+
+    /**
+   * ENGINE WATCH PAYLOAD (JSON)
+   * Stored in SQLite column: machinery_monitored
+   * We keep it as a string here and parse it only when needed (edit mode).
+   */
+  machineryMonitored?: string | null;
 };
 
 const LOG_TYPE_LABEL: Record<LogType, string> = {
@@ -95,6 +102,45 @@ export default function DailyScreen() {
   /* =======================
      HELPERS
      ======================= */
+
+/**
+ * buildEngineSummaryText
+ * ----------------------
+ * Converts machineryMonitored JSON into a human-readable summary.
+ * Used ONLY in History cards (read-only).
+ */
+const buildEngineSummaryText = (payloadJson?: string | null): string | null => {
+  if (!payloadJson) return null;
+
+  try {
+    const p = JSON.parse(payloadJson);
+
+    const parts: string[] = [];
+
+    if (p.engineWatchType) parts.push(p.engineWatchType);
+    if (p.engineRunning) parts.push("Engine Running");
+    if (p.manoeuvring) parts.push("Manoeuvring");
+
+    if (p.generatorsRunning) {
+      const gens = Object.entries(p.generatorsRunning)
+        .filter(([_, v]) => v)
+        .map(([k]) => k);
+      if (gens.length) parts.push(`DG: ${gens.join(", ")}`);
+    }
+
+    if (p.engineLoadPercent != null) {
+      parts.push(`Load ${p.engineLoadPercent}%`);
+    }
+
+    if (p.fuelType) parts.push(`Fuel ${p.fuelType}`);
+
+    return parts.join(" • ");
+  } catch {
+    return null;
+  }
+};
+
+  
 
   /**
    * Converts minutes into a friendly "Xh Ym" string.
@@ -135,6 +181,9 @@ export default function DailyScreen() {
         weather: l.weather ?? null,
         steeringMinutes: l.steeringMinutes ?? null,
         lookoutRole: l.lookoutRole ?? null,
+
+        machineryMonitored: (l as any).machineryMonitored ?? null,
+
       }))
     );
   }, []);
@@ -320,14 +369,66 @@ const resetForm = () => {
   setDate(today);
   setStartTime(null);
   setEndTime(null);
+
   setSummary("");
   setRemarks("");
 
-  // Reset Bridge validity safely
-  setIsLatValid(true);
-  setIsLonValid(true);
+  setLatDeg(null);
+  setLatMin(null);
+  setLatDir("N");
+  setIsLatValid(false);
+
+  setLonDeg(null);
+  setLonMin(null);
+  setLonDir("E");
+  setIsLonValid(false);
+
+  setCourseDeg(null);
   setIsCourseValid(true);
+
+  setSpeedKn(null);
+  setSteeringMinutes(null);
+  setWeather("");
+  setLookoutRole("");
 };
+
+
+  /**
+   * buildEngineMachineryPayloadJson
+   * ------------------------------
+   * Converts current ENGINE UI state into a JSON string for SQLite.
+   * We only store this when logType === "ENGINE".
+   */
+  const buildEngineMachineryPayloadJson = (): string => {
+    const payload = {
+      // High-level context
+      engineWatchType,
+      engineRunning,
+      manoeuvring,
+      engineRoomAttendance,
+
+      // Machinery status
+      mainEngineRunning,
+      generatorsRunning,
+      boilerInService,
+      steeringGearInUse,
+
+      // Optional parameters
+      engineLoadPercent,
+      engineRpmRange,
+      fuelType,
+      generatorsLoadBalanced,
+
+      // Abnormalities / rounds
+      roundsCompleted,
+      roundsCount,
+      alarmsObserved,
+      abnormalRemarks,
+    };
+
+    return JSON.stringify(payload);
+  };
+
 
 
   /* =======================
@@ -338,6 +439,8 @@ const resetForm = () => {
     if (!isFormValid) return;
 
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const machineryMonitored = logType === "ENGINE" ? buildEngineMachineryPayloadJson() : null;
+
 
     insertDailyLog({
       id,
@@ -358,6 +461,7 @@ const resetForm = () => {
       weather: weather || null,
       steeringMinutes,
       lookoutRole: lookoutRole || null,
+      machineryMonitored,
     });
 
         /**
@@ -543,6 +647,48 @@ const resetForm = () => {
     resetForm();
   };
 
+
+  /**
+ * hydrateEngineStateFromJson
+ * --------------------------
+ * Restores ENGINE watch UI state from machinery_monitored JSON.
+ * Safe against corrupt / missing data.
+ */
+const hydrateEngineStateFromJson = (json: string | null) => {
+  if (!json) return;
+
+  try {
+    const data = JSON.parse(json);
+
+    setEngineWatchType(data.engineWatchType ?? null);
+    setEngineRunning(!!data.engineRunning);
+    setManoeuvring(!!data.manoeuvring);
+    setEngineRoomAttendance(data.engineRoomAttendance ?? null);
+
+    setMainEngineRunning(!!data.mainEngineRunning);
+    setGeneratorsRunning(
+      data.generatorsRunning ?? { DG1: false, DG2: false, DG3: false }
+    );
+    setBoilerInService(!!data.boilerInService);
+    setSteeringGearInUse(!!data.steeringGearInUse);
+
+    setEngineLoadPercent(data.engineLoadPercent ?? null);
+    setEngineRpmRange(data.engineRpmRange ?? null);
+    setFuelType(data.fuelType ?? null);
+    setGeneratorsLoadBalanced(
+      data.generatorsLoadBalanced ?? true
+    );
+
+    setRoundsCompleted(!!data.roundsCompleted);
+    setRoundsCount(data.roundsCount ?? null);
+    setAlarmsObserved(!!data.alarmsObserved);
+    setAbnormalRemarks(data.abnormalRemarks ?? "");
+  } catch (e) {
+    console.warn("Failed to parse machinery_monitored", e);
+  }
+};
+
+
     /**
      * handleEdit
      * ----------
@@ -604,15 +750,57 @@ const resetForm = () => {
         setIsCourseValid(true);
     }
 
-    // 5️⃣ Engine UI state (restore or reset)
-    if (entry.type === "ENGINE") {
-        // Keep engine UI visible when editing Engine logs
-        setEngineRunning(true);
-    } else {
-        setEngineRunning(false);
-        setManoeuvring(false);
-        setEngineWatchType(null);
-    }
+// 5️⃣ Engine UI state (restore or reset)
+if (entry.type === "ENGINE" && entry.machineryMonitored) {
+  try {
+    const payload = JSON.parse(entry.machineryMonitored);
+
+    setEngineWatchType(payload.engineWatchType ?? null);
+    setEngineRunning(payload.engineRunning ?? false);
+    setManoeuvring(payload.manoeuvring ?? false);
+    setEngineRoomAttendance(payload.engineRoomAttendance ?? null);
+
+    setMainEngineRunning(payload.mainEngineRunning ?? false);
+    setGeneratorsRunning(payload.generatorsRunning ?? { DG1: false, DG2: false, DG3: false });
+    setBoilerInService(payload.boilerInService ?? false);
+    setSteeringGearInUse(payload.steeringGearInUse ?? false);
+
+    setEngineLoadPercent(payload.engineLoadPercent ?? null);
+    setEngineRpmRange(payload.engineRpmRange ?? null);
+    setFuelType(payload.fuelType ?? null);
+    setGeneratorsLoadBalanced(payload.generatorsLoadBalanced ?? true);
+
+    setRoundsCompleted(payload.roundsCompleted ?? false);
+    setRoundsCount(payload.roundsCount ?? null);
+    setAlarmsObserved(payload.alarmsObserved ?? false);
+    setAbnormalRemarks(payload.abnormalRemarks ?? "");
+  } catch {
+    // Safety: corrupted JSON should not crash UI
+    setEngineRunning(false);
+  }
+} else {
+// Full reset of ALL engine-related UI state
+  setEngineWatchType(null);
+  setEngineRunning(false);
+  setManoeuvring(false);
+  setEngineRoomAttendance(null);
+
+  setMainEngineRunning(false);
+  setGeneratorsRunning({ DG1: false, DG2: false, DG3: false });
+  setBoilerInService(false);
+  setSteeringGearInUse(false);
+
+  setEngineLoadPercent(null);
+  setEngineRpmRange(null);
+  setFuelType(null);
+  setGeneratorsLoadBalanced(true);
+
+  setRoundsCompleted(false);
+  setRoundsCount(null);
+  setAlarmsObserved(false);
+  setAbnormalRemarks("");
+}
+
 
     // 6️⃣ DIAGNOSTIC TOAST (TEMPORARY)
     // This confirms whether the entry passed into handleEdit actually contains data.
@@ -628,6 +816,8 @@ const resetForm = () => {
 
   const handleUpdate = () => {
     if (!editingLogId || !isFormValid) return;
+
+    const machineryMonitored = logType === "ENGINE" ? buildEngineMachineryPayloadJson() : null;
 
     updateDailyLog({
       id: editingLogId,
@@ -648,6 +838,8 @@ const resetForm = () => {
       weather: weather || null,
       steeringMinutes,
       lookoutRole: lookoutRole || null,
+      machineryMonitored,
+
     });
 
     setEntries((p) =>
@@ -777,6 +969,7 @@ const resetForm = () => {
         {activeTab === "LOG" && (
           <Card style={styles.card}>
             <Card.Content>
+
               {/* ============================================================
                 PHASE D7.3.3 — LOG WATCH FORM UX CLEANUP
                 Goal: Make the form easier to understand for cadets.
@@ -1610,14 +1803,36 @@ const resetForm = () => {
 
                 {/* Summary */}
                 <Text
-                    style={{
+                  style={{
                     marginTop: 8,
                     color: theme.colors.onSurface,
                     lineHeight: 20,
-                    }}
+                  }}
                 >
-                    {e.summary}
+                  {e.summary}
                 </Text>
+
+                {/* ENGINE SUMMARY (read-only) */}
+                {e.type === "ENGINE" && (
+                  (() => {
+                    const engineSummary = buildEngineSummaryText(e.machineryMonitored);
+                    if (!engineSummary) return null;
+
+                    return (
+                      <Text
+                        variant="bodySmall"
+                        style={{
+                          marginTop: 6,
+                          color: theme.colors.onSurfaceVariant,
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {engineSummary}
+                      </Text>
+                    );
+                  })()
+                )}
+
                 </Card.Content>
             </Card>
             ))}
