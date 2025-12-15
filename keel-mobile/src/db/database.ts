@@ -1,5 +1,4 @@
 //keel-mobile/src/db/database.ts
-
 import * as SQLite from "expo-sqlite";
 
 /**
@@ -18,10 +17,10 @@ export function getDatabase(): SQLite.SQLiteDatabase {
 }
 
 /**
- * Ensure a column exists (safe migration).
- * - Reads current columns using PRAGMA
- * - Adds missing columns using ALTER TABLE
- * - Never drops data
+ * ensureColumns
+ * -------------
+ * Safe schema migration helper.
+ * Adds missing columns ONLY.
  */
 function ensureColumns(
   database: SQLite.SQLiteDatabase,
@@ -46,13 +45,14 @@ function ensureColumns(
 }
 
 /**
- * Initialize database tables.
- * Safe to call multiple times.
+ * initDatabase
+ * ------------
+ * Initializes and migrates DB safely.
  */
 export function initDatabase(): void {
   const database = getDatabase();
 
-  // 1) Create table for fresh installs (includes new D3 fields)
+  // Fresh install schema
   database.execSync(`
     CREATE TABLE IF NOT EXISTS daily_logs (
       id TEXT PRIMARY KEY NOT NULL,
@@ -64,7 +64,7 @@ export function initDatabase(): void {
       remarks TEXT,
       created_at TEXT NOT NULL,
 
-      -- D3 Bridge fields (nullable)
+      -- Bridge fields
       lat_deg INTEGER,
       lat_min REAL,
       lat_dir TEXT,
@@ -75,14 +75,14 @@ export function initDatabase(): void {
       speed_kn REAL,
       weather TEXT,
       steering_minutes INTEGER,
-      lookout_role TEXT,
+      is_lookout INTEGER,
 
-      -- D3 Engine fields (nullable)
+      -- Engine fields
       machinery_monitored TEXT
     );
   `);
 
-  // 2) Migrate existing installs safely (adds missing columns only)
+  // Safe migration for existing installs
   ensureColumns(database, "daily_logs", [
     { name: "lat_deg", type: "INTEGER" },
     { name: "lat_min", type: "REAL" },
@@ -96,7 +96,7 @@ export function initDatabase(): void {
     { name: "speed_kn", type: "REAL" },
     { name: "weather", type: "TEXT" },
     { name: "steering_minutes", type: "INTEGER" },
-    { name: "lookout_role", type: "TEXT" },
+    { name: "is_lookout", type: "INTEGER" },
 
     { name: "machinery_monitored", type: "TEXT" },
   ]);

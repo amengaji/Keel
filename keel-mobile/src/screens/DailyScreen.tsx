@@ -60,7 +60,7 @@ type DailyLogEntry = {
   speedKn?: number | null;
   weather?: string | null;
   steeringMinutes?: number | null;
-  lookoutRole?: string | null;
+  isLookout?: boolean;
 
     /**
    * ENGINE WATCH PAYLOAD (JSON)
@@ -234,7 +234,7 @@ const findOverlappingEntry = (
         speedKn: l.speedKn ?? null,
         weather: l.weather ?? null,
         steeringMinutes: l.steeringMinutes ?? null,
-        lookoutRole: l.lookoutRole ?? null,
+        isLookout: Boolean(l.isLookout),
 
         machineryMonitored: (l as any).machineryMonitored ?? null,
 
@@ -269,7 +269,7 @@ const findOverlappingEntry = (
   const [speedKn, setSpeedKn] = useState<number | null>(null);
   const [steeringMinutes, setSteeringMinutes] = useState<number | null>(null);
   const [weather, setWeather] = useState("");
-  const [lookoutRole, setLookoutRole] = useState("");
+  const [isLookout, setIsLookout] = useState<boolean>(false);
 
 
     /* ============================================================
@@ -404,7 +404,7 @@ const findOverlappingEntry = (
       setSpeedKn(null);
       setSteeringMinutes(null);
       setWeather("");
-      setLookoutRole("");
+      setIsLookout(false);
     }
   }, [logType, editingLogId]);
 
@@ -443,7 +443,7 @@ const resetForm = () => {
   setSpeedKn(null);
   setSteeringMinutes(null);
   setWeather("");
-  setLookoutRole("");
+  setIsLookout(false);
 };
 
 
@@ -535,7 +535,7 @@ if (overlapping) {
       speedKn,
       weather: weather || null,
       steeringMinutes,
-      lookoutRole: lookoutRole || null,
+      isLookout,
       machineryMonitored,
     });
 
@@ -566,7 +566,7 @@ if (overlapping) {
         speedKn,
         weather,
         steeringMinutes,
-        lookoutRole,
+        isLookout,
       },
       ...entries,
     ];
@@ -595,7 +595,7 @@ if (overlapping) {
         speedKn,
         weather,
         steeringMinutes,
-        lookoutRole,
+        isLookout,
       },
       ...p,
     ]);
@@ -799,7 +799,8 @@ const hydrateEngineStateFromJson = (json: string | null) => {
         setSpeedKn(entry.speedKn ?? null);
         setWeather((entry.weather as any) ?? "");
         setSteeringMinutes(entry.steeringMinutes ?? null);
-        setLookoutRole((entry.lookoutRole as any) ?? "");
+        setIsLookout(!!entry.isLookout);
+
 
         // IMPORTANT:
         // For edit mode, we mark these valid so the user can update without fighting validation.
@@ -818,7 +819,7 @@ const hydrateEngineStateFromJson = (json: string | null) => {
         setSpeedKn(null);
         setSteeringMinutes(null);
         setWeather("");
-        setLookoutRole("");
+        setIsLookout(false);
 
         setIsLatValid(true);
         setIsLonValid(true);
@@ -935,7 +936,8 @@ if (overlapping) {
       speedKn,
       weather: weather || null,
       steeringMinutes,
-      lookoutRole: lookoutRole || null,
+      isLookout,
+
       machineryMonitored,
 
     });
@@ -1749,13 +1751,17 @@ if (overlapping) {
                     style={styles.input}
                   />
 
-                  <TextInput
-                    label="Lookout Role"
-                    mode="outlined"
-                    value={lookoutRole}
-                    onChangeText={setLookoutRole}
-                    style={styles.input}
-                  />
+                  <View style={[styles.checkRow, { marginTop: 8 }]}>
+                    <Text style={{ color: theme.colors.onSurface }}>
+                        Acted as Lookout
+                    </Text>
+
+                    <Checkbox
+                        status={isLookout ? "checked" : "unchecked"}
+                        onPress={() => setIsLookout((p) => !p)}
+                    />
+                    </View>
+
                 </View>
               )}
 

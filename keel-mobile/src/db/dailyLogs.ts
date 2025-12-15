@@ -5,21 +5,21 @@ import { getDatabase } from "./database";
 /**
  * DailyLogDBInput
  * ---------------
- * This is the exact shape we save into SQLite.
- * IMPORTANT:
- * - Keys here must match the columns created in database.ts (initDatabase)
- * - If we forget a column here, it will NEVER be saved (your issue earlier)
+ * Canonical TypeScript shape used by UI and DB layer.
+ * camelCase ONLY in TypeScript.
  */
 export type DailyLogDBInput = {
   id: string;
-  date: string; // ISO date string
+  date: string; // ISO date string (YYYY-MM-DD or full ISO)
   type: "DAILY" | "BRIDGE" | "ENGINE";
+
   startTime?: string | null;
   endTime?: string | null;
+
   summary: string;
   remarks?: string | null;
 
-  // Bridge navigation fields (nullable)
+  // Bridge navigation fields
   latDeg?: number | null;
   latMin?: number | null;
   latDir?: "N" | "S" | null;
@@ -28,25 +28,23 @@ export type DailyLogDBInput = {
   lonMin?: number | null;
   lonDir?: "E" | "W" | null;
 
-  // Bridge watchkeeping fields (nullable)
+  // Bridge watchkeeping fields
   courseDeg?: number | null;
   speedKn?: number | null;
   weather?: string | null;
   steeringMinutes?: number | null;
-  lookoutRole?: string | null;
 
-  // Engine watch payload (nullable)
-  // We store a JSON string here so we can expand engine UI later without DB schema changes.
+  // Lookout flag (BOOLEAN in UI, INTEGER in DB)
+  isLookout?: boolean | null;
+
+  // Engine watch payload (JSON string)
   machineryMonitored?: string | null;
 };
 
 /**
  * insertDailyLog
  * -------------
- * Inserts a log entry into SQLite.
- * IMPORTANT:
- * - Column list and VALUES placeholders must match exactly.
- * - If you add a column in the DB schema, you must add it here too.
+ * Inserts a new log entry.
  */
 export function insertDailyLog(log: DailyLogDBInput): void {
   const db = getDatabase();
@@ -74,7 +72,7 @@ export function insertDailyLog(log: DailyLogDBInput): void {
       speed_kn,
       weather,
       steering_minutes,
-      lookout_role,
+      is_lookout,
 
       machinery_monitored
     )
@@ -106,7 +104,7 @@ export function insertDailyLog(log: DailyLogDBInput): void {
       log.speedKn ?? null,
       log.weather ?? null,
       log.steeringMinutes ?? null,
-      log.lookoutRole ?? null,
+      log.isLookout != null ? (log.isLookout ? 1 : 0) : null,
 
       log.machineryMonitored ?? null,
     ]
@@ -116,7 +114,7 @@ export function insertDailyLog(log: DailyLogDBInput): void {
 /**
  * updateDailyLog
  * -------------
- * Updates an existing log entry in SQLite.
+ * Updates an existing log entry.
  */
 export function updateDailyLog(log: DailyLogDBInput): void {
   const db = getDatabase();
@@ -143,7 +141,7 @@ export function updateDailyLog(log: DailyLogDBInput): void {
       speed_kn = ?,
       weather = ?,
       steering_minutes = ?,
-      lookout_role = ?,
+      is_lookout = ?,
 
       machinery_monitored = ?
     WHERE id = ?
@@ -167,7 +165,7 @@ export function updateDailyLog(log: DailyLogDBInput): void {
       log.speedKn ?? null,
       log.weather ?? null,
       log.steeringMinutes ?? null,
-      log.lookoutRole ?? null,
+      log.isLookout != null ? (log.isLookout ? 1 : 0) : null,
 
       log.machineryMonitored ?? null,
 
@@ -179,7 +177,6 @@ export function updateDailyLog(log: DailyLogDBInput): void {
 /**
  * deleteDailyLogById
  * -----------------
- * Deletes a log by ID.
  */
 export function deleteDailyLogById(id: string): void {
   const db = getDatabase();
@@ -196,10 +193,7 @@ export function deleteDailyLogById(id: string): void {
 /**
  * getAllDailyLogs
  * --------------
- * Returns all logs (latest first).
- * IMPORTANT:
- * - SELECT must include all columns we expect in the UI.
- * - Aliases must match the DBInput keys.
+ * Reads logs from DB and maps snake_case → camelCase via aliases.
  */
 export function getAllDailyLogs(): DailyLogDBInput[] {
   const db = getDatabase();
@@ -210,25 +204,25 @@ export function getAllDailyLogs(): DailyLogDBInput[] {
       id,
       date,
       type,
-      start_time as startTime,
-      end_time as endTime,
+      start_time AS startTime,
+      end_time AS endTime,
       summary,
       remarks,
 
-      lat_deg as latDeg,
-      lat_min as latMin,
-      lat_dir as latDir,
-      lon_deg as lonDeg,
-      lon_min as lonMin,
-      lon_dir as lonDir,
+      lat_deg AS latDeg,
+      lat_min AS latMin,
+      lat_dir AS latDir,
+      lon_deg AS lonDeg,
+      lon_min AS lonMin,
+      lon_dir AS lonDir,
 
-      course_deg as courseDeg,
-      speed_kn as speedKn,
-      weather as weather,
-      steering_minutes as steeringMinutes,
-      lookout_role as lookoutRole,
+      course_deg AS courseDeg,
+      speed_kn AS speedKn,
+      weather,
+      steering_minutes AS steeringMinutes,
+      is_lookout AS isLookout,
 
-      machinery_monitored as machineryMonitored
+      machinery_monitored AS machineryMonitored
     FROM daily_logs
     ORDER BY date DESC, created_at DESC
     `
