@@ -83,7 +83,7 @@ export default function TimeInputField({
   required,
 }: TimeInputFieldProps) {
   const theme = useTheme();
-  const is24h = useMemo(() => is24HourSystem(), []);
+  const is24h = true;
 
   const [text, setText] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -151,6 +151,7 @@ export default function TimeInputField({
           mode="time"
           onChange={handlePickerChange}
           display={Platform.OS === "ios" ? "spinner" : "clock"}
+          locale = "en-GB"
           is24Hour={is24h}
         />
       )}

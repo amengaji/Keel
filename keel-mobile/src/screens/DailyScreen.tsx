@@ -140,8 +140,6 @@ const buildEngineSummaryText = (payloadJson?: string | null): string | null => {
   }
 };
 
-  
-
   /**
    * Converts minutes into a friendly "Xh Ym" string.
    * Example: 485 -> "8h 5m"
@@ -152,6 +150,62 @@ const buildEngineSummaryText = (payloadJson?: string | null): string | null => {
     const mins = safe % 60;
     return `${hrs}h ${mins}m`;
   };
+
+  const calculateDurationMinutes = (start?: Date, end?: Date): number | null => {
+  if (!start || !end) return null;
+
+  const diffMs = end.getTime() - start.getTime();
+  if (diffMs <= 0) return null;
+
+  return Math.floor(diffMs / 60000);
+};
+
+const rangesOverlap = (
+  aStart: Date,
+  aEnd: Date,
+  bStart: Date,
+  bEnd: Date
+): boolean => {
+  return aStart < bEnd && bStart < aEnd;
+};
+
+const findOverlappingEntry = (
+  entries: DailyLogEntry[],
+  newEntry: {
+    id?: string;
+    date: Date;
+    startTime?: Date | null;
+    endTime?: Date | null;
+  }
+): DailyLogEntry | null => {
+  return (
+    entries.find((e) => {
+      // Skip self when editing
+      if (newEntry.id && e.id === newEntry.id) return false;
+
+      // Different day → ignore
+      if (e.date.toDateString() !== newEntry.date.toDateString()) return false;
+
+      // DAILY vs TIMED
+      if (!newEntry.startTime || !newEntry.endTime) {
+        return !!(e.startTime && e.endTime);
+      }
+
+      if (!e.startTime || !e.endTime) {
+        return true;
+      }
+
+      return rangesOverlap(
+        newEntry.startTime,
+        newEntry.endTime,
+        e.startTime,
+        e.endTime
+      );
+    }) ?? null
+  );
+};
+
+
 
   /* =======================
      LOAD FROM DB
@@ -436,6 +490,27 @@ const resetForm = () => {
      ======================= */
 
   const handleSave = () => {
+
+    const overlapping = findOverlappingEntry(entries, {
+  date: date!,
+  startTime,
+  endTime,
+});
+
+if (overlapping) {
+  Toast.show({
+    type: "error",
+    text1: "Time overlap detected",
+    text2: overlapping.startTime && overlapping.endTime
+      ? `Conflicts with ${LOG_TYPE_LABEL[overlapping.type]} (${overlapping.startTime
+          .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}–${overlapping.endTime
+          .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })})`
+      : `Conflicts with ${LOG_TYPE_LABEL[overlapping.type]} entry`,
+    position: "bottom",
+  });
+  return;
+}
+
     if (!isFormValid) return;
 
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -818,6 +893,29 @@ if (entry.type === "ENGINE" && entry.machineryMonitored) {
     if (!editingLogId || !isFormValid) return;
 
     const machineryMonitored = logType === "ENGINE" ? buildEngineMachineryPayloadJson() : null;
+
+    const overlapping = findOverlappingEntry(entries, {
+  id: editingLogId,
+  date: date!,
+  startTime,
+  endTime,
+});
+
+if (overlapping) {
+  Toast.show({
+    type: "error",
+    text1: "Time overlap detected",
+    text2: overlapping.startTime && overlapping.endTime
+      ? `Conflicts with ${LOG_TYPE_LABEL[overlapping.type]} (${overlapping.startTime
+          .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}–${overlapping.endTime
+          .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })})`
+      : `Conflicts with ${LOG_TYPE_LABEL[overlapping.type]} entry`,
+    position: "bottom",
+  });
+  return;
+}
+
+
 
     updateDailyLog({
       id: editingLogId,
@@ -1797,9 +1895,24 @@ if (entry.type === "ENGINE" && entry.machineryMonitored) {
                     variant="bodySmall"
                     style={{ marginTop: 6, color: theme.colors.onSurfaceVariant }}
                     >
-                    {`${e.startTime.toLocaleTimeString()} – ${e.endTime.toLocaleTimeString()}`}
+                    {`${e.startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} – ${e.endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`}
                     </Text>
                 )}
+
+                {(() => {
+                    const durationMinutes = calculateDurationMinutes(e.startTime, e.endTime);
+                    if (!durationMinutes) return null;
+
+                    return (
+                        <Text
+                        variant="bodySmall"
+                        style={{ color: theme.colors.onSurfaceVariant }}
+                        >
+                        Duration: {formatMinutesToHoursMinutes(durationMinutes)}
+                        </Text>
+                    );
+                    })()}
+
 
                 {/* Summary */}
                 <Text
