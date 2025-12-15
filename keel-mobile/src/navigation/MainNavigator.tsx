@@ -8,15 +8,29 @@ import { MainStackParamList } from "./types";
 import BottomTabNavigator from "./BottomTabNavigator";
 import AppHeader from "../components/layout/AppHeader";
 
+import SeaServiceWizardScreen from "../screens/SeaServiceWizardScreen";
+
 const Stack = createNativeStackNavigator<MainStackParamList>();
 
+/**
+ * ============================================================
+ * MainNavigator
+ * ============================================================
+ *
+ * This stack sits above Bottom Tabs.
+ *
+ * Screen Structure:
+ * - MainTabs (contains AppHeader + bottom tabs)
+ * - SeaServiceWizard (full-screen wizard, no AppHeader)
+ */
 export default function MainNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen
-        name="MainTabs"
-        component={MainLayout}
-      />
+      {/* Normal app layout with AppHeader + Tabs */}
+      <Stack.Screen name="MainTabs" component={MainLayout} />
+
+      {/* Full-screen wizard (separate screen, its own header) */}
+      <Stack.Screen name="SeaServiceWizard" component={SeaServiceWizardScreen} />
     </Stack.Navigator>
   );
 }
@@ -33,10 +47,6 @@ function MainLayout() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  content: { flex: 1 },
 });

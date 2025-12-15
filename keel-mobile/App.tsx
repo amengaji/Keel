@@ -2,80 +2,25 @@
 
 import React, { useEffect } from "react";
 import { Provider as PaperProvider } from "react-native-paper";
-import Toast, {
-  BaseToast,
-  ErrorToast,
-} from "react-native-toast-message";
 
 import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { keelLightTheme, keelDarkTheme } from "./src/theme/keelTheme";
 import { initDatabase } from "./src/db/database";
 
+import { ToastProvider } from "./src/components/toast/ToastProvider";
+
 /**
- * Toast configuration
- * -------------------
- * Explicit styles are defined so:
- * - Success = Green
- * - Info = Blue
- * - Error = Red
- * - Toasts stack cleanly (no overlap)
+ * ============================================================
+ * Themed Application Wrapper
+ * ============================================================
+ *
+ * Responsibilities:
+ * - Apply light / dark theme
+ * - Initialize SQLite database
+ * - Mount navigation
+ * - Mount global ToastProvider
  */
-const toastConfig = {
-  success: (props: any) => (
-    <BaseToast
-      {...props}
-      style={{
-        borderLeftColor: "#2ECC71", // green
-        marginBottom: 8,
-      }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{
-        fontSize: 15,
-        fontWeight: "700",
-      }}
-      text2Style={{
-        fontSize: 13,
-      }}
-    />
-  ),
-
-  info: (props: any) => (
-    <BaseToast
-      {...props}
-      style={{
-        borderLeftColor: "#3498DB", // blue
-        marginBottom: 8,
-      }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{
-        fontSize: 15,
-        fontWeight: "700",
-      }}
-      text2Style={{
-        fontSize: 13,
-      }}
-    />
-  ),
-
-  error: (props: any) => (
-    <ErrorToast
-      {...props}
-      style={{
-        borderLeftColor: "#E74C3C", // red
-        marginBottom: 8,
-      }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{
-        fontSize: 15,
-        fontWeight: "700",
-      }}
-      text2Style={{
-        fontSize: 13,
-      }}
-    />
-  ),
-};
 
 function ThemedApp() {
   const { themeMode } = useAuth();
@@ -83,6 +28,9 @@ function ThemedApp() {
   const theme =
     themeMode === "dark" ? keelDarkTheme : keelLightTheme;
 
+  /**
+   * Initialize SQLite database once on app start.
+   */
   useEffect(() => {
     try {
       initDatabase();
@@ -94,25 +42,29 @@ function ThemedApp() {
 
   return (
     <PaperProvider theme={theme}>
-      {/* App navigation */}
-      <AppNavigator />
-
       {/* 
-        Global Toast Host
-        -----------------
-        - Bottom positioned (mobile UX standard)
-        - bottomOffset avoids system navigation overlap
-        - toastConfig restores colour semantics
+        Global Toast Provider
+        ---------------------
+        - Snackbar-based
+        - Theme-aware
+        - Used across entire app
       */}
-      <Toast
-        position="bottom"
-        bottomOffset={70}
-        config={toastConfig}
-      />
+      <ToastProvider>
+        {/* App navigation */}
+        <AppNavigator />
+      </ToastProvider>
     </PaperProvider>
   );
 }
 
+/**
+ * ============================================================
+ * Root App Component
+ * ============================================================
+ *
+ * AuthProvider must remain the outermost provider
+ * so authentication state is available everywhere.
+ */
 export default function App() {
   return (
     <AuthProvider>

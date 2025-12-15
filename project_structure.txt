@@ -93,10 +93,16 @@
 ¦   ¦   ¦   +-- tasks
 ¦   ¦   ¦   ¦   +-- TaskListItem.tsx
 ¦   ¦   ¦   ¦   +-- TaskStatusChip.tsx
+¦   ¦   ¦   +-- toast
+¦   ¦   ¦   ¦   +-- ToastProvider.tsx
+¦   ¦   ¦   ¦   +-- useToast.ts
 ¦   ¦   ¦   +-- ui
 ¦   ¦   ¦       +-- KeelButton.tsx
 ¦   ¦   ¦       +-- KeelCard.tsx
 ¦   ¦   ¦       +-- KeelScreen.tsx
+¦   ¦   +-- config
+¦   ¦   ¦   +-- seaServiceSections.ts
+¦   ¦   ¦   +-- shipTypes.ts
 ¦   ¦   +-- db
 ¦   ¦   ¦   +-- dailyLogs.ts
 ¦   ¦   ¦   +-- database.ts
@@ -119,18 +125,28 @@
 ¦   ¦   ¦   +-- TaskDetailsScreen.tsx
 ¦   ¦   ¦   +-- TaskListScreen.tsx
 ¦   ¦   ¦   +-- WelcomeScreen.tsx
+¦   ¦   +-- sea-service
+¦   ¦   ¦   +-- SeaServiceContext.tsx
+¦   ¦   ¦   +-- seaServiceDefaults.ts
+¦   ¦   ¦   +-- seaServiceSchema.ts
+¦   ¦   ¦   +-- SeaServiceWizard.tsx
 ¦   ¦   +-- services
 ¦   ¦   ¦   +-- api.ts
 ¦   ¦   +-- theme
 ¦   ¦   ¦   +-- keelTheme.ts
 ¦   ¦   +-- utils
 ¦   ¦       +-- secureStore.ts
+¦   ¦       +-- stcwCompliance.ts
+¦   ¦       +-- watchAggregation.ts
+¦   ¦       +-- watchHours.ts
+¦   ¦       +-- watchWeeklyAggregation.ts
 ¦   +-- .gitignore
 ¦   +-- app.json
 ¦   +-- App.tsx
 ¦   +-- index.ts
 ¦   +-- package.json
 ¦   +-- tsconfig.json
++-- keel-web
 +-- .gitignore
 +-- package.json
 +-- project_structure.txt
