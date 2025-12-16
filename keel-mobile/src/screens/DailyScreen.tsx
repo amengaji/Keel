@@ -25,11 +25,11 @@ import DateInputField from "../components/inputs/DateInputField";
 import TimeInputField from "../components/inputs/TimeInputField";
 import LatLongInput from "../components/inputs/LatLongInput";
 import {
-  getAllDailyLogs,
   insertDailyLog,
   updateDailyLog,
   deleteDailyLogById,
 } from "../db/dailyLogs";
+import { useDailyLogs } from "../daily-logs/DailyLogsContext";
 import { calculateDailyWatchTotals } from "../utils/watchAggregation";
 import { calculateWeeklyWatchTotals } from "../utils/watchWeeklyAggregation";
 import { checkStcwCompliance } from "../utils/stcwCompliance";
@@ -84,6 +84,13 @@ const OCEAN_GREEN = "#3194A0";
 export default function DailyScreen() {
   const theme = useTheme();
   const today = useMemo(() => new Date(), []);
+
+  const {
+  logs,
+  refreshLogs,
+  loading: dailyLogsLoading,
+} = useDailyLogs();
+
 
     /* ---------------- DATA ---------------- */
 
@@ -204,43 +211,6 @@ const findOverlappingEntry = (
     }) ?? null
   );
 };
-
-
-
-  /* =======================
-     LOAD FROM DB
-     ======================= */
-
-  useEffect(() => {
-    const logs = getAllDailyLogs();
-    setEntries(
-      logs.map((l) => ({
-        id: l.id,
-        date: new Date(l.date),
-        type: l.type,
-        startTime: l.startTime ? new Date(l.startTime) : undefined,
-        endTime: l.endTime ? new Date(l.endTime) : undefined,
-        summary: l.summary,
-        remarks: l.remarks ?? undefined,
-
-        latDeg: l.latDeg ?? null,
-        latMin: l.latMin ?? null,
-        latDir: l.latDir ?? null,
-        lonDeg: l.lonDeg ?? null,
-        lonMin: l.lonMin ?? null,
-        lonDir: l.lonDir ?? null,
-
-        courseDeg: l.courseDeg ?? null,
-        speedKn: l.speedKn ?? null,
-        weather: l.weather ?? null,
-        steeringMinutes: l.steeringMinutes ?? null,
-        isLookout: Boolean(l.isLookout),
-
-        machineryMonitored: (l as any).machineryMonitored ?? null,
-
-      }))
-    );
-  }, []);
 
   /* =======================
      FORM STATE
@@ -720,6 +690,8 @@ if (overlapping) {
 
 
     resetForm();
+    refreshLogs();
+
   };
 
 
@@ -956,6 +928,8 @@ if (overlapping) {
     });
 
     resetForm();
+    refreshLogs();
+
   };
 
   const confirmDelete = (id: string) => {

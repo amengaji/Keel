@@ -6,18 +6,17 @@
  * ============================================================
  *
  * IMPORTANT:
- * - This is the ROOT of the app navigation tree
+ * - This is the ROOT of the app navigation tree.
  * - All global providers that must be available app-wide
- *   MUST be mounted here
+ *   MUST be mounted here (contexts, theming, etc).
  *
- * WHY SeaServiceProvider IS HERE:
- * - Home dashboard reads Sea Service compliance
- * - Sea Service Wizard writes Sea Service data
- * - Both must share the SAME context instance
+ * WHY providers live here:
+ * - Home dashboard is an inspector-style snapshot screen.
+ * - It must read real compliance signals (Sea Service, Daily Logs).
+ * - Wizards / screens that write data must share the same instances.
  *
  * NO BUSINESS LOGIC is changed in this file.
- * Existing auth / onboarding / biometric flows
- * are preserved exactly as-is.
+ * Existing auth / onboarding / biometric flows remain unchanged.
  */
 
 import React from "react";
@@ -29,49 +28,68 @@ import MainNavigator from "./MainNavigator";
 import EnableBiometricsScreen from "../screens/EnableBiometricsScreen";
 import OnboardingNavigator from "./OnboardingNavigator";
 
-// ✅ Global domain provider (Sea Service)
+/**
+ * ============================================================
+ * Global Domain Providers
+ * ============================================================
+ *
+ * Rule:
+ * - Screens should NOT directly import DB helpers.
+ * - Screens should read data through Context Providers.
+ *
+ * Mounted here so the same provider instance is available to:
+ * - Home dashboard (read-only snapshot)
+ * - Daily / Sea Service screens (edit/write flows)
+ */
+
+// ✅ Sea Service: Home reads Sea Service compliance; Wizard writes it
 import { SeaServiceProvider } from "../sea-service/SeaServiceContext";
 
-export default function AppNavigator() {
-  const {
-    user,
-    loading,
-    biometricPromptSeen,
-    onboardingCompleted,
-  } = useAuth();
+// ✅ Daily Logs: Home reads last log date / health; Daily screen writes logs
+import { DailyLogsProvider } from "../daily-logs/DailyLogsContext";
 
-  // Preserve existing loading behavior
+export default function AppNavigator() {
+  const { user, loading, biometricPromptSeen, onboardingCompleted } = useAuth();
+
+  /**
+   * Preserve existing loading behavior exactly.
+   * We do not show navigation until auth state is ready.
+   */
   if (loading) return null;
 
   return (
+    /**
+     * Provider Order Notes (important for beginners):
+     * - Both providers are independent and safe to nest.
+     * - We keep them at the root so Home can access both.
+     * - If a provider is missing, screens using its hook will throw.
+     */
     <SeaServiceProvider>
-      <NavigationContainer>
-        {/* --------------------------------------------------------
-            AUTH FLOW (unchanged)
-           -------------------------------------------------------- */}
-        {!user && <AuthNavigator />}
+      <DailyLogsProvider>
+        <NavigationContainer>
+          {/* --------------------------------------------------------
+              AUTH FLOW (unchanged)
+             -------------------------------------------------------- */}
+          {!user && <AuthNavigator />}
 
-        {/* --------------------------------------------------------
-            BIOMETRIC PROMPT (unchanged)
-           -------------------------------------------------------- */}
-        {user && !biometricPromptSeen && (
-          <EnableBiometricsScreen />
-        )}
+          {/* --------------------------------------------------------
+              BIOMETRIC PROMPT (unchanged)
+             -------------------------------------------------------- */}
+          {user && !biometricPromptSeen && <EnableBiometricsScreen />}
 
-        {/* --------------------------------------------------------
-            ONBOARDING FLOW (unchanged)
-           -------------------------------------------------------- */}
-        {user && biometricPromptSeen && !onboardingCompleted && (
-          <OnboardingNavigator />
-        )}
+          {/* --------------------------------------------------------
+              ONBOARDING FLOW (unchanged)
+             -------------------------------------------------------- */}
+          {user && biometricPromptSeen && !onboardingCompleted && (
+            <OnboardingNavigator />
+          )}
 
-        {/* --------------------------------------------------------
-            MAIN APPLICATION (unchanged)
-           -------------------------------------------------------- */}
-        {user && biometricPromptSeen && onboardingCompleted && (
-          <MainNavigator />
-        )}
-      </NavigationContainer>
+          {/* --------------------------------------------------------
+              MAIN APPLICATION (unchanged)
+             -------------------------------------------------------- */}
+          {user && biometricPromptSeen && onboardingCompleted && <MainNavigator />}
+        </NavigationContainer>
+      </DailyLogsProvider>
     </SeaServiceProvider>
   );
 }

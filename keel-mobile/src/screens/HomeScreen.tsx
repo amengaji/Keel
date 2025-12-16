@@ -40,14 +40,21 @@ import {
 
 import {KeelScreen} from "../components/ui/KeelScreen";
 import { useSeaService } from "../sea-service/SeaServiceContext";
-import {
-  getSeaServiceSummary,
-} from "../sea-service/seaServiceStatus";
+import { getSeaServiceSummary, } from "../sea-service/seaServiceStatus";
+import ComplianceIndicatorCard from "../components/home/ComplianceIndicatorCard";
+import { useDailyLogs } from "../daily-logs/DailyLogsContext";
+import { checkStcwCompliance } from "../utils/stcwCompliance";
+import { useNavigation } from "@react-navigation/native";
+import { TouchableOpacity } from "react-native";
+import { useToast } from "../components/toast/useToast";
 
 
 export default function HomeScreen() {
   const theme = useTheme();
-    // ------------------------------------------------------------
+  const navigation = useNavigation<any>();
+
+  
+  // ------------------------------------------------------------
   // Sea Service data (single source of truth)
   // ------------------------------------------------------------
   const { payload } = useSeaService();
@@ -161,31 +168,68 @@ export default function HomeScreen() {
         {/* ============================================================
             3) MANDATORY AREAS STATUS (SERIOUS GRID)
            ============================================================ */}
+        {/* ============================================================
+            3) COMPLIANCE INDICATORS (DERIVED — INSPECTOR SAFE)
+           ============================================================ */}
         <Text variant="titleMedium" style={styles.sectionHeader}>
-          Mandatory Areas
+          Compliance Indicators
         </Text>
 
-        <View style={styles.gridRow}>
-          <StatusCard
+        {/* --- Sea Service --- */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("SeaServiceWizard")}
+        >
+          <ComplianceIndicatorCard
             title="Sea Service"
-            status={`${seaServiceSummary.completedSections}/${seaServiceSummary.totalSections} completed`}
+            status={
+              seaServiceSummary.inProgressSections > 0
+                ? "ATTENTION"
+                : seaServiceSummary.completedSections ===
+                  seaServiceSummary.totalSections
+                ? "ON_TRACK"
+                : "NOT_AVAILABLE"
+            }
+            summary={`${seaServiceSummary.completedSections} of ${seaServiceSummary.totalSections} sections completed`}
+            helperText="Sea service records are reviewed by training officers and flag state inspectors to confirm that your onboard training is progressing correctly."
           />
-          <StatusCard
-            title="Watchkeeping"
-            status="Pending data"
-          />
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.gridRow}>
-          <StatusCard
-            title="Tasks"
-            status="Pending data"
-          />
-          <StatusCard
-            title="Familiarisation"
-            status="Pending data"
-          />
-        </View>
+
+        {/* --- Watchkeeping (STCW) --- */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("Daily")}
+        >
+          <WatchkeepingCompliance />
+        </TouchableOpacity>
+
+
+        {/* --- Daily Logs --- */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("Daily")}
+        >
+          <DailyLogsCompliance />
+        </TouchableOpacity>
+
+
+        {/* --- Tasks (future) --- */}
+        <ComplianceIndicatorCard
+          title="Tasks"
+          status="NOT_AVAILABLE"
+          summary="Task completion data is not yet available"
+          helperText="Onboard task sign-offs demonstrate practical competence. This section will activate once tasks are recorded."
+        />
+
+        {/* --- Familiarisation (future) --- */}
+        <ComplianceIndicatorCard
+          title="Familiarisation"
+          status="NOT_AVAILABLE"
+          summary="Familiarisation progress is not yet available"
+          helperText="Ship-specific familiarisation is mandatory under STCW and ISM requirements. This indicator will activate once data is linked."
+        />
+
 
         {/* ============================================================
             4) ATTENTION REQUIRED (CONDITIONAL — PLACEHOLDER)
@@ -251,6 +295,103 @@ function StatusCard({
     </Card>
   );
 }
+
+/* ============================================================
+ * Watchkeeping Compliance Indicator
+ * ============================================================ */
+function WatchkeepingCompliance() {
+  const { logs, loading } = useDailyLogs();
+
+  if (loading) {
+    return (
+      <ComplianceIndicatorCard
+        title="Watchkeeping (STCW)"
+        status="NOT_AVAILABLE"
+        summary="Loading watchkeeping data..."
+      />
+    );
+  }
+
+  if (logs.length === 0) {
+    return (
+      <ComplianceIndicatorCard
+        title="Watchkeeping (STCW)"
+        status="ATTENTION"
+        summary="No watchkeeping records found"
+        helperText="STCW requires accurate watch and rest-hour records. Missing data may be treated as non-compliance."
+      />
+    );
+  }
+
+  // 🔽 THIS LINE ALREADY EXISTS
+  const result = checkStcwCompliance(logs, new Date());
+
+  // 🔽 ADD THESE LINES IMMEDIATELY AFTER
+  const hasViolations =
+    Array.isArray((result as any).violations) &&
+    (result as any).violations.length > 0;
+
+    const toast = useToast();
+
+/**
+ * ------------------------------------------------------------
+ * STCW Risk Warning (Cadet Awareness)
+ * ------------------------------------------------------------
+ * - Warning only
+ * - Non-blocking
+ * - Inspector-safe language
+ */
+React.useEffect(() => {
+  if (hasViolations) {
+      toast.warning(
+        "STCW rest-hour limits exceeded. Please review your watchkeeping and rest hours immediately."
+      );
+  }
+}, [hasViolations]);
+
+
+  return (
+    <ComplianceIndicatorCard
+      title="Watchkeeping (STCW)"
+      status={hasViolations ? "RISK" : "ON_TRACK"}
+      summary={
+        hasViolations
+          ? "STCW rest-hour violations detected"
+          : "Rest hour requirements are currently met"
+      }
+      helperText="STCW rest-hour compliance is verified during audits to prevent fatigue and ensure safe watchkeeping."
+    />
+  );
+}
+
+
+/* ============================================================
+ * Daily Logs Compliance Indicator
+ * ============================================================ */
+function DailyLogsCompliance() {
+  const { lastLogDate } = useDailyLogs();
+
+  if (!lastLogDate) {
+    return (
+      <ComplianceIndicatorCard
+        title="Daily Logs"
+        status="ATTENTION"
+        summary="No daily logs recorded yet"
+        helperText="Daily logs are official records and must be maintained regularly during sea service."
+      />
+    );
+  }
+
+  return (
+    <ComplianceIndicatorCard
+      title="Daily Logs"
+      status="ON_TRACK"
+      summary={`Last entry: ${lastLogDate.toDateString()}`}
+      helperText="Daily logs provide evidence of onboard activity and are commonly reviewed during inspections."
+    />
+  );
+}
+
 
 /* ============================================================
  * Styles
