@@ -133,13 +133,16 @@
 ¦   ¦   ¦   ¦   +-- CargoCapabilitiesSection.tsx
 ¦   ¦   ¦   ¦   +-- DeckMachineryManeuveringSection.tsx
 ¦   ¦   ¦   ¦   +-- DimensionsTonnageSection.tsx
+¦   ¦   ¦   ¦   +-- FireFightingAppliancesSection.tsx
 ¦   ¦   ¦   ¦   +-- GeneralIdentitySection.tsx
+¦   ¦   ¦   ¦   +-- InertGasSystemSection.tsx
 ¦   ¦   ¦   ¦   +-- LifeSavingAppliancesSection.tsx
 ¦   ¦   ¦   ¦   +-- NavigationCommunicationSection.tsx
 ¦   ¦   ¦   ¦   +-- PropulsionPerformanceSection.tsx
 ¦   ¦   ¦   +-- SeaServiceContext.tsx
 ¦   ¦   ¦   +-- seaServiceDefaults.ts
 ¦   ¦   ¦   +-- seaServiceSchema.ts
+¦   ¦   ¦   +-- seaServiceStatus.ts
 ¦   ¦   ¦   +-- SeaServiceWizard.tsx
 ¦   ¦   +-- services
 ¦   ¦   ¦   +-- api.ts
