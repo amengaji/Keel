@@ -101,6 +101,7 @@
 ¦   ¦   ¦       +-- KeelCard.tsx
 ¦   ¦   ¦       +-- KeelScreen.tsx
 ¦   ¦   +-- config
+¦   ¦   ¦   +-- cargoProfiles.ts
 ¦   ¦   ¦   +-- seaServiceSections.ts
 ¦   ¦   ¦   +-- shipTypes.ts
 ¦   ¦   +-- db
@@ -121,11 +122,21 @@
 ¦   ¦   ¦   +-- OnboardingIntroScreen.tsx
 ¦   ¦   ¦   +-- ProfileScreen.tsx
 ¦   ¦   ¦   +-- SeaServiceScreen.tsx
+¦   ¦   ¦   +-- SeaServiceWizardScreen.tsx
 ¦   ¦   ¦   +-- SettingsScreen.tsx
 ¦   ¦   ¦   +-- TaskDetailsScreen.tsx
 ¦   ¦   ¦   +-- TaskListScreen.tsx
 ¦   ¦   ¦   +-- WelcomeScreen.tsx
 ¦   ¦   +-- sea-service
+¦   ¦   ¦   +-- sections
+¦   ¦   ¦   ¦   +-- AuxMachineryElectricalSection.tsx
+¦   ¦   ¦   ¦   +-- CargoCapabilitiesSection.tsx
+¦   ¦   ¦   ¦   +-- DeckMachineryManeuveringSection.tsx
+¦   ¦   ¦   ¦   +-- DimensionsTonnageSection.tsx
+¦   ¦   ¦   ¦   +-- GeneralIdentitySection.tsx
+¦   ¦   ¦   ¦   +-- LifeSavingAppliancesSection.tsx
+¦   ¦   ¦   ¦   +-- NavigationCommunicationSection.tsx
+¦   ¦   ¦   ¦   +-- PropulsionPerformanceSection.tsx
 ¦   ¦   ¦   +-- SeaServiceContext.tsx
 ¦   ¦   ¦   +-- seaServiceDefaults.ts
 ¦   ¦   ¦   +-- seaServiceSchema.ts

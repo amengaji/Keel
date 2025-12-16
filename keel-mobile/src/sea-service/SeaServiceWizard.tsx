@@ -29,9 +29,17 @@ import { SHIP_TYPES } from "../config/shipTypes";
 import { SEA_SERVICE_SECTIONS } from "../config/seaServiceSections";
 import { useSeaService } from "./SeaServiceContext";
 import { useToast } from "../components/toast/useToast";
+
 import PropulsionPerformanceSection from "./sections/PropulsionPerformanceSection";
 import GeneralIdentitySection from "./sections/GeneralIdentitySection";
 import DimensionsTonnageSection from "./sections/DimensionsTonnageSection";
+import AuxMachineryElectricalSection from "./sections/AuxMachineryElectricalSection";
+import DeckMachineryManeuveringSection from "./sections/DeckMachineryManeuveringSection";
+import CargoCapabilitiesSection from "./sections/CargoCapabilitiesSection";
+import NavigationCommunicationSection from "./sections/NavigationCommunicationSection";
+import LifeSavingAppliancesSection from "./sections/LifeSavingAppliancesSection";
+import FireFightingAppliancesSection from "./sections/FireFightingAppliancesSection";
+import InertGasSystemSection from "./sections/InertGasSystemSection";
 
 /**
  * Wizard steps currently implemented.
@@ -41,7 +49,17 @@ type WizardStep =
   | "SECTION_OVERVIEW"
   | "GENERAL_IDENTITY"
   | "DIMENSIONS_TONNAGE"
-  | "PROPULSION_PERFORMANCE";
+  | "PROPULSION_PERFORMANCE"
+  | "AUX_MACHINERY_ELECTRICAL"
+  | "DECK_MACHINERY_MANEUVERING"
+  | "CARGO_CAPABILITIES"
+  | "NAVIGATION_COMMUNICATION"
+  | "LIFE_SAVING_APPLIANCES"
+  | "FIRE_FIGHTING_APPLIANCES"
+  | "INERT_GAS_SYSTEM";
+
+
+
 
 export default function SeaServiceWizard() {
   const theme = useTheme();
@@ -130,11 +148,41 @@ export default function SeaServiceWizard() {
       return;
     }
 
-      if (sectionKey === "PROPULSION_PERFORMANCE") {
-        setCurrentStep("PROPULSION_PERFORMANCE");
-        return;
+    if (sectionKey === "PROPULSION_PERFORMANCE") {
+    setCurrentStep("PROPULSION_PERFORMANCE");
+    return;
+    }
+    
+    if (sectionKey === "AUX_MACHINERY_ELECTRICAL") {
+    setCurrentStep("AUX_MACHINERY_ELECTRICAL");
+    return;
     }
 
+    if (sectionKey === "DECK_MACHINERY_MANEUVERING") {
+    setCurrentStep("DECK_MACHINERY_MANEUVERING");
+    return;
+    }
+    if (sectionKey === "CARGO_CAPABILITIES") {
+    setCurrentStep("CARGO_CAPABILITIES");
+    return;
+    }
+    if (sectionKey === "NAVIGATION_COMMUNICATION") {
+    setCurrentStep("NAVIGATION_COMMUNICATION");
+    return;
+    }
+    if (sectionKey === "LIFE_SAVING_APPLIANCES") {
+    setCurrentStep("LIFE_SAVING_APPLIANCES");
+    return;
+    }
+    if (sectionKey === "FIRE_FIGHTING_APPLIANCES") {
+    setCurrentStep("FIRE_FIGHTING_APPLIANCES");
+    return;
+    }
+    if (sectionKey === "INERT_GAS_SYSTEM") {
+    setCurrentStep("INERT_GAS_SYSTEM");
+    return;
+    }
+  
     toast.info(`"${title}" form will be added next.`);
   };
 
@@ -361,6 +409,305 @@ export default function SeaServiceWizard() {
     );
     }
 
+    /**
+     * ============================================================
+     * RENDER — STEP 6: AUXILIARY MACHINERY AND ELECTRICAL
+     * ============================================================
+     */
+    if (currentStep === "AUX_MACHINERY_ELECTRICAL") {
+        return (
+            <View
+            style={[
+                styles.container,
+                {
+                backgroundColor: theme.colors.background,
+                paddingBottom: androidSystemFooterPadding,
+                },
+            ]}
+            >
+            <View style={styles.sectionHeader}>
+                <Button
+                mode="outlined"
+                onPress={() =>
+                    setCurrentStep("SECTION_OVERVIEW")
+                }
+                >
+                Back to Sections
+                </Button>
+
+                <Button
+                mode="text"
+                onPress={() =>
+                    toast.info(
+                    "Remember to tap Save Section before leaving."
+                    )
+                }
+                >
+                Help
+                </Button>
+            </View>
+
+            <Divider />
+
+            <AuxMachineryElectricalSection />
+            </View>
+        );
+    }
+    
+
+    /**
+     * ============================================================
+     * RENDER — STEP 7: AUXILIARY MACHINERY AND ELECTRICAL
+     * ============================================================
+     */
+    if (currentStep === "DECK_MACHINERY_MANEUVERING") {
+        return (
+            <View
+            style={[
+                styles.container,
+                {
+                backgroundColor: theme.colors.background,
+                paddingBottom: androidSystemFooterPadding,
+                },
+            ]}
+            >
+            <View style={styles.sectionHeader}>
+                <Button
+                mode="outlined"
+                onPress={() =>
+                    setCurrentStep("SECTION_OVERVIEW")
+                }
+                >
+                Back to Sections
+                </Button>
+
+                <Button
+                mode="text"
+                onPress={() =>
+                    toast.info(
+                    "Remember to tap Save Section before leaving."
+                    )
+                }
+                >
+                Help
+                </Button>
+            </View>
+
+            <Divider />
+
+            <DeckMachineryManeuveringSection />
+            </View>
+        );
+    }
+
+    /**
+     * ============================================================
+     * RENDER — STEP 8: CARGO CAPABILITIES
+   * ============================================================
+   */
+  if (currentStep === "CARGO_CAPABILITIES") {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.colors.background,
+            paddingBottom: androidSystemFooterPadding,
+          },
+        ]}
+      >
+        <View style={styles.sectionHeader}>
+          <Button
+            mode="outlined"
+            onPress={() =>
+              setCurrentStep("SECTION_OVERVIEW")
+            }
+          >
+            Back to Sections
+          </Button>
+
+          <Button
+            mode="text"
+            onPress={() =>
+              toast.info(
+                "Remember to tap Save Section before leaving."
+              )
+            }
+          >
+            Help
+          </Button>
+        </View>
+
+        <Divider />
+
+        <CargoCapabilitiesSection />
+      </View>
+    );
+  }
+
+  /**
+ * ============================================================
+ * RENDER — STEP 9: NAVIGATION & COMMUNICATION
+ * ============================================================
+ */
+if (currentStep === "NAVIGATION_COMMUNICATION") {
+  return (
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.background,
+          paddingBottom: androidSystemFooterPadding,
+        },
+      ]}
+    >
+      <View style={styles.sectionHeader}>
+        <Button
+          mode="outlined"
+          onPress={() => setCurrentStep("SECTION_OVERVIEW")}
+        >
+          Back to Sections
+        </Button>
+
+        <Button
+          mode="text"
+          onPress={() =>
+            toast.info("Remember to tap Save Section before leaving.")
+          }
+        >
+          Help
+        </Button>
+      </View>
+
+      <Divider />
+
+      <NavigationCommunicationSection />
+    </View>
+  );
+}
+    /**
+     * ============================================================
+     * RENDER — STEP 10: LIFE SAVING APPLIANCES (LSA)
+     * ============================================================
+     */
+    if (currentStep === "LIFE_SAVING_APPLIANCES") {
+    return (
+        <View
+        style={[
+            styles.container,
+            {
+            backgroundColor: theme.colors.background,
+            paddingBottom: androidSystemFooterPadding,
+            },
+        ]}
+        >
+        <View style={styles.sectionHeader}>
+            <Button
+            mode="outlined"
+            onPress={() => setCurrentStep("SECTION_OVERVIEW")}
+            >
+            Back to Sections
+            </Button>
+
+            <Button
+            mode="text"
+            onPress={() =>
+                toast.info("Remember to tap Save Section before leaving.")
+            }
+            >
+            Help
+            </Button>
+        </View>
+
+        <Divider />
+
+        <LifeSavingAppliancesSection />
+        </View>
+    );
+    }
+
+    /**
+ * ============================================================
+ * RENDER — STEP 11: FIRE FIGHTING APPLIANCES (FFA)
+ * ============================================================
+ */
+if (currentStep === "FIRE_FIGHTING_APPLIANCES") {
+  return (
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.background,
+          paddingBottom: androidSystemFooterPadding,
+        },
+      ]}
+    >
+      <View style={styles.sectionHeader}>
+        <Button
+          mode="outlined"
+          onPress={() => setCurrentStep("SECTION_OVERVIEW")}
+        >
+          Back to Sections
+        </Button>
+
+        <Button
+          mode="text"
+          onPress={() =>
+            toast.info("Remember to tap Save Section before leaving.")
+          }
+        >
+          Help
+        </Button>
+      </View>
+
+      <Divider />
+
+      <FireFightingAppliancesSection />
+    </View>
+  );
+}
+/**
+ * ============================================================
+ * RENDER — STEP 12: INERT GAS SYSTEM (IGS)
+ * ============================================================
+ */
+if (currentStep === "INERT_GAS_SYSTEM") {
+  return (
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.background,
+          paddingBottom: androidSystemFooterPadding,
+        },
+      ]}
+    >
+      <View style={styles.sectionHeader}>
+        <Button
+          mode="outlined"
+          onPress={() => setCurrentStep("SECTION_OVERVIEW")}
+        >
+          Back to Sections
+        </Button>
+
+        <Button
+          mode="text"
+          onPress={() =>
+            toast.info(
+              "Remember to tap Save Section before leaving."
+            )
+          }
+        >
+          Help
+        </Button>
+      </View>
+
+      <Divider />
+
+      <InertGasSystemSection />
+    </View>
+  );
+}
 
   /**
    * ============================================================
@@ -417,54 +764,56 @@ export default function SeaServiceWizard() {
               {/* ------------------------------------------------
                   SECTION STATUS (DYNAMIC)
                   ------------------------------------------------ */}
-              {(() => {
+                {(() => {
                 const sectionData =
-                  payload.sections[
+                    payload.sections[
                     section.key as keyof typeof payload.sections
-                  ] || {};
+                    ] || {};
 
                 let status:
-                  | "Not Started"
-                  | "In Progress"
-                  | "Completed" =
-                  "Not Started";
+                    | "Not Started"
+                    | "In Progress"
+                    | "Completed" =
+                    "Not Started";
 
+                // ---------------- GENERAL IDENTITY ----------------
                 if (section.key === "GENERAL_IDENTITY") {
-                  const {
+                    const {
                     shipName,
                     imoNumber,
                     flagState,
                     portOfRegistry,
-                  } = sectionData as any;
+                    } = sectionData as any;
 
-                  if (
+                    if (
                     shipName &&
                     imoNumber &&
                     flagState &&
                     portOfRegistry
-                  ) {
+                    ) {
                     status = "Completed";
-                  } else if (
+                    } else if (
                     shipName ||
                     imoNumber ||
                     flagState ||
                     portOfRegistry
-                  ) {
+                    ) {
                     status = "In Progress";
-                  }
+                    }
                 }
 
+                // ---------------- DIMENSIONS ----------------
                 if (section.key === "DIMENSIONS_TONNAGE") {
-                  const {
+                    const {
                     grossTonnage,
                     netTonnage,
                     deadweightTonnage,
                     loaMeters,
                     breadthMeters,
                     summerDraftMeters,
-                  } = sectionData as any;
+                    } = sectionData as any;
 
-                  const allFilled =
+                    const allFilled =
                     grossTonnage &&
                     netTonnage &&
                     deadweightTonnage &&
@@ -472,7 +821,7 @@ export default function SeaServiceWizard() {
                     breadthMeters &&
                     summerDraftMeters;
 
-                  const anyFilled =
+                    const anyFilled =
                     grossTonnage ||
                     netTonnage ||
                     deadweightTonnage ||
@@ -480,24 +829,130 @@ export default function SeaServiceWizard() {
                     breadthMeters ||
                     summerDraftMeters;
 
-                  if (allFilled) {
+                    if (allFilled) {
                     status = "Completed";
-                  } else if (anyFilled) {
+                    } else if (anyFilled) {
                     status = "In Progress";
-                  }
+                    }
                 }
-                
+
+                // ---------------- PROPULSION ----------------
                 if (section.key === "PROPULSION_PERFORMANCE") {
+                    const values = Object.values(sectionData);
+
+                    const allFilled =
+                    values.length > 0 &&
+                    values.every((v) => String(v).trim() !== "");
+
+                    const anyFilled =
+                    values.some((v) => String(v).trim() !== "");
+
+                    if (allFilled) {
+                    status = "Completed";
+                    } else if (anyFilled) {
+                    status = "In Progress";
+                    }
+                }
+
+                // ---------------- AUX MACHINERY ----------------
+                if (section.key === "AUX_MACHINERY_ELECTRICAL") {
+                    const {
+                    mainGeneratorsMakeModel,
+                    numberOfGenerators,
+                    generatorPowerOutput,
+                    emergencyGeneratorMakeModel,
+                    emergencyGeneratorPowerOutput,
+                    shaftGeneratorDetails,
+                    mainSupplyVoltageFrequency,
+                    lightingSupplyVoltage,
+                    boilerMakeType,
+                    boilerWorkingPressure,
+                    freshWaterGeneratorType,
+                    oilyWaterSeparatorMakeModel,
+                    sewageTreatmentPlantMakeModel,
+                    incineratorMake,
+                    purifiersMake,
+                    airCompressorsMakePressure,
+                    } = sectionData as any;
+
+                    const allFilled =
+                    mainGeneratorsMakeModel &&
+                    numberOfGenerators &&
+                    generatorPowerOutput &&
+                    emergencyGeneratorMakeModel &&
+                    emergencyGeneratorPowerOutput &&
+                    shaftGeneratorDetails &&
+                    mainSupplyVoltageFrequency &&
+                    lightingSupplyVoltage &&
+                    boilerMakeType &&
+                    boilerWorkingPressure &&
+                    freshWaterGeneratorType &&
+                    oilyWaterSeparatorMakeModel &&
+                    sewageTreatmentPlantMakeModel &&
+                    incineratorMake &&
+                    purifiersMake &&
+                    airCompressorsMakePressure;
+
+                    const anyFilled =
+                    mainGeneratorsMakeModel ||
+                    numberOfGenerators ||
+                    generatorPowerOutput ||
+                    emergencyGeneratorMakeModel ||
+                    emergencyGeneratorPowerOutput ||
+                    shaftGeneratorDetails ||
+                    mainSupplyVoltageFrequency ||
+                    lightingSupplyVoltage ||
+                    boilerMakeType ||
+                    boilerWorkingPressure ||
+                    freshWaterGeneratorType ||
+                    oilyWaterSeparatorMakeModel ||
+                    sewageTreatmentPlantMakeModel ||
+                    incineratorMake ||
+                    purifiersMake ||
+                    airCompressorsMakePressure;
+
+                    if (allFilled) {
+                    status = "Completed";
+                    } else if (anyFilled) {
+                    status = "In Progress";
+                    }
+                }
+
+                // ---------------- DECK MACHINERY & MANEUVERING ----------------
+                if (section.key === "DECK_MACHINERY_MANEUVERING") {
+                const {
+                    anchorWindlassMakeType,
+                    mooringWinchesNumberType,
+                    anchorPortTypeWeight,
+                    anchorStarboardTypeWeight,
+                    chainLengthPortShackles,
+                    chainLengthStarboardShackles,
+                    bowThrusterPowerMake,
+                    sternThrusterPowerMake,
+                    steeringGearMakeModelType,
+                } = sectionData as any;
+
                 const allFilled =
-                    Object.values(sectionData).length > 0 &&
-                    Object.values(sectionData).every(
-                    (v) => String(v).trim() !== ""
-                    );
+                    anchorWindlassMakeType &&
+                    mooringWinchesNumberType &&
+                    anchorPortTypeWeight &&
+                    anchorStarboardTypeWeight &&
+                    chainLengthPortShackles &&
+                    chainLengthStarboardShackles &&
+                    bowThrusterPowerMake &&
+                    sternThrusterPowerMake &&
+                    steeringGearMakeModelType;
 
                 const anyFilled =
-                    Object.values(sectionData).some(
-                    (v) => String(v).trim() !== ""
-                    );
+                    anchorWindlassMakeType ||
+                    mooringWinchesNumberType ||
+                    anchorPortTypeWeight ||
+                    anchorStarboardTypeWeight ||
+                    chainLengthPortShackles ||
+                    chainLengthStarboardShackles ||
+                    bowThrusterPowerMake ||
+                    sternThrusterPowerMake ||
+                    steeringGearMakeModelType;
 
                 if (allFilled) {
                     status = "Completed";
@@ -506,22 +961,384 @@ export default function SeaServiceWizard() {
                 }
                 }
 
+                if (section.key === "CARGO_CAPABILITIES") {
+                  /**
+                   * Cargo Capabilities Status Logic
+                   *
+                   * RULES:
+                   * - Fields are profile-driven (by ship type)
+                   * - Wizard does NOT care about ship type here
+                   * - Completion = all required fields filled
+                   * - In Progress = any field filled
+                   * - Empty = Not Started
+                   */
+
+                  const values = Object.values(sectionData || {}).map(
+                    (v) => String(v).trim()
+                  );
+
+                  const anyFilled = values.some((v) => v !== "");
+                  const allFilled =
+                    values.length > 0 &&
+                    values.every((v) => v !== "");
+
+                  if (allFilled) {
+                    status = "Completed";
+                  } else if (anyFilled) {
+                    status = "In Progress";
+                  }
+                }
+                // ---------------- NAVIGATION & COMMUNICATION ----------------
+                if (section.key === "NAVIGATION_COMMUNICATION") {
+                    const {
+                        gyroCompass,
+                        magneticCompass,
+                        radarXBand,
+                        radarSBand,
+                        ecdis,
+                        gps,
+                        echoSounder,
+                        speedLog,
+                        ais,
+                        navtex,
+                        gmdssArea,
+                        vhf,
+                        mfHf,
+                        inmarsat,
+                        satC,
+                    } = sectionData as any;
+
+                    /**
+                     * COMPLETION RULES (MARINE-CORRECT):
+                     *
+                     * REQUIRED CORE NAV EQUIPMENT:
+                     * - Gyro or Magnetic compass
+                     * - At least one Radar
+                     * - GPS
+                     * - ECDIS
+                     * - AIS
+                     * - GMDSS (any area)
+                     * - VHF
+                     */
+
+                    const coreNavigationSatisfied =
+                        (gyroCompass || magneticCompass) &&
+                        (radarXBand || radarSBand) &&
+                        gps &&
+                        ecdis &&
+                        ais &&
+                        gmdssArea &&
+                        vhf;
+
+                    const anyFilled = [
+                        gyroCompass,
+                        magneticCompass,
+                        radarXBand,
+                        radarSBand,
+                        ecdis,
+                        gps,
+                        echoSounder,
+                        speedLog,
+                        ais,
+                        navtex,
+                        gmdssArea,
+                        vhf,
+                        mfHf,
+                        inmarsat,
+                        satC,
+                    ].some((v) => String(v ?? "").trim() !== "");
+
+                    if (coreNavigationSatisfied) {
+                        status = "Completed";
+                    } else if (anyFilled) {
+                        status = "In Progress";
+                    }
+                }
+
+                // ---------------- LIFE SAVING APPLIANCES ----------------
+                if (section.key === "LIFE_SAVING_APPLIANCES") {
+                    /**
+                     * LIFE SAVING APPLIANCES STATUS LOGIC
+                     *
+                     * RULES (MARINE-CORRECT):
+                     * - Section is large → completion is pragmatic, not perfectionist
+                     * - Completed when CORE SOLAS items are present
+                     * - In Progress when any LSA data is entered
+                     */
+
+                    const {
+                        // Lifeboats
+                        lifeboatsAvailable,
+                        lifeboatType,
+                        lifeboatCount,
+                        lifeboatCapacity,
+
+                        // Liferafts
+                        liferaftsAvailable,
+                        liferaftType,
+                        liferaftCount,
+                        liferaftCapacity,
+
+                        // Distress & alerting
+                        epirbType,
+                        sartType,
+
+                        // Distress signals
+                        rocketFlaresAvailable,
+                        handFlaresAvailable,
+                        smokeSignalsAvailable,
+                    } = sectionData as any;
+
+                    const anyFilled =
+                        lifeboatsAvailable ||
+                        liferaftsAvailable ||
+                        lifeboatType ||
+                        lifeboatCount ||
+                        lifeboatCapacity ||
+                        liferaftType ||
+                        liferaftCount ||
+                        liferaftCapacity ||
+                        epirbType ||
+                        sartType ||
+                        rocketFlaresAvailable ||
+                        handFlaresAvailable ||
+                        smokeSignalsAvailable;
+
+                    /**
+                     * CORE COMPLETION CRITERIA (AUDIT-SAFE):
+                     * - At least ONE survival craft (LB or LR)
+                     * - EPIRB present
+                     * - SART present
+                     */
+                    const hasSurvivalCraft =
+                        (lifeboatsAvailable &&
+                        lifeboatType &&
+                        lifeboatCount &&
+                        lifeboatCapacity) ||
+                        (liferaftsAvailable &&
+                        liferaftType &&
+                        liferaftCount &&
+                        liferaftCapacity);
+
+                    const distressReady = epirbType && sartType;
+
+                    if (hasSurvivalCraft && distressReady) {
+                        status = "Completed";
+                    } else if (anyFilled) {
+                        status = "In Progress";
+                    }
+                }
+
+// ---------------- FIRE FIGHTING APPLIANCES ----------------
+if (section.key === "FIRE_FIGHTING_APPLIANCES") {
+  /**
+   * FIRE FIGHTING APPLIANCES STATUS LOGIC (Wizard-only)
+   *
+   * GOALS:
+   * - Backward compatible with legacy fields
+   * - Understand new portable-extinguishers-by-type model
+   * - Understand fixed-fire-systems-by-space + multi-system per space
+   * - Keep “Completed” pragmatic and audit-defensible
+   */
+
+  const data = (sectionData ?? {}) as any;
+
+  // ---------- Portable extinguishers (NEW + legacy support) ----------
+  const portableAny =
+    !!data.portableExtinguishersAvailable || // legacy (if still exists in old drafts)
+    !!data.dcpExtinguishersAvailable ||
+    !!data.co2ExtinguishersAvailable ||
+    !!data.foamExtinguishersAvailable ||
+    !!data.waterMistExtinguishersAvailable;
+
+  // ---------- Fixed fire systems (NEW + legacy support) ----------
+  // Legacy flag (old generic model)
+  const fixedLegacyAny = !!data.fixedFireSystemAvailable;
+
+  // Space toggles (new model)
+  const fixedSpaceAny =
+    !!data.engineRoomFixedAvailable ||
+    !!data.pumpRoomFixedAvailable ||
+    !!data.cargoFixedAvailable ||
+    !!data.accommodationFixedAvailable ||
+    !!data.galleyFixedAvailable ||
+    !!data.paintLockerFixedAvailable ||
+    !!data.chemicalLockerFixedAvailable;
+
+  // Any actual fixed-system selection (new model, per-system checkboxes)
+  const fixedSelectedAny =
+    // Engine Room
+    !!data.engineRoomFixedCO2Available ||
+    !!data.engineRoomFixedWaterMistAvailable ||
+    !!data.engineRoomFixedLocalAppAvailable ||
+    !!data.engineRoomFixedFoamLowExpAvailable ||
+    // Pump Room
+    !!data.pumpRoomFixedHighExpFoamAvailable ||
+    !!data.pumpRoomFixedLowExpFoamAvailable ||
+    !!data.pumpRoomFixedWaterSprayAvailable ||
+    !!data.pumpRoomFixedCO2Available ||
+    // Cargo / Deck
+    !!data.cargoFixedLowExpFoamAvailable ||
+    !!data.cargoFixedDCPAvailable ||
+    !!data.cargoFixedWaterSprayAvailable ||
+    !!data.cargoFixedCO2Available ||
+    // Accommodation
+    !!data.accommodationFixedSprinklerAvailable ||
+    !!data.accommodationFixedWaterMistAvailable ||
+    // Galley
+    !!data.galleyFixedWetChemicalAvailable ||
+    !!data.galleyFixedWaterMistAvailable ||
+    !!data.galleyFixedCO2Available ||
+
+    // Paint Locker
+    !!data.paintLockerFixedCO2Available ||
+    !!data.paintLockerFixedWaterSprayAvailable ||
+    !!data.paintLockerFixedFoamAvailable ||
+    // Chemical / Flammable Locker
+    !!data.chemicalLockerFixedCO2Available ||
+    !!data.chemicalLockerFixedWaterSprayAvailable ||
+    !!data.chemicalLockerFixedFoamAvailable;
+
+  // We treat fixed systems as “present” if legacy says so OR any new selections exist OR a space has been marked.
+  // (Marking a space without selecting a system still counts as “in progress”.)
+  const fixedAny = fixedLegacyAny || fixedSelectedAny || fixedSpaceAny;
+
+  // ---------- Any-filled (for In Progress) ----------
+  const anyFilled =
+    !!data.fireMainAvailable ||
+    !!data.emergencyFirePumpAvailable ||
+    !!data.hydrantsAvailable ||
+    !!data.hosesAvailable ||
+    portableAny ||
+    fixedAny ||
+    !!data.fireDetectionAlarmAvailable ||
+    !!data.firemansOutfitAvailable ||
+    !!data.breathingApparatusAvailable ||
+    !!data.eebdAvailable ||
+    !! (typeof data.remarks === "string" && data.remarks.trim().length > 0)
+
+  // ---------- Core completion (pragmatic SOLAS-aligned) ----------
+  /**
+   * CORE COMPLETION CRITERIA:
+   * - Fire main OR any fixed system documented (legacy or new)
+   * - Portable extinguishers documented (any type)
+   * - Fire detection/alarm documented
+   * - Fireman’s outfit OR BA documented
+   */
+  const coreFireProtection =
+    (!!data.fireMainAvailable || fixedLegacyAny || fixedSelectedAny) &&
+    portableAny &&
+    !!data.fireDetectionAlarmAvailable &&
+    (!!data.firemansOutfitAvailable || !!data.breathingApparatusAvailable);
+
+  if (coreFireProtection) {
+    status = "Completed";
+  } else if (anyFilled) {
+    status = "In Progress";
+  }
+}
+// ---------------- INERT GAS SYSTEM ----------------
+if (section.key === "INERT_GAS_SYSTEM") {
+  const data = sectionData || {};
+  const shipType = payload?.shipType || "";
+
+  const isTanker =
+    shipType === "TANKER" ||
+    shipType === "OIL_TANKER" ||
+    shipType === "PRODUCT_TANKER" ||
+    shipType === "CHEMICAL_TANKER";
+
+  // ---- NOT FITTED PATH ----
+  if (!data.igsFitted) {
+    if (
+      !isTanker &&
+      typeof data.igsNotFittedReason === "string" &&
+      data.igsNotFittedReason.trim().length > 0
+    ) {
+      status = "Completed";
+    } else if (
+      typeof data.igsNotFittedReason === "string" &&
+      data.igsNotFittedReason.trim().length > 0
+    ) {
+      status = "In Progress";
+    }
+  }
+
+  // ---- FITTED PATH ----
+  if (data.igsFitted) {
+    const coreComponents =
+      data.scrubberAvailable ||
+      data.blowerAvailable ||
+      data.deckSealAvailable ||
+      data.nonReturnDevicesAvailable;
+
+    const monitoring =
+      data.oxygenAnalyzerAvailable ||
+      data.igPressureAlarmAvailable ||
+      data.deckSealAlarmAvailable ||
+      data.blowerTripAvailable ||
+      data.highOxygenTripAvailable;
+
+    const anyFilled =
+      coreComponents ||
+      monitoring ||
+      data.distCargoTanks ||
+      data.distSlopTanks ||
+      data.distCargoLines ||
+      data.distMastRiser ||
+      (typeof data.igsSourceType === "string" &&
+        data.igsSourceType.trim().length > 0);
+
+    if (coreComponents && monitoring) {
+      status = "Completed";
+    } else if (anyFilled) {
+      status = "In Progress";
+    }
+  }
+}
+
+
+
+                // ---------------- STATUS COLOR (VISUAL ONLY) ----------------
+                const getStatusStyle = (): {
+                color?: string;
+                fontWeight?: 400 | 500 | 600 | 700;
+                } => {
+                switch (status) {
+                    case "Completed":
+                    return {
+                        color: "#2E7D32", // Green
+                        fontWeight: 700,
+                    };
+                    case "In Progress":
+                    return {
+                        color: "#EF6C00", // Orange
+                        fontWeight: 600,
+                    };
+                    case "Not Started":
+                    return {
+                        color: "#C62828", // Red
+                        fontWeight: 600,
+                    };
+                    default:
+                    return {};
+                }
+                };
+
+
                 return (
-                  <Text
+                    <Text
                     variant="labelSmall"
                     style={[
-                      styles.sectionStatus,
-                      status === "Completed" && {
-                        color:
-                          theme.colors.primary,
-                        fontWeight: "700",
-                      },
+                        styles.sectionStatus,
+                        getStatusStyle(),
                     ]}
-                  >
+                    >
                     Status: {status}
-                  </Text>
+                    </Text>
                 );
-              })()}
+                })()}
+
             </Card.Content>
           </Card>
         ))}
