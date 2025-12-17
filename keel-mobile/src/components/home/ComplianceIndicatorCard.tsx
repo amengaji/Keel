@@ -2,37 +2,30 @@
 
 /**
  * ============================================================
- * ComplianceIndicatorCard
+ * ComplianceIndicatorCard (Refactored — Inline Attention UX)
  * ============================================================
  *
  * PURPOSE:
- * - Show a single compliance signal on Home Dashboard
- * - Inspector-grade wording, cadet-friendly explanation
+ * - Single source of truth for compliance status on Home
+ * - Inline attention handling (no separate Attention panel)
  *
- * USED FOR:
- * - Sea Service
- * - Watchkeeping (STCW)
- * - Daily Logs health
- * - Tasks (future)
- * - Familiarisation (future)
+ * UX RULES:
+ * - INFO → minimal, no noise
+ * - ATTENTION → explanation + recommendation
+ * - RISK → explanation + recommendation + toast handled by parent
  *
- * DESIGN RULES:
- * - Read-only (NO actions here)
- * - Status language must match maritime inspections
- * - Explicit "why this matters" helper text
- * - Theme-safe (light / dark)
+ * DESIGN:
+ * - Inspector-grade
+ * - Cadet self-awareness without clutter
+ * - Theme-safe
  */
 
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { Card, Text, useTheme, Divider } from "react-native-paper";
+import { Card, Text, Divider, useTheme } from "react-native-paper";
 
-/**
- * ------------------------------------------------------------
- * Supported compliance states
- * ------------------------------------------------------------
- */
 export type ComplianceStatus =
+  | "INFO"
   | "ON_TRACK"
   | "ATTENTION"
   | "RISK"
@@ -42,52 +35,71 @@ interface Props {
   title: string;
   status: ComplianceStatus;
   summary: string;
-  helperText?: string;
+
+  /** Shown ONLY for ATTENTION / RISK */
+  explanation?: string;
+
+  /** Shown ONLY for ATTENTION / RISK */
+  recommendation?: string;
 }
 
-/**
- * ============================================================
- * Component
- * ============================================================
- */
 export default function ComplianceIndicatorCard({
   title,
   status,
   summary,
-  helperText,
+  explanation,
+  recommendation,
 }: Props) {
   const theme = useTheme();
+  const meta = getStatusMeta(status, theme);
 
-  const statusMeta = getStatusMeta(status, theme);
+  const showAttentionDetails =
+    status === "ATTENTION" || status === "RISK";
 
   return (
-    <Card style={[styles.card, { borderLeftColor: statusMeta.color }]}>
+    <Card style={[styles.card, { borderLeftColor: meta.color }]}>
       <Card.Content>
-        {/* ------------------------------------------------------
+        {/* --------------------------------------------------
             Title
-           ------------------------------------------------------ */}
+           -------------------------------------------------- */}
         <Text variant="titleSmall" style={styles.title}>
           {title}
         </Text>
 
         <Divider style={styles.divider} />
 
-        {/* ------------------------------------------------------
+        {/* --------------------------------------------------
             Status line
-           ------------------------------------------------------ */}
-        <Text style={[styles.statusText, { color: statusMeta.color }]}>
-          {statusMeta.label}
+           -------------------------------------------------- */}
+        <Text style={[styles.statusText, { color: meta.color }]}>
+          {meta.label}
         </Text>
 
         <Text style={styles.summaryText}>{summary}</Text>
 
-        {/* ------------------------------------------------------
-            Helper text (Cadet self-awareness)
-           ------------------------------------------------------ */}
-        {helperText && (
-          <View style={styles.helperBox}>
-            <Text style={styles.helperLabel}>Why this matters</Text>
-            <Text style={styles.helperText}>{helperText}</Text>
+        {/* --------------------------------------------------
+            Inline attention (ONLY when needed)
+           -------------------------------------------------- */}
+        {showAttentionDetails && explanation && (
+          <View style={styles.attentionBox}>
+            <Text style={styles.attentionLabel}>
+              What this means
+            </Text>
+            <Text style={styles.attentionText}>
+              {explanation}
+            </Text>
+
+            {recommendation && (
+              <>
+                <Divider style={styles.innerDivider} />
+                <Text style={styles.recommendationLabel}>
+                  Recommended next step
+                </Text>
+                <Text style={styles.recommendationText}>
+                  {recommendation}
+                </Text>
+              </>
+            )}
           </View>
         )}
       </Card.Content>
@@ -95,50 +107,53 @@ export default function ComplianceIndicatorCard({
   );
 }
 
-/**
- * ============================================================
- * Status metadata resolver
- * ============================================================
- *
- * Centralised so language & colours stay consistent.
- */
+/* ============================================================
+ * Status metadata
+ * ============================================================ */
 function getStatusMeta(status: ComplianceStatus, theme: any) {
   switch (status) {
-    case "ON_TRACK":
-      return {
-        label: "On Track",
-        color: theme.colors.primary,
-      };
-
-    case "ATTENTION":
-      return {
-        label: "Attention Required",
-        color: theme.colors.tertiary ?? theme.colors.warning ?? "#E6A700",
-      };
-
     case "RISK":
       return {
         label: "Compliance Risk",
         color: theme.colors.error,
       };
 
+    case "ATTENTION":
+      return {
+        label: "Attention Required",
+        color:
+          theme.colors.tertiary ??
+          theme.colors.warning ??
+          "#E6A700",
+      };
+
+    case "ON_TRACK":
+      return {
+        label: "On Track",
+        color: theme.colors.primary,
+      };
+
     case "NOT_AVAILABLE":
-    default:
       return {
         label: "Data Not Available",
         color: theme.colors.onSurfaceVariant,
       };
+
+    case "INFO":
+    default:
+      return {
+        label: "Info",
+        color: theme.colors.primary,
+      };
   }
 }
 
-/**
- * ============================================================
+/* ============================================================
  * Styles
- * ============================================================
- */
+ * ============================================================ */
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 12,
+    marginBottom: 14,
     borderLeftWidth: 4,
   },
 
@@ -152,30 +167,46 @@ const styles = StyleSheet.create({
 
   statusText: {
     fontWeight: "700",
-    marginBottom: 4,
+    marginBottom: 2,
   },
 
   summaryText: {
     opacity: 0.85,
-    marginBottom: 6,
   },
 
-  helperBox: {
-    marginTop: 8,
-    padding: 8,
+  attentionBox: {
+    marginTop: 10,
+    padding: 10,
     borderRadius: 6,
-    backgroundColor: "rgba(0,0,0,0.03)",
+    backgroundColor: "rgba(0,0,0,0.04)",
   },
 
-  helperLabel: {
+  attentionLabel: {
     fontSize: 12,
     fontWeight: "700",
     marginBottom: 2,
     opacity: 0.7,
   },
 
-  helperText: {
+  attentionText: {
     fontSize: 12,
-    opacity: 0.75,
+    opacity: 0.85,
+    marginBottom: 6,
+  },
+
+  innerDivider: {
+    marginVertical: 6,
+  },
+
+  recommendationLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    opacity: 0.7,
+    marginBottom: 2,
+  },
+
+  recommendationText: {
+    fontSize: 12,
+    opacity: 0.85,
   },
 });

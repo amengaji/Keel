@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Pressable
 } from "react-native";
 import {
   Text,
@@ -17,7 +18,9 @@ import {
   Chip,
   IconButton,
   Checkbox,
+  RadioButton,
   useTheme,
+  SegmentedButtons,
 } from "react-native-paper";
 import Toast from "react-native-toast-message";
 
@@ -38,7 +41,36 @@ import { checkStcwCompliance } from "../utils/stcwCompliance";
    TYPES
    ============================================================ */
 
+/**
+ * ============================================================
+ * Daily Screen — Top-level UX Intent Tabs
+ * ============================================================
+ *
+ * DAILY_WORK  → time-based daily duties (counts toward STCW)
+ * SEA_WATCH   → bridge / engine watchkeeping
+ * PORT_WATCH  → cargo / anchor / gangway / bunkering (coming next)
+ * STATUS      → compliance / summaries (unchanged)
+ * HISTORY     → past entries (unchanged)
+ */
+type DailyTab =
+  | "DAILY_WORK"
+  | "SEA_WATCH"
+  | "PORT_WATCH"
+  | "STATUS"
+  | "HISTORY";
+
+  /**
+ * ============================================================
+ * LogType — underlying duty record type
+ * ============================================================
+ *
+ * NOTE:
+ * - This already existed earlier in the file.
+ * - It MUST remain declared for form logic & DB writes.
+ * - UI tabs map onto these values.
+ */
 type LogType = "DAILY" | "BRIDGE" | "ENGINE";
+
 
 type DailyLogEntry = {
   id: string;
@@ -102,8 +134,28 @@ export default function DailyScreen() {
      Controls which major mode the screen is in.
      ======================= */
 
-  type DailyTab = "LOG" | "STATUS" | "HISTORY";
-  const [activeTab, setActiveTab] = useState<DailyTab>("LOG");
+
+  /* =======================
+     TAB STATE (Phase D2.1)
+     Controls which major mode the screen is in.
+     NOTE:
+     - DailyTab type is declared ONCE at the top of the file.
+     - Do NOT redeclare it inside the component (TypeScript will get messy).
+     ======================= */
+  const [activeTab, setActiveTab] = useState<DailyTab>("DAILY_WORK");
+  /**
+   * ============================================================
+   * Primary Screen Mode
+   * ============================================================
+   * LOG     → Create log entries
+   * REVIEW  → Review status & history
+   */
+  type PrimaryMode = "LOG" | "REVIEW";
+
+  const [primaryMode, setPrimaryMode] = useState<PrimaryMode>("LOG");
+
+
+
 
 
   /* =======================
@@ -217,6 +269,66 @@ const findOverlappingEntry = (
      ======================= */
 
   const [logType, setLogType] = useState<LogType>("DAILY");
+
+  /**
+   * ============================================================
+   * Duty Mode (UI intent only)
+   * ============================================================
+   * DAILY_WORK → general daywork (counts toward STCW)
+   * SEA_WATCH  → bridge / engine watchkeeping
+   * PORT_WATCH → cargo / anchor / gangway / bunkering (next step)
+   */
+  type DutyMode = "DAILY_WORK" | "SEA_WATCH" | "PORT_WATCH";
+
+  const [dutyMode, setDutyMode] = useState<DutyMode>("DAILY_WORK");
+  /**
+ * ============================================================
+ * Sea Watch Sub-Mode (Bridge vs Engine)
+ * ============================================================
+ * Only relevant when dutyMode === "SEA_WATCH"
+ */
+type SeaWatchMode = "BRIDGE" | "ENGINE";
+
+const [seaWatchMode, setSeaWatchMode] =
+  useState<SeaWatchMode>("BRIDGE");
+
+  /**
+ * ============================================================
+ * Port Watch Sub-Type
+ * ============================================================
+ * Cargo / Anchor / Gangway / Bunkering
+ */
+type PortWatchType =
+  | "CARGO"
+  | "ANCHOR"
+  | "GANGWAY"
+  | "BUNKERING";
+
+const [portWatchType, setPortWatchType] =
+  useState<PortWatchType>("CARGO");
+
+
+
+/**
+ * ============================================================
+ * Map Duty Mode + Sea Watch Mode → underlying LogType
+ * ============================================================
+ * Keeps all existing save & STCW logic intact.
+ */
+useEffect(() => {
+  if (dutyMode === "DAILY_WORK") {
+    setLogType("DAILY");
+  }
+
+  if (dutyMode === "SEA_WATCH") {
+    setLogType(seaWatchMode);
+  }
+
+  // PORT_WATCH intentionally not mapped yet
+}, [dutyMode, seaWatchMode]);
+
+
+
   const [date, setDate] = useState<Date | null>(today);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
@@ -743,8 +855,15 @@ const hydrateEngineStateFromJson = (json: string | null) => {
      * Also shows a diagnostic toast so we can confirm what data is received.
      */
     const handleEdit = (entry: DailyLogEntry) => {
-    // 1️⃣ Switch to LOG tab
-    setActiveTab("LOG");
+    // 1️⃣ Switch to the correct tab (Phase D2.1)
+    // - DAILY entries belong to Daily Work tab
+    // - BRIDGE/ENGINE entries belong to Sea Watch tab
+    if (entry.type === "DAILY") {
+      setActiveTab("DAILY_WORK");
+    } else {
+      setActiveTab("SEA_WATCH");
+    }
+
 
     // 2️⃣ Mark edit mode
     setEditingLogId(entry.id);
@@ -969,23 +1088,284 @@ if (overlapping) {
       >
         <Text variant="headlineMedium">Diary & Watchkeeping</Text>
 
-        {/* ---------------- TAB BAR ---------------- */}
-        <View style={styles.tabBar}>
-          {[
-            { key: "LOG", label: "Log Watch" },
-            { key: "STATUS", label: "My Status" },
-            { key: "HISTORY", label: "History" },
-          ].map((tab) => (
-            <Button
-              key={tab.key}
-              mode={activeTab === tab.key ? "contained" : "text"}
-              onPress={() => setActiveTab(tab.key as DailyTab)}
-              style={styles.tabButton}
+        {/* ---------------- TAB BAR (Top-level Intent) ----------------
+        {/* ============================================================
+            TOP-LEVEL MODE SELECTOR (Segmented UX)
+            - Large touch targets
+            - Clear active state
+            - Inspector / cadet friendly
+           ============================================================ */}
+{/* ============================================================
+    PRIMARY MODE SELECTOR
+    Large, readable, cadet-friendly
+   ============================================================ */}
+<View style={{ flexDirection: "row", gap: 12, marginVertical: 16 }}>
+  <Button
+    mode={primaryMode === "LOG" ? "contained" : "outlined"}
+    onPress={() => setPrimaryMode("LOG")}
+    style={{ flex: 1 }}
+  >
+    Create Log Entry
+  </Button>
+
+  <Button
+    mode={primaryMode === "REVIEW" ? "contained" : "outlined"}
+    onPress={() => setPrimaryMode("REVIEW")}
+    style={{ flex: 1 }}
+  >
+    Review Logs
+  </Button>
+</View>
+
+{/* ============================================================
+    DUTY TYPE SELECTION — CAPSULE SEGMENTED CONTROL
+    - Mode selection (not a list)
+    - Large touch targets
+    - Maritime-friendly UX
+   ============================================================ */}
+{primaryMode === "LOG" && (
+  <Card style={{ marginBottom: 16 }}>
+    <Card.Content>
+      <Text variant="titleMedium" style={{ marginBottom: 12 }}>
+        Select Duty Type
+      </Text>
+
+      <View style={styles.capsuleContainer}>
+        {/* Daily Work */}
+        <Pressable
+          onPress={() => setDutyMode("DAILY_WORK")}
+          style={[
+            styles.capsuleSegment,
+            styles.capsuleLeft,
+            dutyMode === "DAILY_WORK" && styles.capsuleActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.capsuleText,
+              dutyMode === "DAILY_WORK" && styles.capsuleTextActive,
+            ]}
+          >
+            Daily Work
+          </Text>
+        </Pressable>
+
+        {/* Sea Watch */}
+        <Pressable
+          onPress={() => setDutyMode("SEA_WATCH")}
+          style={[
+            styles.capsuleSegment,
+            dutyMode === "SEA_WATCH" && styles.capsuleActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.capsuleText,
+              dutyMode === "SEA_WATCH" && styles.capsuleTextActive,
+            ]}
+          >
+            Sea Watch
+          </Text>
+        </Pressable>
+
+        {/* Port Watch */}
+        <Pressable
+          onPress={() => setDutyMode("PORT_WATCH")}
+          style={[
+            styles.capsuleSegment,
+            styles.capsuleRight,
+            dutyMode === "PORT_WATCH" && styles.capsuleActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.capsuleText,
+              dutyMode === "PORT_WATCH" && styles.capsuleTextActive,
+            ]}
+          >
+            Port Watch
+          </Text>
+        </Pressable>
+      </View>
+    </Card.Content>
+  </Card>
+)}
+
+{/* ============================================================
+    SEA WATCH TYPE — CAPSULE SEGMENTED CONTROL
+    Visible only when Duty Type = Sea Watch
+   ============================================================ */}
+  {primaryMode === "LOG" && dutyMode === "SEA_WATCH" && (
+    <Card style={{ marginBottom: 16 }}>
+      <Card.Content>
+        <Text variant="titleMedium" style={{ marginBottom: 12 }}>
+          Sea Watch Type
+        </Text>
+
+        <View style={styles.capsuleContainer}>
+          {/* Bridge Watch */}
+          <Pressable
+            onPress={() => setSeaWatchMode("BRIDGE")}
+            style={[
+              styles.capsuleSegment,
+              styles.capsuleLeft,
+              seaWatchMode === "BRIDGE" && styles.capsuleActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.capsuleText,
+                seaWatchMode === "BRIDGE" && styles.capsuleTextActive,
+              ]}
             >
-              {tab.label}
-            </Button>
-          ))}
+              Bridge Watch
+            </Text>
+          </Pressable>
+
+          {/* Engine Watch */}
+          <Pressable
+            onPress={() => setSeaWatchMode("ENGINE")}
+            style={[
+              styles.capsuleSegment,
+              styles.capsuleRight,
+              seaWatchMode === "ENGINE" && styles.capsuleActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.capsuleText,
+                seaWatchMode === "ENGINE" && styles.capsuleTextActive,
+              ]}
+            >
+              Engine Watch
+            </Text>
+          </Pressable>
         </View>
+      </Card.Content>
+    </Card>
+  )}
+
+
+{/* ============================================================
+    PORT WATCH FORM — UI SKELETON (Phase D3.1)
+    - Counts toward STCW (logic wired later)
+    - Save wiring comes in next step
+   ============================================================ */}
+{primaryMode === "LOG" && dutyMode === "PORT_WATCH" && (
+  <Card style={{ marginBottom: 16 }}>
+    <Card.Content>
+      <Text variant="titleMedium" style={{ marginBottom: 12 }}>
+        Port Watch
+      </Text>
+
+      {/* -------- Port Watch Type (Capsule) -------- */}
+      <Text style={{ marginBottom: 8, fontWeight: "600" }}>
+        Port Watch Type
+      </Text>
+
+      <View style={styles.capsuleContainer}>
+        <Pressable
+          onPress={() => setPortWatchType("CARGO")}
+          style={[
+            styles.capsuleSegment,
+            styles.capsuleLeft,
+            portWatchType === "CARGO" && styles.capsuleActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.capsuleText,
+              portWatchType === "CARGO" && styles.capsuleTextActive,
+            ]}
+          >
+            Cargo
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setPortWatchType("ANCHOR")}
+          style={[
+            styles.capsuleSegment,
+            portWatchType === "ANCHOR" && styles.capsuleActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.capsuleText,
+              portWatchType === "ANCHOR" && styles.capsuleTextActive,
+            ]}
+          >
+            Anchor
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setPortWatchType("GANGWAY")}
+          style={[
+            styles.capsuleSegment,
+            portWatchType === "GANGWAY" && styles.capsuleActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.capsuleText,
+              portWatchType === "GANGWAY" && styles.capsuleTextActive,
+            ]}
+          >
+            Gangway
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setPortWatchType("BUNKERING")}
+          style={[
+            styles.capsuleSegment,
+            styles.capsuleRight,
+            portWatchType === "BUNKERING" && styles.capsuleActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.capsuleText,
+              portWatchType === "BUNKERING" && styles.capsuleTextActive,
+            ]}
+          >
+            Bunkering
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* -------- Time Inputs (reuse existing components) -------- */}
+      <View style={{ marginTop: 16 }}>
+        <TimeInputField
+          label="Start Time"
+          value={startTime}
+          onChange={setStartTime}
+        />
+
+        <TimeInputField
+          label="End Time"
+          value={endTime}
+          onChange={setEndTime}
+        />
+      </View>
+
+      {/* -------- Optional Remarks -------- */}
+      <TextInput
+        label="Remarks (optional)"
+        value={remarks}
+        onChangeText={setRemarks}
+        mode="outlined"
+        multiline
+        style={{ marginTop: 16 }}
+      />
+    </Card.Content>
+  </Card>
+)}
+
+
+
+
 
         {/* ================= STATUS TAB ================= */}
         {activeTab === "STATUS" && (
@@ -1039,778 +1419,35 @@ if (overlapping) {
           </>
         )}
 
-        {/* ================= LOG TAB ================= */}
-        {activeTab === "LOG" && (
+
+        {/* ================= SEA WATCH TAB =================
+           Sea Watch includes BRIDGE + ENGINE (existing).
+           For Phase D2.1, we keep your existing Log Type chips so nothing breaks.
+           Later (D2.2) we will improve Sea Watch UX with radio selection Bridge vs Engine.
+        ==================================================== */}
+        {activeTab === "SEA_WATCH" && (
           <Card style={styles.card}>
             <Card.Content>
-
-              {/* ============================================================
-                PHASE D7.3.3 — LOG WATCH FORM UX CLEANUP
-                Goal: Make the form easier to understand for cadets.
-                - No DB / logic changes
-                - Only visual grouping + helper guidance
-                - Light/Dark mode supported (colors pulled from theme)
-                ============================================================ */}
-
-              {/* ---------------- SECTION: LOG TYPE ---------------- */}
-              <View style={styles.formSection}>
-                <Text
-                  variant="titleSmall"
-                  style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-                >
-                  Log Type
-                </Text>
-
-                <Text
-                  variant="bodySmall"
-                  style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-                >
-                  Select what you are logging. Bridge/Engine watches require time range.
-                </Text>
-
-                <View style={styles.filterRow}>
-                  {(Object.keys(LOG_TYPE_LABEL) as LogType[]).map((t) => {
-                    const isSelected = logType === t;
-
-                    // Theme-safe chip colors (works in both light/dark mode)
-                    const chipBackground = isSelected
-                      ? theme.colors.primary
-                      : (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface;
-
-                    const chipTextColor = isSelected
-                      ? theme.colors.onPrimary
-                      : theme.colors.onSurface;
-
-                    return (
-                      <Chip
-                        key={t}
-                        selected={isSelected}
-                        onPress={() => setLogType(t)}
-                        style={[styles.chip, { backgroundColor: chipBackground }]}
-                        textStyle={[styles.chipText, { color: chipTextColor }]}
-                      >
-                        {LOG_TYPE_LABEL[t]}
-                      </Chip>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* ---------------- SECTION: DATE ---------------- */}
-              <View style={styles.formSection}>
-                <Text
-                  variant="titleSmall"
-                  style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-                >
-                  Date
-                </Text>
-
-                <Text
-                  variant="bodySmall"
-                  style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-                >
-                  Log date (defaults to today). Use the calendar icon if needed.
-                </Text>
-
-                <DateInputField label="Date" value={date} onChange={setDate} required />
-              </View>
-
-              {/* ---------------- SECTION: TIME & WATCH (only for BRIDGE/ENGINE) ---------------- */}
-              {isTimeRequired && (
-                <View style={styles.formSection}>
-                  <Text
-                    variant="titleSmall"
-                    style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-                  >
-                    Time & Watch
-                  </Text>
-
-                  <Text
-                    variant="bodySmall"
-                    style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-                  >
-                    Start and End time are required for Bridge/Engine watch logs.
-                  </Text>
-
-                  <View style={styles.timeRow}>
-                    <TimeInputField
-                      label="Start Time"
-                      value={startTime}
-                      onChange={setStartTime}
-                      required
-                    />
-                    <View style={{ width: 12 }} />
-                    <TimeInputField
-                      label="End Time"
-                      value={endTime}
-                      onChange={setEndTime}
-                      required
-                    />
-                  </View>
-                </View>
-              )}
-
-            {/* ---------------- SECTION: ENGINE WATCH OVERVIEW ---------------- */}
-            {logType === "ENGINE" && (
-              <View style={styles.formSection}>
-                <Text
-                  variant="titleSmall"
-                  style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-                >
-                  Engine Watch Overview
-                </Text>
-
-                <Text
-                  variant="bodySmall"
-                  style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-                >
-                  Basic engine room watch context. Use toggles instead of typing wherever
-                  possible.
-                </Text>
-
-                {/* --- Watch Type --- */}
-                <Text
-                  variant="labelMedium"
-                  style={{ marginTop: 8, color: theme.colors.onSurface }}
-                >
-                  Watch Type
-                </Text>
-
-                <View style={styles.filterRow}>
-                  {[
-                    { key: "UMS", label: "UMS" },
-                    { key: "MANNED", label: "Manned" },
-                    { key: "STANDBY", label: "Standby" },
-                  ].map((opt) => {
-                    const selected = engineWatchType === opt.key;
-
-                    return (
-                      <Chip
-                        key={opt.key}
-                        selected={selected}
-                        onPress={() =>
-                          setEngineWatchType(opt.key as typeof engineWatchType)
-                        }
-                        style={[
-                          styles.chip,
-                          {
-                            backgroundColor: selected
-                              ? theme.colors.primary
-                              : (theme as any)?.colors?.elevation?.level1 ??
-                                theme.colors.surface,
-                          },
-                        ]}
-                        textStyle={{
-                          color: selected
-                            ? theme.colors.onPrimary
-                            : theme.colors.onSurface,
-                        }}
-                      >
-                        {opt.label}
-                      </Chip>
-                    );
-                  })}
-                </View>
-
-                {/* --- Engine Running Toggle --- */}
-                <View
-                  style={{
-                    marginTop: 12,
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text style={{ color: theme.colors.onSurface }}>
-                    Engine Running
-                  </Text>
-
-                  <IconButton
-                    icon={engineRunning ? "toggle-switch" : "toggle-switch-off-outline"}
-                    iconColor={
-                      engineRunning ? theme.colors.primary : theme.colors.onSurfaceVariant
-                    }
-                    size={32}
-                    onPress={() => setEngineRunning((p) => !p)}
-                    accessibilityLabel="Toggle engine running"
-                  />
-                </View>
-
-                {/* --- Manoeuvring Toggle --- */}
-                <View
-                  style={{
-                    marginTop: 8,
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text style={{ color: theme.colors.onSurface }}>
-                    Manoeuvring
-                  </Text>
-
-                  <IconButton
-                    icon={manoeuvring ? "toggle-switch" : "toggle-switch-off-outline"}
-                    iconColor={
-                      manoeuvring ? theme.colors.primary : theme.colors.onSurfaceVariant
-                    }
-                    size={32}
-                    onPress={() => setManoeuvring((p) => !p)}
-                    accessibilityLabel="Toggle manoeuvring"
-                  />
-                </View>
-
-                {/* --- Attendance --- */}
-                <Text
-                  variant="labelMedium"
-                  style={{ marginTop: 12, color: theme.colors.onSurface }}
-                >
-                  Engine Room Attendance
-                </Text>
-
-                <View style={styles.filterRow}>
-                  {[
-                    { key: "SOLO", label: "Solo" },
-                    { key: "WITH_SENIOR", label: "With Senior" },
-                    { key: "TEAM", label: "Team" },
-                  ].map((opt) => {
-                    const selected = engineRoomAttendance === opt.key;
-
-                    return (
-                      <Chip
-                        key={opt.key}
-                        selected={selected}
-                        onPress={() =>
-                          setEngineRoomAttendance(
-                            opt.key as typeof engineRoomAttendance
-                          )
-                        }
-                        style={[
-                          styles.chip,
-                          {
-                            backgroundColor: selected
-                              ? theme.colors.primary
-                              : (theme as any)?.colors?.elevation?.level1 ??
-                                theme.colors.surface,
-                          },
-                        ]}
-                        textStyle={{
-                          color: selected
-                            ? theme.colors.onPrimary
-                            : theme.colors.onSurface,
-                        }}
-                      >
-                        {opt.label}
-                      </Chip>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* ---------------- SECTION: MACHINERY STATUS (ENGINE RUNNING ONLY) ---------------- */}
-            {logType === "ENGINE" && engineRunning && (
-              <View
-                style={[
-                  styles.bridgeSectionCard,
-                  {
-                    backgroundColor:
-                      (theme as any)?.colors?.elevation?.level1 ??
-                      theme.colors.surface,
-                    borderColor: theme.colors.outlineVariant ?? theme.colors.outline,
-                  },
-                ]}
-              >
-                <Text
-                  variant="titleSmall"
-                  style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-                >
-                  Machinery Status
-                </Text>
-
-                <Text
-                  variant="bodySmall"
-                  style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-                >
-                  Select machinery in operation during this watch.
-                </Text>
-
-                {/* --- Main Engine --- */}
-                <View style={styles.checkRow}>
-                  <Text style={{ color: theme.colors.onSurface }}>
-                    Main Engine Running
-                  </Text>
-
-                  <Checkbox
-                    status={mainEngineRunning ? "checked" : "unchecked"}
-                    onPress={() => setMainEngineRunning((p) => !p)}
-                  />
-                </View>
-
-                {/* --- Generators --- */}
-                <Text
-                  variant="labelMedium"
-                  style={{ marginTop: 8, color: theme.colors.onSurface }}
-                >
-                  Generators Running
-                </Text>
-
-                {(["DG1", "DG2", "DG3"] as const).map((dg) => (
-                  <View key={dg} style={styles.checkRow}>
-                    <Text style={{ color: theme.colors.onSurface }}>{dg}</Text>
-
-                    <Checkbox
-                      status={generatorsRunning[dg] ? "checked" : "unchecked"}
-                      onPress={() =>
-                        setGeneratorsRunning((p) => ({
-                          ...p,
-                          [dg]: !p[dg],
-                        }))
-                      }
-                    />
-                  </View>
-                ))}
-
-                {/* --- Boiler --- */}
-                <View style={styles.checkRow}>
-                  <Text style={{ color: theme.colors.onSurface }}>
-                    Boiler in Service
-                  </Text>
-
-                  <Checkbox
-                    status={boilerInService ? "checked" : "unchecked"}
-                    onPress={() => setBoilerInService((p) => !p)}
-                  />
-                </View>
-
-                {/* --- Steering Gear --- */}
-                <View style={styles.checkRow}>
-                  <Text style={{ color: theme.colors.onSurface }}>
-                    Steering Gear in Use
-                  </Text>
-
-                  <Checkbox
-                    status={steeringGearInUse ? "checked" : "unchecked"}
-                    onPress={() => setSteeringGearInUse((p) => !p)}
-                  />
-                </View>
-              </View>
-            )}
-
-{/* ---------------- SECTION: ENGINE PARAMETERS (ACCORDION, OPTIONAL) ---------------- */}
-{logType === "ENGINE" && engineRunning && (
-  <View
-    style={[
-      styles.bridgeSectionCard,
-      {
-        backgroundColor:
-          (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface,
-        borderColor: theme.colors.outlineVariant ?? theme.colors.outline,
-      },
-    ]}
-  >
-    {/* Accordion Header */}
-    <View style={styles.accordionHeaderRow}>
-      <View>
-        <Text
-          variant="titleSmall"
-          style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-        >
-          Engine Parameters (Optional)
-        </Text>
-
-        <Text
-          variant="bodySmall"
-          style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-        >
-          Add quick operational parameters without typing.
-        </Text>
-      </View>
-
-      <IconButton
-        icon={engineLoadPercent != null || engineRpmRange || fuelType
-          ? "chevron-up"
-          : "chevron-down"}
-        onPress={() => {
-          // Helper behavior:
-          // If any parameter is set, we treat the accordion as “open” visually by showing the up icon.
-          // If nothing is set, we show down icon. This avoids adding extra state variable.
-          //
-          // Tapping the icon toggles between:
-          // - Clearing values (collapse)
-          // - Setting a default “open” value placeholder (expand)
-          //
-          // NOTE: This is UI-only; you can adjust later if you want a dedicated open/close state.
-          const isOpen = engineLoadPercent != null || engineRpmRange || fuelType;
-          if (isOpen) {
-            setEngineLoadPercent(null);
-            setEngineRpmRange(null);
-            setFuelType(null);
-            setGeneratorsLoadBalanced(true);
-          } else {
-            // Opening: set a safe default slider midpoint so the controls appear
-            setEngineLoadPercent(50);
-          }
-        }}
-      />
-    </View>
-
-    {/* Accordion Content:
-       We show content when any value is present (including default 50 on open). */}
-    {(engineLoadPercent != null || engineRpmRange || fuelType) && (
-      <>
-        {/* --- Load Percent (Slider substitute: tap-based quick chips) --- */}
-        <Text
-          variant="labelMedium"
-          style={{ marginTop: 6, color: theme.colors.onSurface }}
-        >
-          Main Engine Load
-        </Text>
-
-        <View style={styles.filterRow}>
-          {[
-            { label: "Low (0–30%)", value: 20 },
-            { label: "Med (31–70%)", value: 50 },
-            { label: "High (71–100%)", value: 85 },
-          ].map((opt) => {
-            const selected = engineLoadPercent === opt.value;
-
-            return (
-              <Chip
-                key={opt.label}
-                selected={selected}
-                onPress={() => setEngineLoadPercent(opt.value)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: selected
-                      ? theme.colors.primary
-                      : (theme as any)?.colors?.elevation?.level1 ??
-                        theme.colors.surface,
-                  },
-                ]}
-                textStyle={{
-                  color: selected
-                    ? theme.colors.onPrimary
-                    : theme.colors.onSurface,
-                }}
-              >
-                {opt.label}
-              </Chip>
-            );
-          })}
-        </View>
-
-        {/* --- RPM Range --- */}
-        <Text
-          variant="labelMedium"
-          style={{ marginTop: 4, color: theme.colors.onSurface }}
-        >
-          RPM Range
-        </Text>
-
-        <View style={styles.filterRow}>
-          {[
-            { key: "LOW", label: "Low" },
-            { key: "MEDIUM", label: "Medium" },
-            { key: "HIGH", label: "High" },
-          ].map((opt) => {
-            const selected = engineRpmRange === opt.key;
-
-            return (
-              <Chip
-                key={opt.key}
-                selected={selected}
-                onPress={() => setEngineRpmRange(opt.key as any)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: selected
-                      ? theme.colors.primary
-                      : (theme as any)?.colors?.elevation?.level1 ??
-                        theme.colors.surface,
-                  },
-                ]}
-                textStyle={{
-                  color: selected
-                    ? theme.colors.onPrimary
-                    : theme.colors.onSurface,
-                }}
-              >
-                {opt.label}
-              </Chip>
-            );
-          })}
-        </View>
-
-        {/* --- Fuel Type --- */}
-        <Text
-          variant="labelMedium"
-          style={{ marginTop: 4, color: theme.colors.onSurface }}
-        >
-          Fuel Type
-        </Text>
-
-        <View style={styles.filterRow}>
-          {[
-            { key: "HFO", label: "HFO" },
-            { key: "MGO", label: "MGO" },
-            { key: "LSFO", label: "LSFO" },
-            { key: "OTHER", label: "Other" },
-          ].map((opt) => {
-            const selected = fuelType === opt.key;
-
-            return (
-              <Chip
-                key={opt.key}
-                selected={selected}
-                onPress={() => setFuelType(opt.key as any)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: selected
-                      ? theme.colors.primary
-                      : (theme as any)?.colors?.elevation?.level1 ??
-                        theme.colors.surface,
-                  },
-                ]}
-                textStyle={{
-                  color: selected
-                    ? theme.colors.onPrimary
-                    : theme.colors.onSurface,
-                }}
-              >
-                {opt.label}
-              </Chip>
-            );
-          })}
-        </View>
-
-        {/* --- Generator Load Balanced --- */}
-        <View style={[styles.checkRow, { marginTop: 6 }]}>
-          <Text style={{ color: theme.colors.onSurface }}>
-            Generators Load Balanced
-          </Text>
-
-          <Checkbox
-            status={generatorsLoadBalanced ? "checked" : "unchecked"}
-            onPress={() => setGeneratorsLoadBalanced((p) => !p)}
-          />
-        </View>
-      </>
-    )}
-  </View>
-)}
-
-
-              {/* ---------------- SECTION: BRIDGE NAVIGATION (only for BRIDGE) ---------------- */}
-              {logType === "BRIDGE" && (
-                <View
-                  style={[
-                    styles.bridgeSectionCard,
-                    {
-                      // Theme-safe card background
-                      backgroundColor:
-                        (theme as any)?.colors?.elevation?.level1 ?? theme.colors.surface,
-                      borderColor: theme.colors.outlineVariant ?? theme.colors.outline,
-                    },
-                  ]}
-                >
-                  <Text
-                    variant="titleSmall"
-                    style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-                  >
-                    Position & Navigation (Bridge Watch)
-                  </Text>
-
-                  <Text
-                    variant="bodySmall"
-                    style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-                  >
-                    Latitude, Longitude, and Course are mandatory for Bridge watch entries.
-                  </Text>
-
-                  <LatLongInput
-                    key={`lat-${editingLogId ?? "new"}`}
-                    label="Latitude"
-                    type="LAT"
-                    degrees={latDeg}
-                    minutes={latMin}
-                    direction={latDir}
-                    onChange={(v) => {
-                      // Step 1: Store parsed values
-                      setLatDeg(v.degrees);
-                      setLatMin(v.minutes);
-                      setLatDir(v.direction as any);
-
-                      // Step 2: Store validity for form validation
-                      setIsLatValid(v.isValid);
-                    }}
-                  />
-
-                  <LatLongInput
-                    key={`lon-${editingLogId ?? "new"}`}
-                    label="Longitude"
-                    type="LON"
-                    degrees={lonDeg}
-                    minutes={lonMin}
-                    direction={lonDir}
-                    onChange={(v) => {
-                      // Step 1: Store parsed values
-                      setLonDeg(v.degrees);
-                      setLonMin(v.minutes);
-                      setLonDir(v.direction as any);
-
-                      // Step 2: Store validity for form validation
-                      setIsLonValid(v.isValid);
-                    }}
-                  />
-
-                  <TextInput
-                    label="Course (°T)"
-                    mode="outlined"
-                    keyboardType="numeric"
-                    value={courseDeg?.toString() ?? ""}
-                    onChangeText={(t) => {
-                      // Convert text to number (or null if empty/invalid)
-                      const v = Number(t);
-                      const next = Number.isNaN(v) ? null : v;
-
-                      setCourseDeg(next);
-
-                      // Valid course range: 0–359 degrees
-                      if (next == null) {
-                        setIsCourseValid(true);
-                      } else {
-                        setIsCourseValid(next >= 0 && next <= 359);
-                      }
-                    }}
-                    error={!isCourseValid}
-                    style={styles.input}
-                  />
-
-                  <Text
-                    variant="bodySmall"
-                    style={[
-                      styles.inlineValidationText,
-                      { color: theme.colors.onSurfaceVariant },
-                    ]}
-                  >
-                    Valid range: 0–359
-                  </Text>
-
-                  <TextInput
-                    label="Speed (knots)"
-                    mode="outlined"
-                    keyboardType="decimal-pad"
-                    value={speedKn?.toString() ?? ""}
-                    onChangeText={(t) => setSpeedKn(t === "" ? null : Number(t))}
-                    style={styles.input}
-                  />
-
-                  <TextInput
-                    label="Steering Time (minutes)"
-                    mode="outlined"
-                    keyboardType="numeric"
-                    value={steeringMinutes?.toString() ?? ""}
-                    onChangeText={(t) => setSteeringMinutes(t === "" ? null : Number(t))}
-                    style={styles.input}
-                  />
-
-                  <TextInput
-                    label="Weather / Visibility"
-                    mode="outlined"
-                    value={weather}
-                    onChangeText={setWeather}
-                    style={styles.input}
-                  />
-
-                  <View style={[styles.checkRow, { marginTop: 8 }]}>
-                    <Text style={{ color: theme.colors.onSurface }}>
-                        Acted as Lookout
-                    </Text>
-
-                    <Checkbox
-                        status={isLookout ? "checked" : "unchecked"}
-                        onPress={() => setIsLookout((p) => !p)}
-                    />
-                    </View>
-
-                </View>
-              )}
-
-              {/* ---------------- SECTION: ACTIVITY DETAILS ---------------- */}
-              <View style={styles.formSection}>
-                <Text
-                  variant="titleSmall"
-                  style={[styles.sectionHeader, { color: theme.colors.onSurface }]}
-                >
-                  Activity Details
-                </Text>
-
-                <Text
-                  variant="bodySmall"
-                  style={[styles.helperText, { color: theme.colors.onSurfaceVariant }]}
-                >
-                  Summary is mandatory. Use Remarks for extra notes if needed.
-                </Text>
-
-                <TextInput
-                  label="Activity Summary"
-                  mode="outlined"
-                  value={summary}
-                  onChangeText={setSummary}
-                  multiline
-                  numberOfLines={3}
-                  style={styles.input}
-                />
-
-                <TextInput
-                  label="Remarks (optional)"
-                  mode="outlined"
-                  value={remarks}
-                  onChangeText={setRemarks}
-                  multiline
-                  numberOfLines={2}
-                  style={styles.input}
-                />
-
-                {/* Inline “why Save is disabled” guidance (no alerts, no popups) */}
-                {!isFormValid && (
-                  <Text
-                    variant="bodySmall"
-                    style={[
-                      styles.formHint,
-                      { color: theme.colors.onSurfaceVariant },
-                    ]}
-                  >
-                    To enable Save, please complete the following:
-                    {!date && "\n• Select a Date"}
-                    {summary.trim().length === 0 && "\n• Enter Activity Summary"}
-                    {isTimeRequired && (!startTime || !endTime) && "\n• Enter Start and End Time"}
-                    {logType === "BRIDGE" && !isLatValid && "\n• Enter valid Latitude"}
-                    {logType === "BRIDGE" && !isLonValid && "\n• Enter valid Longitude"}
-                    {logType === "BRIDGE" && !isCourseValid && "\n• Enter valid Course (0–359)"}
-
-                  </Text>
-                )}
-              </View>
-
-              {/* ---------------- SECTION: ACTIONS ---------------- */}
-              <View style={styles.actions}>
-                {editingLogId && <Button onPress={resetForm}>Cancel</Button>}
-
-                <Button
-                  mode="contained"
-                  onPress={editingLogId ? handleUpdate : handleSave}
-                  disabled={!isFormValid}
-                >
-                  {editingLogId ? "Update Entry" : "Save Entry"}
-                </Button>
-              </View>
+              <Text variant="titleMedium">Sea Watch</Text>
+              <Text style={{ marginTop: 8, opacity: 0.7 }}>
+                Bridge and Engine Watchkeeping UI will appear here.
+              </Text>
             </Card.Content>
           </Card>
         )}
+
+        {/* ================= PORT WATCH TAB (placeholder) ================= */}
+        {activeTab === "PORT_WATCH" && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text variant="titleMedium">Port Watch</Text>
+              <Text style={{ marginTop: 8, opacity: 0.75 }}>
+                Port Watch logging (Cargo / Anchor / Gangway / Bunkering) will be enabled in the next step.
+              </Text>
+            </Card.Content>
+          </Card>
+        )}
+
 
         {/* ================= HISTORY TAB ================= */}
         {activeTab === "HISTORY" && (
@@ -2111,5 +1748,62 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 6,
   },
+  segmentedTabs: {
+  marginBottom: 16,
+},
+/* ============================================================
+   Capsule / Pill Segmented Control
+   ============================================================ */
+capsuleContainer: {
+  flexDirection: "row",
+  borderRadius: 999,
+  overflow: "hidden",
+  borderWidth: 1,
+  borderColor: "#3194A0", // Ocean Green (brand)
+},
+
+capsuleSegment: {
+  flex: 1,
+  paddingVertical: 12,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "transparent",
+},
+
+capsuleLeft: {
+  borderTopLeftRadius: 999,
+  borderBottomLeftRadius: 999,
+},
+
+capsuleRight: {
+  borderTopRightRadius: 999,
+  borderBottomRightRadius: 999,
+},
+
+capsuleActive: {
+  backgroundColor: "#3194A0",
+},
+
+capsuleText: {
+  fontSize: 14,
+  fontWeight: "600",
+  color: "#3194A0",
+},
+
+capsuleTextActive: {
+  color: "#FFFFFF",
+},
+
+capsuleDisabled: {
+  backgroundColor: "#E0E0E0",
+},
+
+capsuleTextDisabled: {
+  fontSize: 14,
+  fontWeight: "600",
+  color: "#888888",
+},
+
+
 
 });

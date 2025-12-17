@@ -88,6 +88,30 @@ export default function HomeScreen() {
   const seaServicePeriod = "DD MMM YYYY → DD MMM YYYY";
   const syncStatus = "Offline / Not synced";
 
+    /**
+   * ============================================================
+   * Step 28 — Attention Required (Dynamic)
+   * ============================================================
+   *
+   * RULES:
+   * - Inspector-safe: never claim compliance without data
+   * - Cadet-friendly: always provide a recommended next step
+   * - Show panel even when no issues (your choice: 1.B)
+   *
+   * Navigation targets:
+   * - Daily (watchkeeping + daily logs)
+   * - SeaServiceWizard (sea service actions)
+   */
+
+  const { logs, loading: logsLoading, lastLogDate } = useDailyLogs();
+
+  type AttentionAction = () => void;
+
+
+  const goToDaily = () => navigation.navigate("Daily");
+  const goToSeaServiceWizard = () => navigation.navigate("SeaServiceWizard");
+
+
   return (
     <KeelScreen>
     <ScrollView
@@ -191,8 +215,19 @@ export default function HomeScreen() {
                 : "NOT_AVAILABLE"
             }
             summary={`${seaServiceSummary.completedSections} of ${seaServiceSummary.totalSections} sections completed`}
-            helperText="Sea service records are reviewed by training officers and flag state inspectors to confirm that your onboard training is progressing correctly."
+            explanation={
+              seaServiceSummary.inProgressSections > 0
+                ? "Some sea service sections have been started but not completed."
+                : undefined
+            }
+            recommendation={
+              seaServiceSummary.inProgressSections > 0
+                ? "Open Sea Service Wizard and complete the pending sections."
+                : undefined
+            }
           />
+
+
         </TouchableOpacity>
 
 
@@ -219,7 +254,6 @@ export default function HomeScreen() {
           title="Tasks"
           status="NOT_AVAILABLE"
           summary="Task completion data is not yet available"
-          helperText="Onboard task sign-offs demonstrate practical competence. This section will activate once tasks are recorded."
         />
 
         {/* --- Familiarisation (future) --- */}
@@ -227,31 +261,9 @@ export default function HomeScreen() {
           title="Familiarisation"
           status="NOT_AVAILABLE"
           summary="Familiarisation progress is not yet available"
-          helperText="Ship-specific familiarisation is mandatory under STCW and ISM requirements. This indicator will activate once data is linked."
         />
 
 
-        {/* ============================================================
-            4) ATTENTION REQUIRED (CONDITIONAL — PLACEHOLDER)
-           ============================================================ */}
-        <Card style={styles.attentionCard}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.attentionTitle}>
-              Attention Required
-            </Text>
-
-            <Divider style={styles.dividerSmall} />
-
-            <Text style={styles.placeholderText}>
-              Any compliance risks, missing sections, or required actions will
-              be shown here automatically.
-            </Text>
-
-            <Text style={styles.placeholderSubText}>
-              (Nothing to show right now)
-            </Text>
-          </Card.Content>
-        </Card>
 
         {/* ============================================================
             5) RESTRICTED QUICK ACTIONS
@@ -300,55 +312,49 @@ function StatusCard({
  * Watchkeeping Compliance Indicator
  * ============================================================ */
 function WatchkeepingCompliance() {
+  /**
+   * ============================================================
+   * Watchkeeping Compliance (STCW) — PURE INDICATOR
+   * ============================================================
+   * IMPORTANT UX RULE:
+   * - This component only reports status + summary.
+   * - Taps/navigation/toasts are handled by the parent screen
+   *   (so the entire card is tappable and consistent).
+   */
+
   const { logs, loading } = useDailyLogs();
 
+  // 1) Loading state
   if (loading) {
     return (
       <ComplianceIndicatorCard
         title="Watchkeeping (STCW)"
         status="NOT_AVAILABLE"
-        summary="Loading watchkeeping data..."
+        summary="Loading watchkeeping data."
       />
     );
   }
 
+  // 2) No data = attention (cannot assess compliance without records)
   if (logs.length === 0) {
     return (
       <ComplianceIndicatorCard
         title="Watchkeeping (STCW)"
         status="ATTENTION"
         summary="No watchkeeping records found"
-        helperText="STCW requires accurate watch and rest-hour records. Missing data may be treated as non-compliance."
+        explanation="Without watch/rest hour entries, STCW compliance cannot be verified."
+        recommendation="Open Daily Logs and record watch start/end times for each day."
       />
     );
   }
 
-  // 🔽 THIS LINE ALREADY EXISTS
+  // 3) Compute STCW compliance (risk vs on-track)
   const result = checkStcwCompliance(logs, new Date());
 
-  // 🔽 ADD THESE LINES IMMEDIATELY AFTER
+  // Defensive: treat missing/unknown format as “no violations found yet”
   const hasViolations =
     Array.isArray((result as any).violations) &&
     (result as any).violations.length > 0;
-
-    const toast = useToast();
-
-/**
- * ------------------------------------------------------------
- * STCW Risk Warning (Cadet Awareness)
- * ------------------------------------------------------------
- * - Warning only
- * - Non-blocking
- * - Inspector-safe language
- */
-React.useEffect(() => {
-  if (hasViolations) {
-      toast.warning(
-        "STCW rest-hour limits exceeded. Please review your watchkeeping and rest hours immediately."
-      );
-  }
-}, [hasViolations]);
-
 
   return (
     <ComplianceIndicatorCard
@@ -359,10 +365,20 @@ React.useEffect(() => {
           ? "STCW rest-hour violations detected"
           : "Rest hour requirements are currently met"
       }
-      helperText="STCW rest-hour compliance is verified during audits to prevent fatigue and ensure safe watchkeeping."
+      explanation={
+        hasViolations
+          ? "Your recorded watch/rest hours indicate one or more STCW rest-hour violations."
+          : "Your records currently satisfy minimum rest-hour requirements."
+      }
+      recommendation={
+        hasViolations
+          ? "Open Daily Logs, verify the times, and inform your Training Officer if the entries are correct."
+          : "Continue logging watches daily to keep your record audit-ready."
+      }
     />
   );
 }
+
 
 
 /* ============================================================
@@ -377,7 +393,6 @@ function DailyLogsCompliance() {
         title="Daily Logs"
         status="ATTENTION"
         summary="No daily logs recorded yet"
-        helperText="Daily logs are official records and must be maintained regularly during sea service."
       />
     );
   }
@@ -387,7 +402,6 @@ function DailyLogsCompliance() {
       title="Daily Logs"
       status="ON_TRACK"
       summary={`Last entry: ${lastLogDate.toDateString()}`}
-      helperText="Daily logs provide evidence of onboard activity and are commonly reviewed during inspections."
     />
   );
 }
