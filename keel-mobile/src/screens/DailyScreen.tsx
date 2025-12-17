@@ -602,24 +602,51 @@ if (overlapping) {
     insertDailyLog({
       id,
       date: date!.toISOString(),
-      type: logType,
+
+      /**
+       * ------------------------------------------------------------
+       * PORT WATCH SAVE OVERRIDE (Step D3.2.2)
+       * ------------------------------------------------------------
+       * - UI uses dutyMode
+       * - DB uses type = "PORT"
+       * - Daily / Sea Watch remain unchanged
+       */
+      type:
+        dutyMode === "PORT_WATCH"
+          ? "PORT"
+          : logType,
+
+      /**
+       * Port Watch subtype
+       * Only meaningful when type === "PORT"
+       */
+      portWatchType:
+        dutyMode === "PORT_WATCH"
+          ? portWatchType
+          : null,
+
       startTime: isTimeRequired ? startTime!.toISOString() : undefined,
       endTime: isTimeRequired ? endTime!.toISOString() : undefined,
+
       summary: summary.trim(),
       remarks: remarks.trim() || undefined,
+
       latDeg,
       latMin,
       latDir,
       lonDeg,
       lonMin,
       lonDir,
+
       courseDeg,
       speedKn,
       weather: weather || null,
       steeringMinutes,
       isLookout,
+
       machineryMonitored,
     });
+
 
         /**
      * STCW PREVIEW CALCULATION (CRITICAL)
@@ -1124,72 +1151,92 @@ if (overlapping) {
     - Maritime-friendly UX
    ============================================================ */}
 {primaryMode === "LOG" && (
-  <Card style={{ marginBottom: 16 }}>
-    <Card.Content>
-      <Text variant="titleMedium" style={{ marginBottom: 12 }}>
-        Select Duty Type
-      </Text>
+  <>
+    {/* ================= DUTY TYPE ================= */}
+    <Card style={{ marginBottom: 16 }}>
+      <Card.Content>
+        <Text variant="titleMedium" style={{ marginBottom: 12 }}>
+          Select Duty Type
+        </Text>
 
-      <View style={styles.capsuleContainer}>
-        {/* Daily Work */}
-        <Pressable
-          onPress={() => setDutyMode("DAILY_WORK")}
-          style={[
-            styles.capsuleSegment,
-            styles.capsuleLeft,
-            dutyMode === "DAILY_WORK" && styles.capsuleActive,
-          ]}
-        >
-          <Text
+        <View style={styles.capsuleContainer}>
+          <Pressable
+            onPress={() => setDutyMode("DAILY_WORK")}
             style={[
-              styles.capsuleText,
-              dutyMode === "DAILY_WORK" && styles.capsuleTextActive,
+              styles.capsuleSegment,
+              styles.capsuleLeft,
+              dutyMode === "DAILY_WORK" && styles.capsuleActive,
             ]}
           >
-            Daily Work
-          </Text>
-        </Pressable>
+            <Text
+              style={[
+                styles.capsuleText,
+                dutyMode === "DAILY_WORK" && styles.capsuleTextActive,
+              ]}
+            >
+              Daily Work
+            </Text>
+          </Pressable>
 
-        {/* Sea Watch */}
-        <Pressable
-          onPress={() => setDutyMode("SEA_WATCH")}
-          style={[
-            styles.capsuleSegment,
-            dutyMode === "SEA_WATCH" && styles.capsuleActive,
-          ]}
-        >
-          <Text
+          <Pressable
+            onPress={() => setDutyMode("SEA_WATCH")}
             style={[
-              styles.capsuleText,
-              dutyMode === "SEA_WATCH" && styles.capsuleTextActive,
+              styles.capsuleSegment,
+              dutyMode === "SEA_WATCH" && styles.capsuleActive,
             ]}
           >
-            Sea Watch
-          </Text>
-        </Pressable>
+            <Text
+              style={[
+                styles.capsuleText,
+                dutyMode === "SEA_WATCH" && styles.capsuleTextActive,
+              ]}
+            >
+              Sea Watch
+            </Text>
+          </Pressable>
 
-        {/* Port Watch */}
-        <Pressable
-          onPress={() => setDutyMode("PORT_WATCH")}
-          style={[
-            styles.capsuleSegment,
-            styles.capsuleRight,
-            dutyMode === "PORT_WATCH" && styles.capsuleActive,
-          ]}
-        >
-          <Text
+          <Pressable
+            onPress={() => setDutyMode("PORT_WATCH")}
             style={[
-              styles.capsuleText,
-              dutyMode === "PORT_WATCH" && styles.capsuleTextActive,
+              styles.capsuleSegment,
+              styles.capsuleRight,
+              dutyMode === "PORT_WATCH" && styles.capsuleActive,
             ]}
           >
-            Port Watch
-          </Text>
-        </Pressable>
-      </View>
-    </Card.Content>
-  </Card>
+            <Text
+              style={[
+                styles.capsuleText,
+                dutyMode === "PORT_WATCH" && styles.capsuleTextActive,
+              ]}
+            >
+              Port Watch
+            </Text>
+          </Pressable>
+        </View>
+      </Card.Content>
+    </Card>
+
+
+    {/* ================= SAVE BAR ================= */}
+    <View
+      style={{
+        marginTop: 24,
+        paddingVertical: 12,
+        borderTopWidth: 1,
+        borderColor: theme.colors.outlineVariant,
+      }}
+    >
+      <Button
+        mode="contained"
+        onPress={editingLogId ? handleUpdate : handleSave}
+        disabled={!isFormValid}
+      >
+        {editingLogId ? "Update Entry" : "Save Entry"}
+      </Button>
+    </View>
+  </>
 )}
+
 
 {/* ============================================================
     SEA WATCH TYPE — CAPSULE SEGMENTED CONTROL
@@ -1254,9 +1301,25 @@ if (overlapping) {
 {primaryMode === "LOG" && dutyMode === "PORT_WATCH" && (
   <Card style={{ marginBottom: 16 }}>
     <Card.Content>
-      <Text variant="titleMedium" style={{ marginBottom: 12 }}>
-        Port Watch
-      </Text>
+{/* -------- Port Watch Context Banner -------- */}
+<View
+  style={{
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#E6F4F6",
+    marginBottom: 16,
+  }}
+>
+  <Text style={{ fontWeight: "700", marginBottom: 4 }}>
+    Port Watch Log Entry
+  </Text>
+
+  <Text style={{ fontSize: 12, opacity: 0.8 }}>
+    Date will be taken from the selected date above.
+    This entry will be saved as a Port Watch duty.
+  </Text>
+</View>
+
 
       {/* -------- Port Watch Type (Capsule) -------- */}
       <Text style={{ marginBottom: 8, fontWeight: "600" }}>
@@ -1338,16 +1401,21 @@ if (overlapping) {
       {/* -------- Time Inputs (reuse existing components) -------- */}
       <View style={{ marginTop: 16 }}>
         <TimeInputField
-          label="Start Time"
+          label="Start Time *"
           value={startTime}
           onChange={setStartTime}
         />
 
         <TimeInputField
-          label="End Time"
+          label="End Time *"
           value={endTime}
           onChange={setEndTime}
         />
+
+        <Text style={{ fontSize: 12, marginTop: 4, opacity: 0.7 }}>
+          * Start and End Time are mandatory for Port Watch entries.
+        </Text>
+
       </View>
 
       {/* -------- Optional Remarks -------- */}

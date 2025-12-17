@@ -11,13 +11,28 @@ import { getDatabase } from "./database";
 export type DailyLogDBInput = {
   id: string;
   date: string; // ISO date string (YYYY-MM-DD or full ISO)
-  type: "DAILY" | "BRIDGE" | "ENGINE";
+
+  /**
+   * Log type:
+   * DAILY   → Day work
+   * BRIDGE  → Sea watch (bridge)
+   * ENGINE  → Sea watch (engine)
+   * PORT    → Port watch (cargo / anchor / gangway / bunkering)
+   */
+  type: "DAILY" | "BRIDGE" | "ENGINE" | "PORT";
+
+  /**
+   * Port Watch sub-type
+   * Only applicable when type === "PORT"
+   */
+  portWatchType?: "CARGO" | "ANCHOR" | "GANGWAY" | "BUNKERING" | null;
 
   startTime?: string | null;
   endTime?: string | null;
 
   summary: string;
   remarks?: string | null;
+
 
   // Bridge navigation fields
   latDeg?: number | null;
@@ -55,6 +70,8 @@ export function insertDailyLog(log: DailyLogDBInput): void {
       id,
       date,
       type,
+      port_watch_type,
+
       start_time,
       end_time,
       summary,
@@ -77,16 +94,20 @@ export function insertDailyLog(log: DailyLogDBInput): void {
       machinery_monitored
     )
     VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?
     )
+
     `,
     [
       log.id,
       log.date,
       log.type,
+      log.portWatchType ?? null,
+
       log.startTime ?? null,
       log.endTime ?? null,
       log.summary,
@@ -125,6 +146,7 @@ export function updateDailyLog(log: DailyLogDBInput): void {
     SET
       date = ?,
       type = ?,
+      port_watch_type = ?,
       start_time = ?,
       end_time = ?,
       summary = ?,
@@ -149,6 +171,7 @@ export function updateDailyLog(log: DailyLogDBInput): void {
     [
       log.date,
       log.type,
+      log.portWatchType ?? null,
       log.startTime ?? null,
       log.endTime ?? null,
       log.summary,
@@ -204,6 +227,7 @@ export function getAllDailyLogs(): DailyLogDBInput[] {
       id,
       date,
       type,
+      port_watch_type AS portWatchType,
       start_time AS startTime,
       end_time AS endTime,
       summary,
