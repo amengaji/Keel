@@ -24,6 +24,7 @@ import {
   SegmentedButtons,
 } from "react-native-paper";
 import Toast from "react-native-toast-message";
+import { useToast } from "../components/toast/useToast";
 
 import DateInputField from "../components/inputs/DateInputField";
 import TimeInputField from "../components/inputs/TimeInputField";
@@ -38,9 +39,9 @@ import { calculateDailyWatchTotals } from "../utils/watchAggregation";
 import { calculateWeeklyWatchTotals } from "../utils/watchWeeklyAggregation";
 import { checkStcwCompliance } from "../utils/stcwCompliance";
 
-/* ============================================================
-   TYPES
-   ============================================================ */
+
+
+
 
 /**
  * ============================================================
@@ -143,6 +144,7 @@ const DEV_CADET_STREAM: "DECK" | "ENGINE" = "ENGINE";
    SCREEN
    ============================================================ */
 export default function DailyScreen() {
+  const toast = useToast();
   const theme = useTheme();
   const today = useMemo(() => new Date(), []);
 
@@ -362,6 +364,8 @@ useEffect(() => {
 
   const [summary, setSummary] = useState("");
   const [remarks, setRemarks] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
 
     /* ============================================================
      DAILY WORK (D2) — CATEGORY STATE
@@ -608,6 +612,8 @@ const isFormValid =
      AUTO-CLEAR BRIDGE FIELDS
      ======================= */
 
+
+     
   useEffect(() => {
     // 🚫 Do not auto-reset fields when editing an existing entry
     if (editingLogId) return;
@@ -638,36 +644,70 @@ const isFormValid =
  * This MUST NOT be called when entering edit mode.
  */
 const resetForm = () => {
-  // Exit edit mode
+  // --------------------------------------------------
+  // EXIT EDIT MODE
+  // --------------------------------------------------
   setEditingLogId(null);
 
-  // Reset form fields for a NEW entry only
+  // --------------------------------------------------
+  // CORE LOG CONTEXT
+  // --------------------------------------------------
   setLogType("DAILY");
   setDate(today);
   setStartTime(null);
   setEndTime(null);
 
+  // --------------------------------------------------
+  // TEXT FIELDS (ALWAYS strings)
+  // --------------------------------------------------
   setSummary("");
   setRemarks("");
+  setWeather("");
+  setCourseDeg("");
+  setSpeedKn("");
 
+  // --------------------------------------------------
+  // LATITUDE
+  // --------------------------------------------------
   setLatDeg(null);
   setLatMin(null);
   setLatDir("N");
   setIsLatValid(false);
 
+  // --------------------------------------------------
+  // LONGITUDE
+  // --------------------------------------------------
   setLonDeg(null);
   setLonMin(null);
   setLonDir("E");
   setIsLonValid(false);
 
-  setCourseDeg("");
-  setIsCourseValid(true);
-
-  setSpeedKn("");
+  // --------------------------------------------------
+  // NUMERIC / BOOLEAN FLAGS
+  // --------------------------------------------------
   setSteeringMinutes(null);
-  setWeather("");
   setIsLookout(false);
+
+  // --------------------------------------------------
+  // ENGINE WATCH (ONLY STATES THAT EXIST)
+  // --------------------------------------------------
+  setEngineWatchType("UMS");
+  setEngineRunning(false);
+  setManoeuvring(false);
+
+  // --------------------------------------------------
+  // PORT WATCH (VALID ENUM ONLY)
+  // --------------------------------------------------
+  setPortWatchType("CARGO");
+  setWatchStartDate(today);
+  setWatchEndDate(today);
+
+  // --------------------------------------------------
+  // DAILY WORK
+  // --------------------------------------------------
+  setDailyWorkCategories([]);
 };
+
 
 
   /**
@@ -834,125 +874,140 @@ const mergeDateAndTime = (datePart: Date | null, timePart: Date | null) => {
 };
 
 
-const handleSave = () => {
-  if (!isFormValid) return;
+/**
+ * ============================================================
+ * SAVE DAILY / WATCH / PORT LOG ENTRY
+ * ============================================================
+ *
+ * - Midnight-safe (PORT)
+ * - Overlap-safe
+ * - STCW preview-safe
+ * - DB + UI state kept in sync
+ * - Toast feedback at top
+ */
+const handleSave = async () => {
+  if (isSaving) return;
 
-  /**
-   * ------------------------------------------------------------
-   * Effective period (Port Watch must be midnight-safe)
-   * ------------------------------------------------------------
-   * - For Port Watch: use watchStartDate/watchEndDate + time
-   * - For others: keep existing behavior (date + start/end time)
-   */
-  const effectiveDate = logType === "PORT" ? watchStartDate : date;
-  const effectiveStart =
-    logType === "PORT"
-      ? mergeDateAndTime(watchStartDate, startTime)
-      : startTime;
-  const effectiveEnd =
-    logType === "PORT"
-      ? mergeDateAndTime(watchEndDate, endTime)
-      : endTime;
+  try {
+    // --------------------------------------------------
+    // 1. HARD VALIDATION (NO SAVING STATE YET)
+    // --------------------------------------------------
+    if (!isFormValid) {
+      Toast.show({
+        type: "warning",
+        text1: "Incomplete entry",
+        text2: "Please complete all required fields before saving.",
+        position: "top",
+      });
+      return;
+    }
 
-  // Hard safety: prevent invalid period
-  if (isTimeRequired && (!effectiveStart || !effectiveEnd)) return;
+    /**
+     * --------------------------------------------------
+     * 2. EFFECTIVE PERIOD (MIDNIGHT-SAFE)
+     * --------------------------------------------------
+     */
+    const effectiveDate = logType === "PORT" ? watchStartDate : date;
+    const effectiveStart =
+      logType === "PORT"
+        ? mergeDateAndTime(watchStartDate, startTime)
+        : startTime;
+    const effectiveEnd =
+      logType === "PORT"
+        ? mergeDateAndTime(watchEndDate, endTime)
+        : endTime;
 
-  if (logType === "PORT" && effectiveStart && effectiveEnd && effectiveEnd <= effectiveStart) {
-    Toast.show({
-      type: "error",
-      text1: "Invalid Port Watch period",
-      text2: "End must be after Start. If crossing midnight, set End Date to the next day.",
-      position: "bottom",
+    if (isTimeRequired && (!effectiveStart || !effectiveEnd)) {
+      Toast.show({
+        type: "error",
+        text1: "Missing time",
+        text2: "Start time and End time are required.",
+        position: "top",
+      });
+      return;
+    }
+
+    if (
+      logType === "PORT" &&
+      effectiveStart &&
+      effectiveEnd &&
+      effectiveEnd <= effectiveStart
+    ) {
+      Toast.show({
+        type: "error",
+        text1: "Invalid Port Watch period",
+        text2:
+          "If crossing midnight, set End Date to the next day.",
+        position: "top",
+      });
+      return;
+    }
+
+    /**
+     * --------------------------------------------------
+     * 3. OVERLAP CHECK
+     * --------------------------------------------------
+     */
+    const overlapping = findOverlappingEntry(entries, {
+      date: effectiveDate!,
+      startTime: effectiveStart,
+      endTime: effectiveEnd,
     });
-    return;
-  }
 
-  // Overlap check must use effective times (critical for midnight overlap correctness)
-  const overlapping = findOverlappingEntry(entries, {
-    date: effectiveDate!,
-    startTime: effectiveStart,
-    endTime: effectiveEnd,
-  });
+    if (overlapping) {
+      Toast.show({
+        type: "error",
+        text1: "Time overlap detected",
+        text2: `Conflicts with ${LOG_TYPE_LABEL[overlapping.type]} entry.`,
+        position: "top",
+      });
+      return;
+    }
 
-  if (overlapping) {
-    Toast.show({
-      type: "error",
-      text1: "Time overlap detected",
-      text2:
-        overlapping.startTime && overlapping.endTime
-          ? `Conflicts with ${LOG_TYPE_LABEL[overlapping.type]} (${overlapping.startTime.toLocaleTimeString(
-              [],
-              { hour: "2-digit", minute: "2-digit", hour12: false }
-            )}–${overlapping.endTime.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-            })})`
-          : `Conflicts with ${LOG_TYPE_LABEL[overlapping.type]} entry`,
-      position: "bottom",
-    });
-    return;
-  }
+    // --------------------------------------------------
+    // FROM HERE ON, WE ARE REALLY SAVING
+    // --------------------------------------------------
+    setIsSaving(true);
 
-  // ============================================================
-  // 1) Convert UI strings → numbers ONLY here (save-time)
-  // ============================================================
-  const courseDegNumber = toNullableCourseDegNumber(courseDeg);
-  const speedKnNumber = toNullableSpeedKnNumber(speedKn);
+    /**
+     * --------------------------------------------------
+     * 4. UI → DB CONVERSIONS
+     * --------------------------------------------------
+     */
+    const courseDegNumber = toNullableCourseDegNumber(courseDeg);
+    const speedKnNumber = toNullableSpeedKnNumber(speedKn);
+    const id = `${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`;
 
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const machineryMonitored =
-    logType === "ENGINE" ? buildEngineMachineryPayloadJson() : null;
+    const machineryMonitored =
+      logType === "ENGINE"
+        ? buildEngineMachineryPayloadJson()
+        : null;
 
-  // ============================================================
-  // 2) DB write must match DailyLogDBInput (numbers, not strings)
-  //    Port Watch must save as type="PORT"
-  // ============================================================
-  insertDailyLog({
-    id,
-    date: (effectiveDate ?? date!)!.toISOString(),
-
-    type: logType,
-
-    portWatchType: portWatchType === "SECURITY" ? "GANGWAY" : portWatchType,
-
-    startTime: isTimeRequired ? effectiveStart!.toISOString() : undefined,
-    endTime: isTimeRequired ? effectiveEnd!.toISOString() : undefined,
-
-    summary: summary.trim(),
-    remarks: remarks.trim() || undefined,
-
-    latDeg,
-    latMin,
-    latDir,
-    lonDeg,
-    lonMin,
-    lonDir,
-
-    courseDeg: courseDegNumber,
-    speedKn: speedKnNumber,
-
-    weather: weather || null,
-    steeringMinutes,
-    isLookout,
-
-    machineryMonitored,
-  });
-
-  /**
-   * STCW PREVIEW CALCULATION (CRITICAL)
-   * Port Watch must be included as work-time (type="PORT")
-   */
-  const previewEntries: DailyLogEntry[] = [
-    {
+    /**
+     * --------------------------------------------------
+     * 5. INSERT INTO SQLITE
+     * --------------------------------------------------
+     */
+    await insertDailyLog({
       id,
-      date: (effectiveDate ?? date!)!,
+      date: (effectiveDate ?? date!)!.toISOString(),
       type: logType,
-      portWatchType: logType === "PORT" ? portWatchType : null,
-      startTime: effectiveStart ?? undefined,
-      endTime: effectiveEnd ?? undefined,
-      summary,
-      remarks,
+      portWatchType:
+        portWatchType === "SECURITY" ? "GANGWAY" : portWatchType,
+      startTime: isTimeRequired
+        ? effectiveStart!.toISOString()
+        : undefined,
+      endTime: isTimeRequired
+        ? effectiveEnd!.toISOString()
+        : undefined,
+summary: typeof summary === "string" ? summary.trim() : "",
+remarks:
+  typeof remarks === "string" && remarks.trim()
+    ? remarks.trim()
+    : undefined,
+
       latDeg,
       latMin,
       latDir,
@@ -961,57 +1016,64 @@ const handleSave = () => {
       lonDir,
       courseDeg: courseDegNumber,
       speedKn: speedKnNumber,
-      weather,
+      weather: weather || null,
       steeringMinutes,
       isLookout,
       machineryMonitored,
-    },
-    ...entries,
-  ];
+    });
 
-  const previewStcwCompliance = checkStcwCompliance(previewEntries, (effectiveDate ?? date!)!);
+    /**
+     * --------------------------------------------------
+     * 6. UPDATE LOCAL UI LIST
+     * --------------------------------------------------
+     */
+    setEntries((prev) => [
+      {
+        id,
+        date: (effectiveDate ?? date!)!,
+        type: logType,
+        portWatchType: logType === "PORT" ? portWatchType : null,
+        startTime: effectiveStart ?? undefined,
+        endTime: effectiveEnd ?? undefined,
+        summary,
+        remarks,
+        latDeg,
+        latMin,
+        latDir,
+        lonDeg,
+        lonMin,
+        lonDir,
+        courseDeg: courseDegNumber,
+        speedKn: speedKnNumber,
+        weather,
+        steeringMinutes,
+        isLookout,
+        machineryMonitored,
+      },
+      ...prev,
+    ]);
 
-  // ============================================================
-  // 3) Local UI list must also store numbers + PORT info
-  // ============================================================
-  setEntries((p) => [
-    {
-      id,
-      date: (effectiveDate ?? date!)!,
-      type: logType,
-      portWatchType: logType === "PORT" ? portWatchType : null,
-      startTime: effectiveStart ?? undefined,
-      endTime: effectiveEnd ?? undefined,
-      summary,
-      remarks,
-      latDeg,
-      latMin,
-      latDir,
-      lonDeg,
-      lonMin,
-      lonDir,
-      courseDeg: courseDegNumber,
-      speedKn: speedKnNumber,
-      weather,
-      steeringMinutes,
-      isLookout,
-      machineryMonitored,
-    },
-    ...p,
-  ]);
+    Toast.show({
+      type: "success",
+      text1: "Log entry saved",
+      text2: "Your entry has been recorded successfully.",
+      position: "top",
+    });
 
-  Toast.show({
-    type: "success",
-    text1: "Log entry saved",
-    text2: "Your watch entry has been recorded successfully.",
-    position: "bottom",
-  });
-
-  // (Existing advisory toasts below remain unchanged)
-  // NOTE: previewStcwCompliance is already computed above for correctness.
+    resetForm();
+    refreshLogs();
+  } catch (error) {
+    console.error("SAVE FAILED", error);
+    Toast.show({
+      type: "error",
+      text1: "Save failed",
+      text2: "Please try again or contact support.",
+      position: "top",
+    });
+  } finally {
+    setIsSaving(false);
+  }
 };
-
-
 
 
   /**
@@ -1061,130 +1123,161 @@ const hydrateEngineStateFromJson = (json: string | null) => {
      * Loads an existing log entry into the LOG form.
      * Also shows a diagnostic toast so we can confirm what data is received.
      */
-    const handleEdit = (entry: DailyLogEntry) => {
-    // 1️⃣ Switch to the correct tab (Phase D2.1)
-    // - DAILY entries belong to Daily Work tab
-    // - BRIDGE/ENGINE entries belong to Sea Watch tab
-    if (entry.type === "DAILY") {
-      setActiveTab("DAILY_WORK");
-    } else {
-      setActiveTab("SEA_WATCH");
-    }
+const handleEdit = (entry: DailyLogEntry) => {
+  /**
+   * ============================================================
+   * EDIT → LOAD ENTRY INTO FORM (MODE-SAFE)
+   * ============================================================
+   * Fix:
+   * - Previously we loaded date/summary etc, but we DID NOT switch
+   *   the UI mode (Duty Mode / Tab / Sea mode / Port Watch type).
+   * - So if the user last used Port Watch (Cargo), edit would still
+   *   show Port Watch UI with DAILY data mixed in.
+   */
 
-
-    // 2️⃣ Mark edit mode
-    setEditingLogId(entry.id);
-
-    // 3️⃣ Common fields
-    setLogType(entry.type);
-    setDate(entry.date);
-    setStartTime(entry.startTime ?? null);
-    setEndTime(entry.endTime ?? null);
-    setSummary(entry.summary ?? ""); // safety
-    setRemarks(entry.remarks ?? "");
-
-    // 4️⃣ Bridge fields (hydration + validity)
-    if (entry.type === "BRIDGE") {
-        setLatDeg(entry.latDeg ?? null);
-        setLatMin(entry.latMin ?? null);
-        setLatDir((entry.latDir as any) ?? "N");
-
-        setLonDeg(entry.lonDeg ?? null);
-        setLonMin(entry.lonMin ?? null);
-        setLonDir((entry.lonDir as any) ?? "E");
-
-        setCourseDeg((entry.courseDeg as any) ?? "");
-        setSpeedKn((entry.speedKn as any) ?? "");
-        setWeather((entry.weather as any) ?? "");
-        setSteeringMinutes(entry.steeringMinutes ?? null);
-        setIsLookout(!!entry.isLookout);
-
-
-        // IMPORTANT:
-        // For edit mode, we mark these valid so the user can update without fighting validation.
-        setIsLatValid(true);
-        setIsLonValid(true);
-        setIsCourseValid(true);
-    } else {
-        // Reset Bridge-only state if not Bridge
-        setLatDeg(null);
-        setLatMin(null);
-        setLatDir("N");
-        setLonDeg(null);
-        setLonMin(null);
-        setLonDir("E");
-        setCourseDeg("");
-        setSpeedKn("");
-        setSteeringMinutes(null);
-        setWeather("");
-        setIsLookout(false);
-
-        setIsLatValid(true);
-        setIsLonValid(true);
-        setIsCourseValid(true);
-    }
-
-// 5️⃣ Engine UI state (restore or reset)
-if (entry.type === "ENGINE" && entry.machineryMonitored) {
-  try {
-    const payload = JSON.parse(entry.machineryMonitored);
-
-    setEngineWatchType(payload.engineWatchType ?? null);
-    setEngineRunning(payload.engineRunning ?? false);
-    setManoeuvring(payload.manoeuvring ?? false);
-    setEngineRoomAttendance(payload.engineRoomAttendance ?? null);
-
-    setMainEngineRunning(payload.mainEngineRunning ?? false);
-    setGeneratorsRunning(payload.generatorsRunning ?? { DG1: false, DG2: false, DG3: false });
-    setBoilerInService(payload.boilerInService ?? false);
-    setSteeringGearInUse(payload.steeringGearInUse ?? false);
-
-    setEngineLoadPercent(payload.engineLoadPercent ?? null);
-    setEngineRpmRange(payload.engineRpmRange ?? null);
-    setFuelType(payload.fuelType ?? null);
-    setGeneratorsLoadBalanced(payload.generatorsLoadBalanced ?? true);
-
-    setRoundsCompleted(payload.roundsCompleted ?? false);
-    setRoundsCount(payload.roundsCount ?? null);
-    setAlarmsObserved(payload.alarmsObserved ?? false);
-    setAbnormalRemarks(payload.abnormalRemarks ?? "");
-  } catch {
-    // Safety: corrupted JSON should not crash UI
-    setEngineRunning(false);
+  // ------------------------------------------------------------
+  // 1) SWITCH UI MODE FIRST (prevents wrong form showing)
+  // ------------------------------------------------------------
+  if (entry.type === "DAILY") {
+    setDutyMode("DAILY_WORK");
+    setActiveTab("DAILY_WORK");
+  } else if (entry.type === "BRIDGE") {
+    setDutyMode("SEA_WATCH");
+    setSeaWatchMode("BRIDGE");
+    setActiveTab("SEA_WATCH");
+  } else if (entry.type === "ENGINE") {
+    setDutyMode("SEA_WATCH");
+    setSeaWatchMode("ENGINE");
+    setActiveTab("SEA_WATCH");
+  } else {
+    // PORT
+    setDutyMode("PORT_WATCH");
+    setActiveTab("PORT_WATCH");
   }
-} else {
-// Full reset of ALL engine-related UI state
-  setEngineWatchType(null);
+
+  // ------------------------------------------------------------
+  // 2) ENTER EDIT MODE
+  // ------------------------------------------------------------
+  setEditingLogId(entry.id);
+
+  // ------------------------------------------------------------
+  // 3) CLEAR MODE-SPECIFIC STATE FIRST (prevents leaked UI values)
+  // ------------------------------------------------------------
+  // Bridge-only
+  setLatDeg(null);
+  setLatMin(null);
+  setLatDir("N");
+  setLonDeg(null);
+  setLonMin(null);
+  setLonDir("E");
+  setIsLatValid(false);
+  setIsLonValid(false);
+
+  setCourseDeg("");
+  setIsCourseValid(true);
+  setSpeedKn("");
+  setSteeringMinutes(null);
+  setWeather("");
+
+  // Engine-only
+  setEngineWatchType("UMS");
   setEngineRunning(false);
   setManoeuvring(false);
-  setEngineRoomAttendance(null);
 
-  setMainEngineRunning(false);
-  setGeneratorsRunning({ DG1: false, DG2: false, DG3: false });
-  setBoilerInService(false);
-  setSteeringGearInUse(false);
+  // Daily Work categories (cannot reliably reconstruct yet)
+  setDailyWorkCategories([]);
 
-  setEngineLoadPercent(null);
-  setEngineRpmRange(null);
-  setFuelType(null);
-  setGeneratorsLoadBalanced(true);
+  // Port-only
+  setPortWatchType("CARGO");
+  setWatchStartDate(entry.date ?? today);
+  setWatchEndDate(entry.date ?? today);
 
-  setRoundsCompleted(false);
-  setRoundsCount(null);
-  setAlarmsObserved(false);
-  setAbnormalRemarks("");
-}
+  // Shared flags
+  setIsLookout(false);
 
+  // ------------------------------------------------------------
+  // 4) LOAD COMMON FIELDS (ALL TYPES)
+  // ------------------------------------------------------------
+  setDate(entry.date ?? today);
+  setStartTime(entry.startTime ?? null);
+  setEndTime(entry.endTime ?? null);
+  setSummary(entry.summary ?? "");
+  setRemarks(entry.remarks ?? "");
 
-    // 6️⃣ DIAGNOSTIC TOAST (TEMPORARY)
-    // This confirms whether the entry passed into handleEdit actually contains data.
-    Toast.show({
-        type: "info",
-        text1: "Edit diagnostic",
-        text2: `type=${entry.type} | summaryLen=${(entry.summary ?? "").length} | start=${entry.startTime ? "Y" : "N"} | end=${entry.endTime ? "Y" : "N"} | remarksLen=${(entry.remarks ?? "").length}`,
-        position: "bottom",
-    });
-    };
+  // ------------------------------------------------------------
+  // 5) LOAD TYPE-SPECIFIC FIELDS
+  // ------------------------------------------------------------
+  if (entry.type === "BRIDGE") {
+    setLatDeg(entry.latDeg ?? null);
+    setLatMin(entry.latMin ?? null);
+    setLatDir((entry.latDir as any) ?? "N");
+
+    setLonDeg(entry.lonDeg ?? null);
+    setLonMin(entry.lonMin ?? null);
+    setLonDir((entry.lonDir as any) ?? "E");
+
+    // UI uses strings for formatting (012° etc.)
+    setCourseDeg(
+      entry.courseDeg === null || entry.courseDeg === undefined
+        ? ""
+        : String(entry.courseDeg)
+    );
+    setSpeedKn(
+      entry.speedKn === null || entry.speedKn === undefined
+        ? ""
+        : String(entry.speedKn)
+    );
+
+    setWeather((entry.weather as any) ?? "");
+    setSteeringMinutes(entry.steeringMinutes ?? null);
+    setIsLookout(!!entry.isLookout);
+
+    setIsLatValid(true);
+    setIsLonValid(true);
+    setIsCourseValid(true);
+  }
+
+  if (entry.type === "ENGINE") {
+    if (entry.machineryMonitored) {
+      try {
+        const payload = JSON.parse(entry.machineryMonitored);
+        setEngineWatchType(payload.engineWatchType ?? "UMS");
+        setEngineRunning(!!payload.engineRunning);
+        setManoeuvring(!!payload.manoeuvring);
+      } catch (e) {
+        console.warn("Failed to parse machineryMonitored for edit", e);
+      }
+    }
+  }
+
+  if (entry.type === "PORT") {
+    // Midnight-safe dates
+    const start = entry.startTime ?? null;
+    const end = entry.endTime ?? null;
+
+    if (start) setWatchStartDate(new Date(start));
+    if (end) setWatchEndDate(new Date(end));
+
+    // Older DB may store "GANGWAY" → map to SECURITY for UI
+    const raw = (entry.portWatchType as any) ?? "CARGO";
+    setPortWatchType(raw === "GANGWAY" ? "SECURITY" : raw);
+
+    // Keep time pickers aligned
+    setStartTime(start);
+    setEndTime(end);
+  }
+
+  // ------------------------------------------------------------
+  // 6) CONFIRM EDIT MODE (TOP TOAST)
+  // ------------------------------------------------------------
+  Toast.show({
+    type: "info",
+    text1: "Edit mode",
+    text2: "Entry loaded into the correct form.",
+    position: "top",
+  });
+};
+
 
 
 
@@ -1213,7 +1306,7 @@ if (entry.type === "ENGINE" && entry.machineryMonitored) {
                 hour12: false,
               })})`
             : `Conflicts with ${LOG_TYPE_LABEL[overlapping.type]} entry`,
-        position: "bottom",
+        position: "top",
       });
       return;
     }
@@ -1292,7 +1385,7 @@ if (entry.type === "ENGINE" && entry.machineryMonitored) {
       type: "success",
       text1: "Log entry updated",
       text2: "Changes have been saved.",
-      position: "bottom",
+      position: "top",
     });
 
     resetForm();
@@ -1315,7 +1408,7 @@ if (entry.type === "ENGINE" && entry.machineryMonitored) {
                 type: "success",
                 text1: "Log entry deleted",
                 text2: "The selected entry has been removed.",
-                position: "bottom",
+                position: "top",
             });
         },
       },
@@ -2657,6 +2750,34 @@ if (entry.type === "ENGINE" && entry.machineryMonitored) {
             ))}
         </>
         )}
+
+        {/* ============================================================
+            STICKY SAVE BAR (BOTTOM)
+            Appears only in LOG mode
+            ============================================================ */}
+          {primaryMode === "LOG" && (
+            <View
+              style={{
+                position: "sticky" as any, // RN web-safe, ignored on native
+                bottom: 0,
+                backgroundColor: theme.colors.background,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderTopWidth: 1,
+                borderColor: theme.colors.outlineVariant,
+                marginTop: 16,
+              }}
+            >
+              <Button
+                mode="contained"
+                onPress={editingLogId ? handleUpdate : handleSave}
+                disabled={!isFormValid}
+              >
+                {editingLogId ? "Update Entry" : "Save Entry"}
+              </Button>
+            </View>
+          )}
+
 
       </ScrollView>
     </KeyboardAvoidingView>

@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { keelLightTheme, keelDarkTheme } from "./src/theme/keelTheme";
 import { initDatabase } from "./src/db/database";
-
+import Toast from "react-native-toast-message";
 import { ToastProvider } from "./src/components/toast/ToastProvider";
 
 /**
@@ -53,6 +53,7 @@ function ThemedApp() {
         {/* App navigation */}
         <AppNavigator />
       </ToastProvider>
+      <Toast position="top" topOffset={60} />
     </PaperProvider>
   );
 }
