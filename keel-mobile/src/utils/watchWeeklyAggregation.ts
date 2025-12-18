@@ -36,7 +36,7 @@ export type WeeklyWatchTotal = {
 export function calculateWeeklyWatchTotals(
   logs: {
     date: Date;
-    type: "DAILY" | "BRIDGE" | "ENGINE";
+    type: "DAILY" | "BRIDGE" | "ENGINE" | "PORT";
     startTime?: Date;
     endTime?: Date;
   }[],

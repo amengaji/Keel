@@ -2,7 +2,17 @@
 
 import { calculateWatchDurationMinutes } from "./watchHours";
 
-type LogType = "DAILY" | "BRIDGE" | "ENGINE";
+/**
+ * =========================================================
+ * INTERNAL LOG TYPES (UTILITY-SAFE)
+ * ---------------------------------------------------------
+ * IMPORTANT:
+ * - DailyScreen includes PORT logs now
+ * - These utilities MUST accept PORT, even if some
+ *   aggregations only count BRIDGE/ENGINE.
+ * =========================================================
+ */
+type WatchLogType = "DAILY" | "BRIDGE" | "ENGINE" | "PORT";
 
 export type DailyWatchTotal = {
   dateKey: string; // YYYY-MM-DD
@@ -11,12 +21,17 @@ export type DailyWatchTotal = {
   totalMinutes: number;
 };
 
+/**
+ * Minimal shape required by aggregation utilities.
+ * Matches the cross-screen structure (DailyScreen logs).
+ */
 type WatchLogLike = {
   date: Date;
-  type: LogType;
+  type: WatchLogType;
   startTime?: Date;
   endTime?: Date;
 };
+
 
 /**
  * Groups watch logs by date and calculates daily totals.

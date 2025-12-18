@@ -12,16 +12,18 @@ import { calculateWeeklyWatchTotals } from "./watchWeeklyAggregation";
    - Safe to unit-test
    ========================================================= */
 
-/**
- * Input structure expected by the compliance engine.
- * This mirrors the minimal shape of a DailyLogEntry.
- */
 type WatchLogLike = {
   date: Date;
-  type: "DAILY" | "BRIDGE" | "ENGINE";
+  /**
+   * DailyScreen now includes PORT logs.
+   * Compliance logic must be able to accept PORT-shaped logs
+   * even if specific checks later decide what counts as watchkeeping.
+   */
+  type: "DAILY" | "BRIDGE" | "ENGINE" | "PORT";
   startTime?: Date;
   endTime?: Date;
 };
+
 
 /**
  * Result of the 24-hour rest compliance check.
@@ -83,13 +85,9 @@ const MIN_REST_7_DAYS = 77 * 60;       // 4620 minutes
  * @param logs All daily log entries
  */
 export function check24HourRest(
-  logs: {
-    date: Date;
-    type: "DAILY" | "BRIDGE" | "ENGINE";
-    startTime?: Date;
-    endTime?: Date;
-  }[]
+  logs: WatchLogLike[]
 ): Rest24hResult {
+
   const watchMinutes =
     calculateMaxWatchMinutesIn24Hours(logs);
 
@@ -156,7 +154,7 @@ export function checkStcwCompliance(
   logs: WatchLogLike[],
   endDate: Date
 ): StcwComplianceResult {
-  const rest24h = check24HourRest(logs);
+  const rest24h = check24HourRest(logs as WatchLogLike[]);
   const rest7d = check7DayRest(logs, endDate);
 
   return {
@@ -186,13 +184,10 @@ export function checkStcwCompliance(
  * @param logs All daily log entries
  */
 export function calculateMaxWatchMinutesIn24Hours(
-  logs: {
-    date: Date;
-    type: "DAILY" | "BRIDGE" | "ENGINE";
-    startTime?: Date;
-    endTime?: Date;
-  }[]
+  logs: WatchLogLike[]
 ): number {
+
+
   // Collect all watch intervals (in milliseconds)
   const intervals: { start: number; end: number }[] = [];
 

@@ -80,6 +80,8 @@
 ¦   ¦   ¦   +-- AuthContext.tsx
 ¦   ¦   +-- components
 ¦   ¦   ¦   +-- home
+¦   ¦   ¦   ¦   +-- AttentionItem.tsx
+¦   ¦   ¦   ¦   +-- ComplianceIndicatorCard.tsx
 ¦   ¦   ¦   ¦   +-- PendingTasksCard.tsx
 ¦   ¦   ¦   ¦   +-- ProgressCard.tsx
 ¦   ¦   ¦   ¦   +-- QuickActionsRow.tsx
