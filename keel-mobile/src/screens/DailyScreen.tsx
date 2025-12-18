@@ -1124,161 +1124,115 @@ const hydrateEngineStateFromJson = (json: string | null) => {
      * Also shows a diagnostic toast so we can confirm what data is received.
      */
 const handleEdit = (entry: DailyLogEntry) => {
-  /**
-   * ============================================================
-   * EDIT → LOAD ENTRY INTO FORM (MODE-SAFE)
-   * ============================================================
-   * Fix:
-   * - Previously we loaded date/summary etc, but we DID NOT switch
-   *   the UI mode (Duty Mode / Tab / Sea mode / Port Watch type).
-   * - So if the user last used Port Watch (Cargo), edit would still
-   *   show Port Watch UI with DAILY data mixed in.
-   */
+  // --------------------------------------------------
+  // 1. HARD RESET (prevents state bleed)
+  // --------------------------------------------------
+  resetForm();
 
-  // ------------------------------------------------------------
-  // 1) SWITCH UI MODE FIRST (prevents wrong form showing)
-  // ------------------------------------------------------------
+  // --------------------------------------------------
+  // 2. ENTER EDIT MODE
+  // --------------------------------------------------
+  setEditingLogId(entry.id);
+  setPrimaryMode("LOG");
+
+  // --------------------------------------------------
+  // 3. RESTORE UI MODE (CRITICAL FIX)
+  // --------------------------------------------------
   if (entry.type === "DAILY") {
     setDutyMode("DAILY_WORK");
-    setActiveTab("DAILY_WORK");
-  } else if (entry.type === "BRIDGE") {
-    setDutyMode("SEA_WATCH");
-    setSeaWatchMode("BRIDGE");
-    setActiveTab("SEA_WATCH");
-  } else if (entry.type === "ENGINE") {
-    setDutyMode("SEA_WATCH");
-    setSeaWatchMode("ENGINE");
-    setActiveTab("SEA_WATCH");
-  } else {
-    // PORT
-    setDutyMode("PORT_WATCH");
-    setActiveTab("PORT_WATCH");
   }
 
-  // ------------------------------------------------------------
-  // 2) ENTER EDIT MODE
-  // ------------------------------------------------------------
-  setEditingLogId(entry.id);
+  if (entry.type === "BRIDGE") {
+    setDutyMode("SEA_WATCH");
+    setSeaWatchMode("BRIDGE");
+  }
 
-  // ------------------------------------------------------------
-  // 3) CLEAR MODE-SPECIFIC STATE FIRST (prevents leaked UI values)
-  // ------------------------------------------------------------
-  // Bridge-only
-  setLatDeg(null);
-  setLatMin(null);
-  setLatDir("N");
-  setLonDeg(null);
-  setLonMin(null);
-  setLonDir("E");
-  setIsLatValid(false);
-  setIsLonValid(false);
+  if (entry.type === "ENGINE") {
+    setDutyMode("SEA_WATCH");
+    setSeaWatchMode("ENGINE");
+  }
 
-  setCourseDeg("");
-  setIsCourseValid(true);
-  setSpeedKn("");
-  setSteeringMinutes(null);
-  setWeather("");
+  if (entry.type === "PORT") {
+    setDutyMode("PORT_WATCH");
+    setPortWatchType(entry.portWatchType ?? "CARGO");
+  }
 
-  // Engine-only
-  setEngineWatchType("UMS");
-  setEngineRunning(false);
-  setManoeuvring(false);
-
-  // Daily Work categories (cannot reliably reconstruct yet)
-  setDailyWorkCategories([]);
-
-  // Port-only
-  setPortWatchType("CARGO");
-  setWatchStartDate(entry.date ?? today);
-  setWatchEndDate(entry.date ?? today);
-
-  // Shared flags
-  setIsLookout(false);
-
-  // ------------------------------------------------------------
-  // 4) LOAD COMMON FIELDS (ALL TYPES)
-  // ------------------------------------------------------------
-  setDate(entry.date ?? today);
+  // --------------------------------------------------
+  // 4. RESTORE COMMON FIELDS
+  // --------------------------------------------------
+  setDate(entry.date);
   setStartTime(entry.startTime ?? null);
   setEndTime(entry.endTime ?? null);
   setSummary(entry.summary ?? "");
   setRemarks(entry.remarks ?? "");
 
-  // ------------------------------------------------------------
-  // 5) LOAD TYPE-SPECIFIC FIELDS
-  // ------------------------------------------------------------
+  // --------------------------------------------------
+  // 5. BRIDGE WATCH FIELDS
+  // --------------------------------------------------
   if (entry.type === "BRIDGE") {
     setLatDeg(entry.latDeg ?? null);
     setLatMin(entry.latMin ?? null);
-    setLatDir((entry.latDir as any) ?? "N");
+    setLatDir(entry.latDir ?? "N");
+    setIsLatValid(!!entry.latDeg);
 
     setLonDeg(entry.lonDeg ?? null);
     setLonMin(entry.lonMin ?? null);
-    setLonDir((entry.lonDir as any) ?? "E");
+    setLonDir(entry.lonDir ?? "E");
+    setIsLonValid(!!entry.lonDeg);
 
-    // UI uses strings for formatting (012° etc.)
     setCourseDeg(
-      entry.courseDeg === null || entry.courseDeg === undefined
-        ? ""
-        : String(entry.courseDeg)
-    );
-    setSpeedKn(
-      entry.speedKn === null || entry.speedKn === undefined
-        ? ""
-        : String(entry.speedKn)
+      entry.courseDeg != null ? String(entry.courseDeg).padStart(3, "0") : ""
     );
 
-    setWeather((entry.weather as any) ?? "");
+    setSpeedKn(
+      entry.speedKn != null ? entry.speedKn.toString() : ""
+    );
+
     setSteeringMinutes(entry.steeringMinutes ?? null);
     setIsLookout(!!entry.isLookout);
-
-    setIsLatValid(true);
-    setIsLonValid(true);
-    setIsCourseValid(true);
   }
 
-  if (entry.type === "ENGINE") {
-    if (entry.machineryMonitored) {
-      try {
-        const payload = JSON.parse(entry.machineryMonitored);
-        setEngineWatchType(payload.engineWatchType ?? "UMS");
-        setEngineRunning(!!payload.engineRunning);
-        setManoeuvring(!!payload.manoeuvring);
-      } catch (e) {
-        console.warn("Failed to parse machineryMonitored for edit", e);
-      }
-    }
+  // --------------------------------------------------
+  // 6. ENGINE WATCH FIELDS
+  // --------------------------------------------------
+  if (entry.type === "ENGINE" && entry.machineryMonitored) {
+    hydrateEngineStateFromJson(entry.machineryMonitored);
+    setIsLookout(!!entry.isLookout);
   }
 
+  // --------------------------------------------------
+  // 7. PORT WATCH DATES
+  // --------------------------------------------------
   if (entry.type === "PORT") {
-    // Midnight-safe dates
-    const start = entry.startTime ?? null;
-    const end = entry.endTime ?? null;
-
-    if (start) setWatchStartDate(new Date(start));
-    if (end) setWatchEndDate(new Date(end));
-
-    // Older DB may store "GANGWAY" → map to SECURITY for UI
-    const raw = (entry.portWatchType as any) ?? "CARGO";
-    setPortWatchType(raw === "GANGWAY" ? "SECURITY" : raw);
-
-    // Keep time pickers aligned
-    setStartTime(start);
-    setEndTime(end);
+    setWatchStartDate(entry.startTime ?? entry.date);
+    setWatchEndDate(entry.endTime ?? entry.date);
   }
 
-  // ------------------------------------------------------------
-  // 6) CONFIRM EDIT MODE (TOP TOAST)
-  // ------------------------------------------------------------
   Toast.show({
     type: "info",
     text1: "Edit mode",
-    text2: "Entry loaded into the correct form.",
+    text2: "Entry loaded for editing.",
     position: "top",
   });
 };
 
+const handleCancelEdit = () => {
+  // Exit edit mode safely
+  setEditingLogId(null);
 
+  // Reset all form state
+  resetForm();
+
+  // Go back to History
+  setPrimaryMode("REVIEW");
+
+  Toast.show({
+    type: "info",
+    text1: "Edit cancelled",
+    text2: "No changes were saved.",
+    position: "top",
+  });
+};
 
 
   const handleUpdate = () => {
