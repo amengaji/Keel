@@ -13,11 +13,9 @@
  */
 
 import React, { createContext, ReactNode } from "react";
-import Toast, {
-  BaseToast,
-  ErrorToast,
-} from "react-native-toast-message";
+import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
 import { useTheme } from "react-native-paper";
+import { keelLightTheme, keelDarkTheme, } from "../../theme/keelTheme";
 
 /**
  * Toast severity types.
@@ -46,39 +44,77 @@ export const ToastContext = createContext<ToastContextType | undefined>(
  * Toast Configuration
  * ============================================================
  */
-const toastConfig = {
-  success: (props: any) => (
-    <BaseToast
-      {...props}
-      style={{ borderLeftColor: "#16A34A" }}
-      text1Style={{ fontWeight: "700" }}
-    />
-  ),
+import { Dimensions, Appearance } from "react-native";
 
-  error: (props: any) => (
-    <ErrorToast
-      {...props}
-      style={{ borderLeftColor: "#DC2626" }}
-      text1Style={{ fontWeight: "700" }}
-    />
-  ),
+const { width } = Dimensions.get("window");
+const isTablet = width >= 768;
 
-  warning: (props: any) => (
-    <BaseToast
-      {...props}
-      style={{ borderLeftColor: "#D97706" }}
-      text1Style={{ fontWeight: "700" }}
-    />
-  ),
+export const toastConfig = {
+  success: (props: any) => {
+    const theme =
+      Appearance.getColorScheme() === "dark"
+        ? keelDarkTheme
+        : keelLightTheme;
 
-  info: (props: any) => (
-    <BaseToast
-      {...props}
-      style={{ borderLeftColor: "#2563EB" }}
-      text1Style={{ fontWeight: "700" }}
-    />
-  ),
+    return (
+      <BaseToast
+        {...props}
+        style={{
+          borderLeftColor: theme.colors.primary,
+          backgroundColor: theme.colors.surface,
+          width: isTablet ? "90%" : "95%",
+          minHeight: isTablet ? 80 : 60,
+        }}
+        contentContainerStyle={{
+          paddingHorizontal: isTablet ? 20 : 12,
+        }}
+        text1Style={{
+          fontSize: isTablet ? 18 : 14,
+          fontWeight: "600",
+          color: theme.colors.onSurface,
+        }}
+        text2Style={{
+          fontSize: isTablet ? 16 : 13,
+          color: theme.colors.onSurfaceVariant,
+        }}
+      />
+    );
+  },
+
+  error: (props: any) => {
+    const theme =
+      Appearance.getColorScheme() === "dark"
+        ? keelDarkTheme
+        : keelLightTheme;
+
+    return (
+      <ErrorToast
+        {...props}
+        style={{
+          borderLeftColor: theme.colors.error,
+          backgroundColor: theme.colors.surface,
+          width: isTablet ? "90%" : "95%",
+          minHeight: isTablet ? 80 : 60,
+        }}
+        contentContainerStyle={{
+          paddingHorizontal: isTablet ? 20 : 12,
+        }}
+        text1Style={{
+          fontSize: isTablet ? 18 : 14,
+          fontWeight: "600",
+          color: theme.colors.onSurface,
+        }}
+        text2Style={{
+          fontSize: isTablet ? 16 : 13,
+          color: theme.colors.onSurfaceVariant,
+        }}
+      />
+    );
+  },
 };
+
+
+
 
 /**
  * ============================================================

@@ -320,6 +320,13 @@ useEffect(() => {
 
 
   const [date, setDate] = useState<Date | null>(today);
+  /**
+   * Daily Work — explicit End Date (STCW compliance)
+   * -----------------------------------------------
+   * Allows work periods to cross midnight explicitly.
+   */
+  const [endDate, setEndDate] = useState<Date | null>(null);
+
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
 
@@ -511,13 +518,20 @@ const isTimeRequired = logType !== "DAILY";
  */
 const isDateRangeRequired = logType === "PORT" || logType === "BRIDGE";
 
+/**
+ * DAILY WORK — FORM VALIDATION (EXPLICIT END DATE)
+ * -----------------------------------------------
+ * Required for STCW rest-hour correctness.
+ */
 const isDailyWorkValid =
-  logType === "DAILY" &&
+  dutyMode === "DAILY_WORK" &&
   !!date &&
+  !!endDate &&
   startTime &&
   endTime &&
   dailyWorkCategories.length > 0 &&
   (!dailyWorkSummaryRequired || summary.trim().length > 0);
+
 
 const isBridgeWatch =
   logType === "DAILY" && seaWatchMode === "BRIDGE";
@@ -533,23 +547,27 @@ const isFormValid =
   (dutyMode === "DAILY_WORK" && isDailyWorkValid) ||
 
 
-  // BRIDGE WATCH
-  (isBridgeWatch &&
-    !!date &&
-    startTime &&
-    endTime &&
-    summary.trim().length > 0 &&
-    isLatValid &&
-    isLonValid &&
-    isCourseValid) ||
+// SEA WATCH — BRIDGE
+(dutyMode === "SEA_WATCH" &&
+  seaWatchMode === "BRIDGE" &&
+  watchStartDate &&
+  watchEndDate &&
+  startTime &&
+  endTime &&
+  summary.trim().length > 0 &&
+  isLatValid &&
+  isLonValid &&
+  isCourseValid) ||
 
-  // ENGINE WATCH (MIDNIGHT-SAFE)
-  (isEngineWatch &&
-    engineWatchStartDate &&
-    engineWatchEndDate &&
-    startTime &&
-    endTime &&
-    summary.trim().length > 0) ||
+ // SEA WATCH — ENGINE
+(dutyMode === "SEA_WATCH" &&
+  seaWatchMode === "ENGINE" &&
+  engineWatchStartDate &&
+  engineWatchEndDate &&
+  startTime &&
+  endTime &&
+  summary.trim().length > 0) ||
+
 
   // PORT WATCH
   (isPortWatch &&
@@ -956,6 +974,51 @@ const effectiveEnd =
     ? mergeDateAndTime(watchEndDate, endTime)
     : endTime;
 
+    /**
+ * --------------------------------------------------
+ * DAILY WORK — EXPLICIT PERIOD (STCW COMPLIANT)
+ * --------------------------------------------------
+ * Daily Work uses Start Date + End Date explicitly.
+ */
+
+const isDailyWork =
+  logType === "DAILY" && dutyMode === "DAILY_WORK";
+
+// Merge Start Date + Start Time
+const dailyStart =
+  isDailyWork && date && startTime
+    ? mergeDateAndTime(date, startTime)
+    : null;
+
+// Merge End Date + End Time
+const dailyEnd =
+  isDailyWork && endDate && endTime
+    ? mergeDateAndTime(endDate, endTime)
+    : null;
+
+// Validation — missing fields
+if (isDailyWork && (!dailyStart || !dailyEnd)) {
+  Toast.show({
+    type: "error",
+    text1: "Missing work period",
+    text2: "Start Date/Time and End Date/Time are required.",
+    position: "top",
+  });
+  return;
+}
+
+// Validation — invalid range
+if (isDailyWork && dailyEnd! <= dailyStart!) {
+  Toast.show({
+    type: "error",
+    text1: "Invalid work period",
+    text2: "End Date & Time must be after Start Date & Time.",
+    position: "top",
+  });
+  return;
+}
+
+
 // --------------------------------------------------
 // VALIDATIONS (TOASTS — UNCHANGED UX)
 // --------------------------------------------------
@@ -996,10 +1059,11 @@ if (
      * --------------------------------------------------
      */
     const overlapping = findOverlappingEntry(entries, {
-      date: effectiveDate!,
-      startTime: effectiveStart,
-      endTime: effectiveEnd,
+      date: isDailyWork ? date! : effectiveDate!,
+      startTime: isDailyWork ? dailyStart : effectiveStart,
+      endTime: isDailyWork ? dailyEnd : effectiveEnd,
     });
+
 
     if (overlapping) {
       Toast.show({
@@ -1039,16 +1103,23 @@ if (
      */
     await insertDailyLog({
       id,
-      date: (effectiveDate ?? date!)!.toISOString(),
-      type: logType,
-      portWatchType:
-        portWatchType === "SECURITY" ? "GANGWAY" : portWatchType,
-      startTime: isTimeRequired
-        ? effectiveStart!.toISOString()
-        : undefined,
-      endTime: isTimeRequired
-        ? effectiveEnd!.toISOString()
-        : undefined,
+        date: (
+          isDailyWork ? date! : (effectiveDate ?? date!)
+        )!.toISOString(),
+
+        type: logType,
+
+        portWatchType:
+          portWatchType === "SECURITY" ? "GANGWAY" : portWatchType,
+
+        startTime: isTimeRequired
+          ? (isDailyWork ? dailyStart! : effectiveStart!)!.toISOString()
+          : undefined,
+
+        endTime: isTimeRequired
+          ? (isDailyWork ? dailyEnd! : effectiveEnd!)!.toISOString()
+          : undefined,
+
 summary: typeof summary === "string" ? summary.trim() : "",
 remarks:
   typeof remarks === "string" && remarks.trim()
@@ -1808,31 +1879,45 @@ const handleCancelEdit = () => {
         </Card.Content>
       </Card>
 
-      {/* -------- Date & Time -------- */}
-      <Text style={styles.fieldLabel}>Work Period</Text>
+{/* -------- Date & Time -------- */}
+<Text style={styles.fieldLabel}>Work Period</Text>
 
-      <DateInputField
-        label="Date *"
-        value={date}
-        onChange={setDate}
-        required
-      />
+{/* Start Date */}
+<DateInputField
+  label="Start Date *"
+  value={date}
+  onChange={setDate}
+  required
+/>
 
-      <View style={{ height: 10 }} />
+<View style={{ height: 10 }} />
 
-      <TimeInputField
-        label="Start Time (24h) *"
-        value={startTime}
-        onChange={setStartTime}
-      />
+{/* Start Time */}
+<TimeInputField
+  label="Start Time (24h) *"
+  value={startTime}
+  onChange={setStartTime}
+/>
 
-      <View style={{ height: 10 }} />
+<View style={{ height: 10 }} />
 
-      <TimeInputField
-        label="End Time (24h) *"
-        value={endTime}
-        onChange={setEndTime}
-      />
+{/* End Date */}
+<DateInputField
+  label="End Date *"
+  value={endDate}
+  onChange={setEndDate}
+  required
+/>
+
+<View style={{ height: 10 }} />
+
+{/* End Time */}
+<TimeInputField
+  label="End Time (24h) *"
+  value={endTime}
+  onChange={setEndTime}
+/>
+
 
       {/* -------- Category Selection -------- */}
       <View style={{ marginTop: 16 }}>

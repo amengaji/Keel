@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Pressable, View, StyleSheet } from "react-native";
-import { useTheme } from "react-native-paper";
+import { useTheme, Icon } from "react-native-paper";
 
 type Props = {
   checked: boolean;
@@ -26,11 +26,10 @@ export default function CheckboxBox({ checked, onPress }: Props) {
         ]}
       >
         {checked && (
-          <View
-            style={[
-              styles.tick,
-              { backgroundColor: theme.colors.onPrimary },
-            ]}
+            <Icon
+            source="check"
+            size={16}
+            color={theme.colors.onPrimary}
           />
         )}
       </View>

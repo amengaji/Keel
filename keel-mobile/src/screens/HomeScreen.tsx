@@ -43,7 +43,6 @@ import { useSeaService } from "../sea-service/SeaServiceContext";
 import { getSeaServiceSummary, } from "../sea-service/seaServiceStatus";
 import ComplianceIndicatorCard from "../components/home/ComplianceIndicatorCard";
 import { useDailyLogs } from "../daily-logs/DailyLogsContext";
-import { checkStcwCompliance } from "../utils/stcwCompliance";
 import { useNavigation } from "@react-navigation/native";
 import { TouchableOpacity } from "react-native";
 import { useToast } from "../components/toast/useToast";
@@ -103,7 +102,7 @@ export default function HomeScreen() {
    * - SeaServiceWizard (sea service actions)
    */
 
-  const { logs, loading: logsLoading, lastLogDate } = useDailyLogs();
+  const { logs, status, stcwComplianceStatus,loading, lastLogDate } = useDailyLogs();
 
   type AttentionAction = () => void;
 
@@ -309,22 +308,18 @@ function StatusCard({
 }
 
 /* ============================================================
- * Watchkeeping Compliance Indicator
+ * Watchkeeping Compliance Indicator (STCW)
  * ============================================================ */
 function WatchkeepingCompliance() {
   /**
-   * ============================================================
-   * Watchkeeping Compliance (STCW) — PURE INDICATOR
-   * ============================================================
-   * IMPORTANT UX RULE:
-   * - This component only reports status + summary.
-   * - Taps/navigation/toasts are handled by the parent screen
-   *   (so the entire card is tappable and consistent).
+   * IMPORTANT:
+   * - This component MUST NOT calculate compliance.
+   * - It ONLY reads derived compliance from context.
    */
 
-  const { logs, loading } = useDailyLogs();
+  const { stcwComplianceStatus, loading, logs } = useDailyLogs();
 
-  // 1) Loading state
+  // Loading state
   if (loading) {
     return (
       <ComplianceIndicatorCard
@@ -335,7 +330,7 @@ function WatchkeepingCompliance() {
     );
   }
 
-  // 2) No data = attention (cannot assess compliance without records)
+  // No logs → cannot assess compliance
   if (logs.length === 0) {
     return (
       <ComplianceIndicatorCard
@@ -348,36 +343,43 @@ function WatchkeepingCompliance() {
     );
   }
 
-  // 3) Compute STCW compliance (risk vs on-track)
-  const result = checkStcwCompliance(logs, new Date());
+  // Derived compliance from context
+  if (stcwComplianceStatus === "NON_COMPLIANT") {
+    return (
+      <ComplianceIndicatorCard
+        title="Watchkeeping (STCW)"
+        status="RISK"
+        summary="STCW rest-hour violation detected"
+        explanation="Recorded work/rest hours breach STCW minimum rest requirements."
+        recommendation="Review recent Daily Logs and inform your Training Officer if entries are correct."
+      />
+    );
+  }
 
-  // Defensive: treat missing/unknown format as “no violations found yet”
-  const hasViolations =
-    Array.isArray((result as any).violations) &&
-    (result as any).violations.length > 0;
+  if (stcwComplianceStatus === "AT_RISK") {
+    return (
+      <ComplianceIndicatorCard
+        title="Watchkeeping (STCW)"
+        status="ATTENTION"
+        summary="Rest hours close to STCW limits"
+        explanation="Your recent work/rest pattern is approaching STCW minimum limits."
+        recommendation="Monitor upcoming watches and ensure adequate rest is recorded."
+      />
+    );
+  }
 
+  // COMPLIANT
   return (
     <ComplianceIndicatorCard
       title="Watchkeeping (STCW)"
-      status={hasViolations ? "RISK" : "ON_TRACK"}
-      summary={
-        hasViolations
-          ? "STCW rest-hour violations detected"
-          : "Rest hour requirements are currently met"
-      }
-      explanation={
-        hasViolations
-          ? "Your recorded watch/rest hours indicate one or more STCW rest-hour violations."
-          : "Your records currently satisfy minimum rest-hour requirements."
-      }
-      recommendation={
-        hasViolations
-          ? "Open Daily Logs, verify the times, and inform your Training Officer if the entries are correct."
-          : "Continue logging watches daily to keep your record audit-ready."
-      }
+      status="ON_TRACK"
+      summary="Rest hour requirements are currently met"
+      explanation="Your recorded work and rest hours satisfy STCW minimum requirements."
+      recommendation="Continue logging watches daily to keep your record audit-ready."
     />
   );
 }
+
 
 
 
