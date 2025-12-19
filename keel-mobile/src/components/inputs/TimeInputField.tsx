@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
-import { TextInput, useTheme } from "react-native-paper";
+import { TextInput, Button, useTheme } from "react-native-paper";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
@@ -124,6 +124,14 @@ export default function TimeInputField({
     setText(formatTime(next, is24h));
   };
 
+  /**
+ * Explicitly close the iOS time picker.
+ * Required because spinner pickers never auto-dismiss on iOS.
+ */
+const closeTimePicker = () => {
+  setPickerOpen(false);
+};
+
   return (
     <View>
       <TextInput
@@ -145,24 +153,47 @@ export default function TimeInputField({
         }
       />
 
-  {pickerOpen && (
+{/* iOS TIME PICKER — requires explicit DONE button */}
+{pickerOpen && Platform.OS === "ios" && (
+  <View
+    style={{
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      marginTop: 8,
+      paddingBottom: 8,
+    }}
+  >
     <DateTimePicker
       value={value ?? new Date()}
       mode="time"
+      display="spinner"
       onChange={handlePickerChange}
-      display={Platform.OS === "ios" ? "spinner" : "clock"}
       locale="en-GB"
       is24Hour={is24h}
-
-      /**
-       * iOS DARK MODE FIX
-       * -----------------
-       * Time spinner text is unreadable on iPad in dark mode
-       * unless themeVariant is explicitly set.
-       */
       themeVariant={theme.dark ? "dark" : "light"}
     />
-  )}
+
+    <Button
+      mode="contained"
+      onPress={closeTimePicker}
+      style={{ marginHorizontal: 16, marginTop: 8 }}
+    >
+      Done
+    </Button>
+  </View>
+)}
+
+{/* Android TIME PICKER — auto-dismiss */}
+{pickerOpen && Platform.OS === "android" && (
+  <DateTimePicker
+    value={value ?? new Date()}
+    mode="time"
+    display="clock"
+    onChange={handlePickerChange}
+    is24Hour={is24h}
+  />
+)}
+
 
     </View>
   );

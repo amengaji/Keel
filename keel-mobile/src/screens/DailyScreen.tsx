@@ -1,47 +1,19 @@
 //keel-mobile/src/screens/DailyScreen.tsx
 
 import React, { useMemo, useState, useEffect } from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  Pressable
-} from "react-native";
-import {
-  Text,
-  Card,
-  Button,
-  TextInput,
-  Chip,
-  Divider,
-  IconButton,
-  Checkbox,
-  RadioButton,
-  useTheme,
-  SegmentedButtons,
-} from "react-native-paper";
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable } from "react-native";
+import { Text, Card, Button, TextInput, Divider, IconButton, Checkbox, useTheme, } from "react-native-paper";
 import Toast from "react-native-toast-message";
 import { useToast } from "../components/toast/useToast";
-
 import DateInputField from "../components/inputs/DateInputField";
 import TimeInputField from "../components/inputs/TimeInputField";
 import LatLongInput from "../components/inputs/LatLongInput";
-import {
-  insertDailyLog,
-  updateDailyLog,
-  deleteDailyLogById,
-} from "../db/dailyLogs";
+import {insertDailyLog, updateDailyLog, deleteDailyLogById,} from "../db/dailyLogs";
 import { useDailyLogs } from "../daily-logs/DailyLogsContext";
 import { calculateDailyWatchTotals } from "../utils/watchAggregation";
 import { calculateWeeklyWatchTotals } from "../utils/watchWeeklyAggregation";
 import { checkStcwCompliance } from "../utils/stcwCompliance";
-
-
-
-
+import CheckboxBox from "../components/common/CheckboxBox";
 
 /**
  * ============================================================
@@ -54,12 +26,6 @@ import { checkStcwCompliance } from "../utils/stcwCompliance";
  * STATUS      → compliance / summaries (unchanged)
  * HISTORY     → past entries (unchanged)
  */
-type DailyTab =
-  | "DAILY_WORK"
-  | "SEA_WATCH"
-  | "PORT_WATCH"
-  | "STATUS"
-  | "HISTORY";
 
 type PortWatchType =
   | "CARGO"
@@ -173,7 +139,6 @@ export default function DailyScreen() {
      - DailyTab type is declared ONCE at the top of the file.
      - Do NOT redeclare it inside the component (TypeScript will get messy).
      ======================= */
-  const [activeTab, setActiveTab] = useState<DailyTab>("DAILY_WORK");
   /**
    * ============================================================
    * Primary Screen Mode
@@ -564,7 +529,9 @@ const isPortWatch = logType === "PORT";
 
 const isFormValid =
   // DAILY WORK
-  (logType === "DAILY" && isDailyWorkValid) ||
+    // DAILY WORK
+  (dutyMode === "DAILY_WORK" && isDailyWorkValid) ||
+
 
   // BRIDGE WATCH
   (isBridgeWatch &&
@@ -1878,15 +1845,14 @@ const handleCancelEdit = () => {
             key={c.key}
             style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}
           >
-            <Checkbox
-              status={
-                dailyWorkCategories.includes(c.key)
-                  ? "checked"
-                  : "unchecked"
-              }
+            <CheckboxBox
+              checked={dailyWorkCategories.includes(c.key)}
               onPress={() => toggleDailyWorkCategory(c.key)}
             />
-            <Text onPress={() => toggleDailyWorkCategory(c.key)}>
+            <Text
+              onPress={() => toggleDailyWorkCategory(c.key)}
+              style={{ marginLeft: 8 }}
+            >
               {c.label}
             </Text>
           </View>
@@ -2119,13 +2085,17 @@ const handleCancelEdit = () => {
           Steering + Lookout (STCW relevant)
           ---------------------------- */}
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-        <Checkbox
-          status={steeringGearInUse ? "checked" : "unchecked"}
+        <CheckboxBox
+          checked={steeringGearInUse}
           onPress={() => setSteeringGearInUse(!steeringGearInUse)}
         />
-        <Text onPress={() => setSteeringGearInUse(!steeringGearInUse)}>
+        <Text
+          onPress={() => setSteeringGearInUse(!steeringGearInUse)}
+          style={{ marginLeft: 8 }}
+        >
           Hand steering carried out during this watch
         </Text>
+
       </View>
 
       {steeringGearInUse && (
@@ -2143,13 +2113,18 @@ const handleCancelEdit = () => {
       )}
 
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
-        <Checkbox
-          status={isLookout ? "checked" : "unchecked"}
-          onPress={() => setIsLookout(!isLookout)}
-        />
-        <Text onPress={() => setIsLookout(!isLookout)}>
-          I was assigned lookout duties (counts toward watchkeeping record)
-        </Text>
+      <CheckboxBox
+        checked={isLookout}
+        onPress={() => setIsLookout(!isLookout)}
+      />
+      <Text
+        onPress={() => setIsLookout(!isLookout)}
+        style={{ marginLeft: 8 }}
+      >
+        I was assigned lookout duties (counts toward watchkeeping record)
+      </Text>
+
+
       </View>
 
       {/* ----------------------------
@@ -2263,22 +2238,29 @@ const handleCancelEdit = () => {
 
         {/* Engine running */}
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Checkbox
-            status={engineRunning ? "checked" : "unchecked"}
-            onPress={() => setEngineRunning((p) => !p)}
-          />
-          <Text onPress={() => setEngineRunning((p) => !p)}>
-            Engine running during this watch
-          </Text>
+        <CheckboxBox
+          checked={engineRunning}
+          onPress={() => setEngineRunning((p) => !p)}
+        />
+        <Text
+          onPress={() => setEngineRunning((p) => !p)}
+          style={{ marginLeft: 8 }}
+        >
+          Engine running during this watch
+        </Text>
+
         </View>
 
         {/* Manoeuvring / critical ops */}
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Checkbox
-            status={manoeuvring ? "checked" : "unchecked"}
+          <CheckboxBox
+            checked={manoeuvring}
             onPress={() => setManoeuvring((p) => !p)}
           />
-          <Text onPress={() => setManoeuvring((p) => !p)}>
+          <Text
+            onPress={() => setManoeuvring((p) => !p)}
+            style={{ marginLeft: 8 }}
+          >
             Manoeuvring / critical operations
           </Text>
         </View>
@@ -2343,7 +2325,7 @@ const handleCancelEdit = () => {
    ============================================================ */}
 <Divider style={{ marginVertical: 12 }} />
 
-<Card style={{ backgroundColor: "#F8FAFC" }}>
+<Card style={{ backgroundColor: theme.colors.surface, }}>
   <Card.Content>
 
     <Text style={styles.fieldLabel}>
@@ -2633,213 +2615,6 @@ const handleCancelEdit = () => {
     </Card.Content>
   </Card>
 )}
-
-
-
-
-
-
-        {/* ================= STATUS TAB ================= */}
-        {activeTab === "STATUS" && (
-          <>
-            {/* DAILY SUMMARY */}
-            {selectedDayTotals && (
-              <Card style={[styles.card, styles.dashboardCard]}>
-                <Card.Content>
-                  <Text variant="titleMedium">Daily Watch Summary</Text>
-                  <Text>
-                    {formatMinutesToHoursMinutes(
-                      selectedDayTotals.totalMinutes
-                    )}
-                  </Text>
-                </Card.Content>
-              </Card>
-            )}
-
-            {/* WEEKLY SUMMARY */}
-            {weeklyWatchTotals && (
-              <Card style={[styles.card, styles.dashboardCard]}>
-                <Card.Content>
-                  <Text variant="titleMedium">Weekly Watch Summary</Text>
-                  <Text>
-                    {formatMinutesToHoursMinutes(
-                      weeklyWatchTotals.totalMinutes
-                    )}
-                  </Text>
-                </Card.Content>
-              </Card>
-            )}
-
-            {/* STCW */}
-            {stcwCompliance && (
-              <Card style={[styles.card, styles.dashboardCard]}>
-                <Card.Content>
-                  <Text variant="titleMedium">
-                    STCW Compliance Status
-                  </Text>
-                  <Text>
-                    24h:{" "}
-                    {stcwCompliance.rest24h.compliant ? "OK" : "NOT OK"}
-                  </Text>
-                  <Text>
-                    7d:{" "}
-                    {stcwCompliance.rest7d.compliant ? "OK" : "NOT OK"}
-                  </Text>
-                </Card.Content>
-              </Card>
-            )}
-          </>
-        )}
-
-
-        {/* ================= SEA WATCH TAB =================
-           Sea Watch includes BRIDGE + ENGINE (existing).
-           For Phase D2.1, we keep your existing Log Type chips so nothing breaks.
-           Later (D2.2) we will improve Sea Watch UX with radio selection Bridge vs Engine.
-        ==================================================== */}
-        {activeTab === "SEA_WATCH" && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text variant="titleMedium">Sea Watch</Text>
-              <Text style={{ marginTop: 8, opacity: 0.7 }}>
-                Bridge and Engine Watchkeeping UI will appear here.
-              </Text>
-            </Card.Content>
-          </Card>
-        )}
-
-        {/* ================= PORT WATCH TAB (placeholder) ================= */}
-        {activeTab === "PORT_WATCH" && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text variant="titleMedium">Port Watch</Text>
-              <Text style={{ marginTop: 8, opacity: 0.75 }}>
-                Port Watch logging (Cargo / Anchor / Security / Bunkering) will be enabled in the next step.
-              </Text>
-            </Card.Content>
-          </Card>
-        )}
-
-
-        {/* ================= HISTORY TAB ================= */}
-        {activeTab === "HISTORY" && (
-        <>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-            Previous Logs
-            </Text>
-
-            {entries.map((e) => (
-            <Card
-                key={e.id}
-                style={[
-                styles.logCard,
-                {
-                    backgroundColor:
-                    (theme as any)?.colors?.elevation?.level1 ??
-                    theme.colors.surface,
-                },
-                ]}
-            >
-                <Card.Content>
-                {/* Header Row */}
-                <View style={styles.logHeader}>
-                    <View>
-                    <Text
-                        variant="titleSmall"
-                        style={{ fontWeight: "700", color: theme.colors.onSurface }}
-                    >
-                        {LOG_TYPE_LABEL[e.type]}
-                    </Text>
-
-                    <Text
-                        variant="bodySmall"
-                        style={{ color: theme.colors.onSurfaceVariant }}
-                    >
-                        {e.date.toDateString()}
-                    </Text>
-                    </View>
-
-                    {/* Actions */}
-                    <View style={styles.iconRow}>
-                    <IconButton
-                        icon="pencil-outline"
-                        size={20}
-                        onPress={() => handleEdit(e)}
-                        accessibilityLabel="Edit log"
-                    />
-
-                    <IconButton
-                        icon="trash-can-outline"
-                        size={20}
-                        iconColor={theme.colors.error}
-                        onPress={() => confirmDelete(e.id)}
-                        accessibilityLabel="Delete log"
-                    />
-                    </View>
-                </View>
-
-                {/* Time Range */}
-                {e.startTime && e.endTime && (
-                    <Text
-                    variant="bodySmall"
-                    style={{ marginTop: 6, color: theme.colors.onSurfaceVariant }}
-                    >
-                    {`${e.startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} – ${e.endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`}
-                    </Text>
-                )}
-
-                {(() => {
-                    const durationMinutes = calculateDurationMinutes(e.startTime, e.endTime);
-                    if (!durationMinutes) return null;
-
-                    return (
-                        <Text
-                        variant="bodySmall"
-                        style={{ color: theme.colors.onSurfaceVariant }}
-                        >
-                        Duration: {formatMinutesToHoursMinutes(durationMinutes)}
-                        </Text>
-                    );
-                    })()}
-
-
-                {/* Summary */}
-                <Text
-                  style={{
-                    marginTop: 8,
-                    color: theme.colors.onSurface,
-                    lineHeight: 20,
-                  }}
-                >
-                  {e.summary}
-                </Text>
-
-                {/* ENGINE SUMMARY (read-only) */}
-                {e.type === "ENGINE" && (
-                  (() => {
-                    const engineSummary = buildEngineSummaryText(e.machineryMonitored);
-                    if (!engineSummary) return null;
-
-                    return (
-                      <Text
-                        variant="bodySmall"
-                        style={{
-                          marginTop: 6,
-                          color: theme.colors.onSurfaceVariant,
-                          fontStyle: "italic",
-                        }}
-                      >
-                        {engineSummary}
-                      </Text>
-                    );
-                  })()
-                )}
-
-                </Card.Content>
-            </Card>
-            ))}
-        </>
-        )}
       </ScrollView>
       
         {/* ============================================================
@@ -3077,38 +2852,29 @@ capsuleRight: {
   borderTopRightRadius: 999,
   borderBottomRightRadius: 999,
 },
-
 capsuleActive: {
   backgroundColor: "#3194A0",
 },
-
 capsuleText: {
   fontSize: 14,
   fontWeight: "600",
   color: "#3194A0",
 },
-
 capsuleTextActive: {
   color: "#FFFFFF",
 },
-
 capsuleDisabled: {
   backgroundColor: "#E0E0E0",
 },
-
 capsuleTextDisabled: {
   fontSize: 14,
   fontWeight: "600",
   color: "#888888",
 },
-
 fieldLabel: {
   fontSize: 13,
   fontWeight: "600",
   marginBottom: 6,
   color: "#374151",
 },
-
-
-
 });

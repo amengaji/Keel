@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { Platform, View, NativeModules } from "react-native";
-import { TextInput, useTheme } from "react-native-paper";
+import { TextInput, Button, useTheme } from "react-native-paper";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
@@ -160,16 +160,42 @@ export default function DateInputField({
     if (parsed) onChange(parsed);
   };
 
-  const handlePicker = (
-    e: DateTimePickerEvent,
-    selected?: Date
-  ) => {
-    if (Platform.OS === "android") setShowPicker(false);
-    if (selected) {
-      onChange(selected);
-      setText(formatDate(selected, pattern));
+const handlePicker = (
+  event: DateTimePickerEvent,
+  selected?: Date
+) => {
+  /**
+   * iOS spinner pickers DO NOT auto-dismiss.
+   * We must explicitly close them on:
+   * - value selection ("set")
+   * - cancellation ("dismissed")
+   */
+  if (Platform.OS === "ios") {
+    if (event.type === "set" || event.type === "dismissed") {
+      setShowPicker(false);
     }
-  };
+  }
+
+  // Android closes automatically, but we keep this for safety
+  if (Platform.OS === "android") {
+    setShowPicker(false);
+  }
+
+  if (event.type === "set" && selected) {
+    onChange(selected);
+    setText(formatDate(selected, pattern));
+  }
+};
+
+/**
+ * Explicitly close the iOS date picker.
+ * Required because spinner pickers never auto-dismiss on iOS.
+ */
+const closePicker = () => {
+  setShowPicker(false);
+};
+
+
 
   return (
     <View>
@@ -190,22 +216,44 @@ export default function DateInputField({
         }
       />
 
-    {showPicker && (
-      <DateTimePicker
-        value={value ?? new Date()}
-        mode="date"
-        display={Platform.OS === "ios" ? "spinner" : "default"}
-        onChange={handlePicker}
+{/* iOS DATE PICKER — requires explicit DONE button */}
+{showPicker && Platform.OS === "ios" && (
+  <View
+    style={{
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      marginTop: 8,
+      paddingBottom: 8,
+    }}
+  >
+    <DateTimePicker
+      value={value ?? new Date()}
+      mode="date"
+      display="spinner"
+      onChange={handlePicker}
+      themeVariant={theme.dark ? "dark" : "light"}
+    />
 
-        /**
-         * iOS DARK MODE FIX
-         * -----------------
-         * iPad spinners are unreadable in dark mode unless
-         * themeVariant is explicitly set.
-         */
-        themeVariant={theme.dark ? "dark" : "light"}
-      />
-    )}
+    <Button
+      mode="contained"
+      onPress={closePicker}
+      style={{ marginHorizontal: 16, marginTop: 8 }}
+    >
+      Done
+    </Button>
+  </View>
+)}
+
+{/* Android DATE PICKER — auto-dismiss */}
+{showPicker && Platform.OS === "android" && (
+  <DateTimePicker
+    value={value ?? new Date()}
+    mode="date"
+    display="default"
+    onChange={handlePicker}
+  />
+)}
+
     </View>
   );
 }
