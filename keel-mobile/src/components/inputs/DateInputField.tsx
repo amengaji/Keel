@@ -21,15 +21,48 @@ type Props = {
   required?: boolean;
 };
 
+/**
+ * Safely detect device locale across iOS / Android.
+ *
+ * iPadOS NOTE:
+ * - Some iPads do NOT expose SettingsManager at runtime.
+ * - Direct access to AppleLocale can crash the app.
+ *
+ * This function guarantees a valid locale string
+ * and NEVER throws.
+ */
 function getDeviceLocale(): string {
-  if (Platform.OS === "ios") {
-    return (
-      NativeModules.SettingsManager.settings.AppleLocale ||
-      NativeModules.SettingsManager.settings.AppleLanguages[0]
-    );
+  try {
+    // iOS — safest possible access
+    if (Platform.OS === "ios") {
+      const settings = NativeModules?.SettingsManager?.settings;
+
+      if (settings?.AppleLocale) {
+        return settings.AppleLocale;
+      }
+
+      if (
+        Array.isArray(settings?.AppleLanguages) &&
+        settings.AppleLanguages.length > 0
+      ) {
+        return settings.AppleLanguages[0];
+      }
+    }
+
+    // Android
+    if (Platform.OS === "android") {
+      const locale = NativeModules?.I18nManager?.localeIdentifier;
+      if (locale) return locale;
+    }
+  } catch (e) {
+    // Absolute last-resort safety net
+    console.warn("Locale detection failed, falling back to en-US");
   }
-  return NativeModules.I18nManager.localeIdentifier;
+
+  // Final guaranteed fallback
+  return "en-US";
 }
+
 
 function getDatePattern(locale: string): DatePattern {
   const parts = new Intl.DateTimeFormat(locale, {
@@ -157,14 +190,22 @@ export default function DateInputField({
         }
       />
 
-      {showPicker && (
-        <DateTimePicker
-          value={value ?? new Date()}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={handlePicker}
-        />
-      )}
+    {showPicker && (
+      <DateTimePicker
+        value={value ?? new Date()}
+        mode="date"
+        display={Platform.OS === "ios" ? "spinner" : "default"}
+        onChange={handlePicker}
+
+        /**
+         * iOS DARK MODE FIX
+         * -----------------
+         * iPad spinners are unreadable in dark mode unless
+         * themeVariant is explicitly set.
+         */
+        themeVariant={theme.dark ? "dark" : "light"}
+      />
+    )}
     </View>
   );
 }

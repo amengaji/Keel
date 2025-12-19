@@ -362,6 +362,10 @@ useEffect(() => {
   const [watchStartDate, setWatchStartDate] = useState<Date | null>(new Date());
   const [watchEndDate, setWatchEndDate] = useState<Date | null>(new Date());
 
+  // Engine / Watch period (supports midnight crossover)
+  const [engineWatchStartDate, setEngineWatchStartDate] = useState<Date | null>(new Date());
+  const [engineWatchEndDate, setEngineWatchEndDate] = useState<Date | null>(new Date());
+
   const [summary, setSummary] = useState("");
   const [remarks, setRemarks] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -550,18 +554,43 @@ const isDailyWorkValid =
   dailyWorkCategories.length > 0 &&
   (!dailyWorkSummaryRequired || summary.trim().length > 0);
 
+const isBridgeWatch =
+  logType === "DAILY" && seaWatchMode === "BRIDGE";
+
+const isEngineWatch =
+  logType === "DAILY" && seaWatchMode === "ENGINE";
+
+const isPortWatch = logType === "PORT";
+
 const isFormValid =
+  // DAILY WORK
   (logType === "DAILY" && isDailyWorkValid) ||
-  (logType !== "DAILY" &&
+
+  // BRIDGE WATCH
+  (isBridgeWatch &&
     !!date &&
+    startTime &&
+    endTime &&
     summary.trim().length > 0 &&
-    (!isTimeRequired ||
-      (startTime &&
-        endTime &&
-        (!isDateRangeRequired ||
-          (watchStartDate && watchEndDate)))) &&
-    (logType !== "BRIDGE" ||
-      (isLatValid && isLonValid && isCourseValid)));
+    isLatValid &&
+    isLonValid &&
+    isCourseValid) ||
+
+  // ENGINE WATCH (MIDNIGHT-SAFE)
+  (isEngineWatch &&
+    engineWatchStartDate &&
+    engineWatchEndDate &&
+    startTime &&
+    endTime &&
+    summary.trim().length > 0) ||
+
+  // PORT WATCH
+  (isPortWatch &&
+    watchStartDate &&
+    watchEndDate &&
+    startTime &&
+    endTime &&
+    summary.trim().length > 0);
 
 
 
@@ -694,6 +723,10 @@ const resetForm = () => {
   setEngineWatchType("UMS");
   setEngineRunning(false);
   setManoeuvring(false);
+
+  // Midnight-safe engine watch dates
+  setEngineWatchStartDate(today);
+  setEngineWatchEndDate(today);
 
   // --------------------------------------------------
   // PORT WATCH (VALID ENUM ONLY)
@@ -902,46 +935,93 @@ const handleSave = async () => {
       return;
     }
 
-    /**
-     * --------------------------------------------------
-     * 2. EFFECTIVE PERIOD (MIDNIGHT-SAFE)
-     * --------------------------------------------------
-     */
-    const effectiveDate = logType === "PORT" ? watchStartDate : date;
-    const effectiveStart =
-      logType === "PORT"
-        ? mergeDateAndTime(watchStartDate, startTime)
-        : startTime;
-    const effectiveEnd =
-      logType === "PORT"
-        ? mergeDateAndTime(watchEndDate, endTime)
-        : endTime;
+/**
+ * --------------------------------------------------
+ * 2. EFFECTIVE PERIOD (MIDNIGHT-SAFE)
+ * --------------------------------------------------
+ *
+ * WHY THIS EXISTS:
+ * - PORT Watch can span multiple dates
+ * - BRIDGE Watch can span midnight (23:00 → 03:00)
+ * - ENGINE Watch can span midnight
+ *
+ * We MUST merge the correct DATE with the selected TIME,
+ * otherwise durations become negative or invalid.
+ */
 
-    if (isTimeRequired && (!effectiveStart || !effectiveEnd)) {
-      Toast.show({
-        type: "error",
-        text1: "Missing time",
-        text2: "Start time and End time are required.",
-        position: "top",
-      });
-      return;
-    }
+// Explicit context detection (avoid ambiguity)
+const isBridgeWatchContext =
+  logType === "DAILY" && seaWatchMode === "BRIDGE";
 
-    if (
-      logType === "PORT" &&
-      effectiveStart &&
-      effectiveEnd &&
-      effectiveEnd <= effectiveStart
-    ) {
-      Toast.show({
-        type: "error",
-        text1: "Invalid Port Watch period",
-        text2:
-          "If crossing midnight, set End Date to the next day.",
-        position: "top",
-      });
-      return;
-    }
+const isEngineWatchContext =
+  logType === "DAILY" && seaWatchMode === "ENGINE";
+
+// --------------------------------------------------
+// Effective base date (used for DB grouping)
+// --------------------------------------------------
+const effectiveDate =
+  logType === "PORT"
+    ? watchStartDate
+    : isEngineWatchContext
+    ? engineWatchStartDate
+    : isBridgeWatchContext
+    ? watchStartDate
+    : date;
+
+// --------------------------------------------------
+// Effective absolute timestamps (Date + Time merged)
+// --------------------------------------------------
+const effectiveStart =
+  logType === "PORT"
+    ? mergeDateAndTime(watchStartDate, startTime)
+    : isEngineWatchContext
+    ? mergeDateAndTime(engineWatchStartDate, startTime)
+    : isBridgeWatchContext
+    ? mergeDateAndTime(watchStartDate, startTime)
+    : startTime;
+
+const effectiveEnd =
+  logType === "PORT"
+    ? mergeDateAndTime(watchEndDate, endTime)
+    : isEngineWatchContext
+    ? mergeDateAndTime(engineWatchEndDate, endTime)
+    : isBridgeWatchContext
+    ? mergeDateAndTime(watchEndDate, endTime)
+    : endTime;
+
+// --------------------------------------------------
+// VALIDATIONS (TOASTS — UNCHANGED UX)
+// --------------------------------------------------
+if (isTimeRequired && (!effectiveStart || !effectiveEnd)) {
+  Toast.show({
+    type: "error",
+    text1: "Missing time",
+    text2: "Start time and End time are required.",
+    position: "top",
+  });
+  return;
+}
+
+/**
+ * PORT Watch validation:
+ * - We compare FULL Date objects, not just hours.
+ * - Crossing midnight is VALID only if End Date > Start Date.
+ */
+if (
+  logType === "PORT" &&
+  effectiveStart &&
+  effectiveEnd &&
+  effectiveEnd <= effectiveStart
+) {
+  Toast.show({
+    type: "error",
+    text1: "Invalid Port Watch period",
+    text2: "If crossing midnight, set End Date to the next day.",
+    position: "top",
+  });
+  return;
+}
+
 
     /**
      * --------------------------------------------------
@@ -981,7 +1061,7 @@ const handleSave = async () => {
       .slice(2)}`;
 
     const machineryMonitored =
-      logType === "ENGINE"
+      logType === "DAILY" && seaWatchMode === "ENGINE"
         ? buildEngineMachineryPayloadJson()
         : null;
 
@@ -1207,6 +1287,7 @@ const handleEdit = (entry: DailyLogEntry) => {
     setWatchStartDate(entry.startTime ?? entry.date);
     setWatchEndDate(entry.endTime ?? entry.date);
   }
+  
 
   Toast.show({
     type: "info",
@@ -1272,7 +1353,7 @@ const handleCancelEdit = () => {
     const speedKnNumber = toNullableSpeedKnNumber(speedKn);
 
     const machineryMonitored =
-      logType === "ENGINE" ? buildEngineMachineryPayloadJson() : null;
+      logType === "DAILY" && seaWatchMode === "ENGINE" ? buildEngineMachineryPayloadJson() : null;
 
     // ============================================================
     // 2) Build a strongly-typed patch object for BOTH:
@@ -1395,23 +1476,26 @@ const handleCancelEdit = () => {
     PRIMARY MODE SELECTOR
     Large, readable, cadet-friendly
    ============================================================ */}
-<View style={{ flexDirection: "row", gap: 12, marginVertical: 16 }}>
-  <Button
-    mode={primaryMode === "LOG" ? "contained" : "outlined"}
-    onPress={() => setPrimaryMode("LOG")}
-    style={{ flex: 1 }}
-  >
-    Create Log Entry
-  </Button>
+  <View style={{ flexDirection: "row", gap: 12, marginVertical: 16 }}>
+    <Button
+      mode={primaryMode === "LOG" ? "contained" : "outlined"}
+      onPress={() => setPrimaryMode("LOG")}
+      style={{ flex: 1 }}
+      disabled={!!editingLogId}
+    >
+      Create Log Entry
+    </Button>
 
-  <Button
-    mode={primaryMode === "REVIEW" ? "contained" : "outlined"}
-    onPress={() => setPrimaryMode("REVIEW")}
-    style={{ flex: 1 }}
-  >
-    Review Logs
-  </Button>
-</View>
+    <Button
+      mode={primaryMode === "REVIEW" ? "contained" : "outlined"}
+      onPress={() => setPrimaryMode("REVIEW")}
+      style={{ flex: 1 }}
+      disabled={!!editingLogId}
+    >
+      History
+    </Button>
+  </View>
+
 
 {/* ============================================================
     REVIEW MODE — HISTORY ONLY
@@ -1569,6 +1653,30 @@ const handleCancelEdit = () => {
    ============================================================ */}
 {primaryMode === "LOG" && (
   <>
+    {editingLogId && (
+      <Card style={{ marginBottom: 12, backgroundColor: "#FEF3C7" }}>
+        <Card.Content>
+          <Text style={{ fontWeight: "700", marginBottom: 6 }}>
+            Editing existing entry
+          </Text>
+
+          <Text style={{ marginBottom: 10 }}>
+            You are editing a saved log. Other actions are temporarily disabled.
+          </Text>
+
+          <Button
+            mode="outlined"
+            onPress={handleCancelEdit}
+            textColor="#B45309"
+          >
+            Cancel Edit
+          </Button>
+        </Card.Content>
+      </Card>
+    )}
+
+    {/* rest of LOG mode UI continues here */}
+
     {/* ================= DUTY TYPE ================= */}
     <Card style={{ marginBottom: 16 }}>
       <Card.Content>
@@ -1579,6 +1687,7 @@ const handleCancelEdit = () => {
         <View style={styles.capsuleContainer}>
           <Pressable
             onPress={() => setDutyMode("DAILY_WORK")}
+            disabled={!!editingLogId}
             style={[
               styles.capsuleSegment,
               styles.capsuleLeft,
@@ -1597,6 +1706,7 @@ const handleCancelEdit = () => {
 
           <Pressable
             onPress={() => setDutyMode("SEA_WATCH")}
+            disabled={!!editingLogId}
             style={[
               styles.capsuleSegment,
               dutyMode === "SEA_WATCH" && styles.capsuleActive,
@@ -1614,6 +1724,7 @@ const handleCancelEdit = () => {
 
           <Pressable
             onPress={() => setDutyMode("PORT_WATCH")}
+            disabled={!!editingLogId}
             style={[
               styles.capsuleSegment,
               styles.capsuleRight,
@@ -1672,6 +1783,7 @@ const handleCancelEdit = () => {
           {/* Bridge Watch */}
           <Pressable
             onPress={() => setSeaWatchMode("BRIDGE")}
+            disabled={!!editingLogId}
             style={[
               styles.capsuleSegment,
               styles.capsuleLeft,
@@ -1691,6 +1803,7 @@ const handleCancelEdit = () => {
           {/* Engine Watch */}
           <Pressable
             onPress={() => setSeaWatchMode("ENGINE")}
+            disabled={!!editingLogId}
             style={[
               styles.capsuleSegment,
               styles.capsuleRight,
@@ -2187,23 +2300,42 @@ const handleCancelEdit = () => {
         {/* Time + summary/remarks reuse the existing shared fields */}
         <Text style={styles.fieldLabel}>Engine Watch Period</Text>
 
-        <DateInputField label="Date *" value={date} onChange={setDate} required />
-
         <View style={{ height: 10 }} />
 
-        <TimeInputField
-          label="Start Time (24h) *"
-          value={startTime}
-          onChange={setStartTime}
-        />
+{/* Engine Watch – Start Date */}
+<DateInputField
+  label="Start Date"
+  value={engineWatchStartDate}
+  onChange={setEngineWatchStartDate}
+  required
+/>
 
-        <View style={{ height: 10 }} />
+<View style={{ height: 8 }} />
 
-        <TimeInputField
-          label="End Time (24h) *"
-          value={endTime}
-          onChange={setEndTime}
-        />
+<TimeInputField
+  label="Start Time (24h) *"
+  value={startTime}
+  onChange={setStartTime}
+/>
+
+<View style={{ height: 12 }} />
+
+{/* Engine Watch – End Date */}
+<DateInputField
+  label="End Date"
+  value={engineWatchEndDate}
+  onChange={setEngineWatchEndDate}
+  required
+/>
+
+<View style={{ height: 8 }} />
+
+<TimeInputField
+  label="End Time (24h) *"
+  value={endTime}
+  onChange={setEndTime}
+/>
+
 
 {/* ============================================================
     ENGINE PARAMETERS — OPTIONAL (ACCORDION)
@@ -2357,6 +2489,7 @@ const handleCancelEdit = () => {
       <View style={styles.capsuleContainer}>
         <Pressable
           onPress={() => setPortWatchType("CARGO")}
+          disabled={!!editingLogId}
           style={[
             styles.capsuleSegment,
             styles.capsuleLeft,
@@ -2375,6 +2508,7 @@ const handleCancelEdit = () => {
 
         <Pressable
           onPress={() => setPortWatchType("ANCHOR")}
+          disabled={!!editingLogId}
           style={[
             styles.capsuleSegment,
             portWatchType === "ANCHOR" && styles.capsuleActive,
@@ -2392,6 +2526,7 @@ const handleCancelEdit = () => {
 
         <Pressable
           onPress={() => setPortWatchType("SECURITY")}
+          disabled={!!editingLogId}
           style={[
             styles.capsuleSegment,
             portWatchType === "SECURITY" && styles.capsuleActive,
@@ -2409,6 +2544,7 @@ const handleCancelEdit = () => {
 
         <Pressable
           onPress={() => setPortWatchType("BUNKERING")}
+          disabled={!!editingLogId}
           style={[
             styles.capsuleSegment,
             styles.capsuleRight,
@@ -2704,7 +2840,8 @@ const handleCancelEdit = () => {
             ))}
         </>
         )}
-
+      </ScrollView>
+      
         {/* ============================================================
             STICKY SAVE BAR (BOTTOM)
             Appears only in LOG mode
@@ -2731,9 +2868,6 @@ const handleCancelEdit = () => {
               </Button>
             </View>
           )}
-
-
-      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

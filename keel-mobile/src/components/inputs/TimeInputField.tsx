@@ -145,16 +145,25 @@ export default function TimeInputField({
         }
       />
 
-      {pickerOpen && (
-        <DateTimePicker
-          value={value ?? new Date()}
-          mode="time"
-          onChange={handlePickerChange}
-          display={Platform.OS === "ios" ? "spinner" : "clock"}
-          locale = "en-GB"
-          is24Hour={is24h}
-        />
-      )}
+  {pickerOpen && (
+    <DateTimePicker
+      value={value ?? new Date()}
+      mode="time"
+      onChange={handlePickerChange}
+      display={Platform.OS === "ios" ? "spinner" : "clock"}
+      locale="en-GB"
+      is24Hour={is24h}
+
+      /**
+       * iOS DARK MODE FIX
+       * -----------------
+       * Time spinner text is unreadable on iPad in dark mode
+       * unless themeVariant is explicitly set.
+       */
+      themeVariant={theme.dark ? "dark" : "light"}
+    />
+  )}
+
     </View>
   );
 }
