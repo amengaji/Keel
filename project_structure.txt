@@ -115,6 +115,7 @@
 ¦   ¦   +-- db
 ¦   ¦   ¦   +-- dailyLogs.ts
 ¦   ¦   ¦   +-- database.ts
+¦   ¦   ¦   +-- seaService.ts
 ¦   ¦   ¦   +-- watchkeeping.ts
 ¦   ¦   +-- navigation
 ¦   ¦   ¦   +-- AppNavigator.tsx
@@ -147,6 +148,7 @@
 ¦   ¦   ¦   ¦   +-- InertGasSystemSection.tsx
 ¦   ¦   ¦   ¦   +-- LifeSavingAppliancesSection.tsx
 ¦   ¦   ¦   ¦   +-- NavigationCommunicationSection.tsx
+¦   ¦   ¦   ¦   +-- PollutionPreventionSection.tsx
 ¦   ¦   ¦   ¦   +-- PropulsionPerformanceSection.tsx
 ¦   ¦   ¦   +-- SeaServiceContext.tsx
 ¦   ¦   ¦   +-- seaServiceDefaults.ts

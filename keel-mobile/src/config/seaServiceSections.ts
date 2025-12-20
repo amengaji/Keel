@@ -35,6 +35,7 @@ export type SeaServiceSectionKey =
   | "NAVIGATION_COMMUNICATION"
   | "LIFE_SAVING_APPLIANCES"
   | "FIRE_FIGHTING_APPLIANCES"
+  | "POLLUTION_PREVENTION"
   | "INERT_GAS_SYSTEM";
 
 /**
@@ -118,6 +119,11 @@ export const SEA_SERVICE_SECTIONS: SeaServiceSectionDefinition[] = [
     title: "Fire Fighting Appliances (FFA)",
     description:
       "Fixed and portable fire fighting systems and breathing apparatus.",
+  },
+  {
+  key: "POLLUTION_PREVENTION",
+  title: "Pollution Prevention (MARPOL)",
+  description: "MARPOL Annex I–VI pollution prevention equipment and procedures.",
   },
   {
     key: "INERT_GAS_SYSTEM",

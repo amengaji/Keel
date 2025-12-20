@@ -6,12 +6,20 @@ import * as SQLite from "expo-sqlite";
  * KEEL Local Database (SQLite)
  * ============================================================
  *
- * IMPORTANT DESIGN NOTES:
- * - We use a single DB file: keel.db
- * - We keep migrations SAFE by adding missing columns (no drops)
- * - `daily_logs.type` is TEXT so new types (like "PORT") are allowed
- * - Port Watch needs a dedicated column to store its sub-type
- *   (CARGO / ANCHOR / GANGWAY / BUNKERING)
+ * DESIGN GUARANTEES:
+ * - NO breaking changes to existing installs
+ * - ONLY additive schema changes
+ * - Draft-safe for all modules
+ * - Offline-first
+ * - Inspector-grade data integrity
+ *
+ * EXISTING TABLES (UNCHANGED):
+ * - daily_logs
+ * - watchkeeping
+ *
+ * NEW TABLES (THIS STEP):
+ * - sea_service_records
+ * - task_records
  */
 
 /**
@@ -33,22 +41,20 @@ export function getDatabase(): SQLite.SQLiteDatabase {
  * ============================================================
  * Migration Helper: ensureColumns
  * ============================================================
- * Adds columns if they do not exist (safe migration).
- * This avoids breaking existing installs.
+ * Adds columns if they do not exist (SAFE migration).
+ * NEVER drops or alters existing columns.
  */
 function ensureColumns(
   database: SQLite.SQLiteDatabase,
   tableName: string,
   columns: { name: string; type: string }[]
 ): void {
-  // Read current table schema
   const rows = database.getAllSync<{ name: string }>(
     `PRAGMA table_info(${tableName});`
   );
 
   const existing = new Set((rows ?? []).map((r) => r.name));
 
-  // Add only missing columns
   for (const col of columns) {
     if (existing.has(col.name)) continue;
 
@@ -62,14 +68,14 @@ function ensureColumns(
  * ============================================================
  * initDatabase
  * ============================================================
- * Creates schema for fresh installs + runs safe migrations.
+ * Creates schema for fresh installs + runs SAFE migrations.
  */
 export function initDatabase(): void {
   const database = getDatabase();
 
-  // ------------------------------------------------------------
-  // Fresh install schema
-  // ------------------------------------------------------------
+  /* ==========================================================
+   * DAILY LOGS (EXISTING — DO NOT MODIFY)
+   * ========================================================== */
   database.execSync(`
     CREATE TABLE IF NOT EXISTS daily_logs (
       id TEXT PRIMARY KEY NOT NULL,
@@ -103,31 +109,75 @@ export function initDatabase(): void {
     );
   `);
 
-  // ------------------------------------------------------------
-  // Safe migrations (existing installs)
-  // ------------------------------------------------------------
   ensureColumns(database, "daily_logs", [
-    // Port Watch support (D3.2): add column if missing
     { name: "port_watch_type", type: "TEXT" },
-
-    // Existing migration set (kept intact)
     { name: "lat_deg", type: "INTEGER" },
     { name: "lat_min", type: "REAL" },
     { name: "lat_dir", type: "TEXT" },
-
     { name: "lon_deg", type: "INTEGER" },
     { name: "lon_min", type: "REAL" },
     { name: "lon_dir", type: "TEXT" },
-
     { name: "course_deg", type: "REAL" },
     { name: "speed_kn", type: "REAL" },
     { name: "weather", type: "TEXT" },
     { name: "steering_minutes", type: "INTEGER" },
     { name: "is_lookout", type: "INTEGER" },
-
     { name: "daily_work_categories", type: "TEXT" },
-
-
     { name: "machinery_monitored", type: "TEXT" },
   ]);
+
+  /* ==========================================================
+   * SEA SERVICE (NEW — OPTION A)
+   * ========================================================== */
+  database.execSync(`
+    CREATE TABLE IF NOT EXISTS sea_service_records (
+      id TEXT PRIMARY KEY NOT NULL,
+
+      -- Identifies the vessel / service period logically
+      ship_name TEXT,
+      imo_number TEXT,
+
+      -- Entire Sea Service payload (JSON)
+      payload_json TEXT NOT NULL,
+
+      -- Draft lifecycle
+      status TEXT NOT NULL DEFAULT 'DRAFT', -- DRAFT | FINAL
+      last_updated_at INTEGER,
+
+      -- Future sync support
+      remote_id TEXT,
+      sync_state TEXT DEFAULT 'LOCAL_ONLY',
+
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  /* ==========================================================
+   * TASKS (NEW — OPTION A)
+   * ========================================================== */
+  database.execSync(`
+    CREATE TABLE IF NOT EXISTS task_records (
+      id TEXT PRIMARY KEY NOT NULL,
+
+      task_key TEXT NOT NULL,        -- stable identifier from task catalog
+      task_title TEXT NOT NULL,
+
+      -- Task completion state
+      status TEXT NOT NULL,          -- NOT_STARTED | IN_PROGRESS | COMPLETED
+      remarks TEXT,
+
+      -- Sign-off metadata (future-proof)
+      signed_by TEXT,
+      signed_rank TEXT,
+      signed_at TEXT,
+
+      -- Draft + sync
+      remote_id TEXT,
+      sync_state TEXT DEFAULT 'LOCAL_ONLY',
+
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
 }

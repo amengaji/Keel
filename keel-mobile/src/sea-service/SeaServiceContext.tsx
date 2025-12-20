@@ -2,50 +2,51 @@
 
 /**
  * ============================================================
- * Sea Service Context
+ * Sea Service Context (SQLite-Backed, Draft-Safe)
  * ============================================================
  *
- * This context manages the in-memory state of the
- * Sea Service wizard.
+ * RESPONSIBILITIES (UPDATED):
+ * - Hold in-memory Sea Service payload
+ * - Load draft from SQLite on mount
+ * - Auto-save draft:
+ *    • On every section update
+ *    • On wizard unmount / exit
  *
- * RESPONSIBILITIES:
- * - Hold the current Sea Service payload
- * - Allow partial updates section-by-section
- * - Support draft reset and initialization
- *
- * NOT RESPONSIBLE FOR:
+ * STILL NOT RESPONSIBLE FOR:
  * - UI rendering
  * - Navigation
- * - SQLite persistence (added later)
- * - Sync logic
+ * - Sync to backend (future step)
  */
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+  useRef,
+} from "react";
 import {
   SeaServicePayload,
   DEFAULT_SEA_SERVICE_PAYLOAD,
 } from "./seaServiceDefaults";
+import {
+  getSeaServicePayloadOrDefault,
+  upsertSeaServiceDraft,
+} from "../db/seaService";
+import { useToast } from "../components/toast/useToast";
 
 /**
  * Context shape exposed to consumers.
  */
 interface SeaServiceContextType {
-  /** Current working payload */
   payload: SeaServicePayload;
-
-  /** Initialize a brand new Sea Service draft */
   startNewDraft: () => void;
-
-  /** Update data for a specific section */
   updateSection: (
     sectionKey: keyof SeaServicePayload["sections"],
     data: Record<string, any>
   ) => void;
-
-  /** Set ship type once selected */
   setShipType: (shipTypeCode: string) => void;
-
-  /** Reset everything back to defaults */
   resetDraft: () => void;
 }
 
@@ -62,30 +63,87 @@ const SeaServiceContext = createContext<SeaServiceContextType | undefined>(
  * ============================================================
  */
 export function SeaServiceProvider({ children }: { children: ReactNode }) {
-  /**
-   * Internal payload state.
-   * Initialized with a deep copy of default payload.
-   */
-  const [payload, setPayload] = useState<SeaServicePayload>({
-    ...DEFAULT_SEA_SERVICE_PAYLOAD,
-    sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
-  });
+  const toast = useToast();
 
   /**
-   * Start a fresh Sea Service draft.
-   * Used when cadet creates a new entry.
+   * In-memory payload state.
+   * Initialized empty, then hydrated from SQLite.
+   */
+  const [payload, setPayload] = useState<SeaServicePayload>(() => ({
+    ...DEFAULT_SEA_SERVICE_PAYLOAD,
+    sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
+  }));
+
+  /**
+   * Track whether initial DB load is complete.
+   * Prevents accidental overwrite on first render.
+   */
+  const hasHydratedRef = useRef(false);
+
+  /**
+   * ============================================================
+   * INITIAL LOAD — SQLite → Context
+   * ============================================================
+   */
+  useEffect(() => {
+    try {
+      const storedPayload = getSeaServicePayloadOrDefault();
+
+      setPayload({
+        ...storedPayload,
+        sections: { ...storedPayload.sections },
+      });
+
+      hasHydratedRef.current = true;
+    } catch (err) {
+      console.error("Failed to load Sea Service draft:", err);
+      toast.error("Failed to load Sea Service draft. Using empty form.");
+      hasHydratedRef.current = true;
+    }
+  }, [toast]);
+
+  /**
+   * ============================================================
+   * AUTO-SAVE — Context → SQLite
+   * ============================================================
+   *
+   * Triggered on ANY payload change AFTER hydration.
+   */
+  useEffect(() => {
+    if (!hasHydratedRef.current) return;
+
+    try {
+      upsertSeaServiceDraft(payload);
+      // Silent success (no toast spam)
+    } catch (err) {
+      console.error("Auto-save Sea Service failed:", err);
+      toast.error("Auto-save failed. Your draft may not be saved.");
+    }
+  }, [payload, toast]);
+
+  /**
+   * ============================================================
+   * PUBLIC ACTIONS
+   * ============================================================
+   */
+
+  /**
+   * Start a brand-new draft.
+   * Overwrites current in-memory state and DB record.
    */
   const startNewDraft = () => {
-    setPayload({
+    const freshPayload: SeaServicePayload = {
       ...DEFAULT_SEA_SERVICE_PAYLOAD,
       sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
       lastUpdatedAt: Date.now(),
-    });
+    };
+
+    setPayload(freshPayload);
   };
 
   /**
    * Update data for a given section.
-   * Existing section data is shallow-merged.
+   * Shallow-merge only the affected section.
    */
   const updateSection = (
     sectionKey: keyof SeaServicePayload["sections"],
@@ -105,8 +163,7 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Set the ship type selected by cadet.
-   * This will later control which sections appear.
+   * Set ship type selected by cadet.
    */
   const setShipType = (shipTypeCode: string) => {
     setPayload((prev) => ({
@@ -117,14 +174,15 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Reset the current draft completely.
-   * Used on cancel / discard flows.
+   * Reset draft completely (memory + DB).
    */
   const resetDraft = () => {
-    setPayload({
+    const resetPayload: SeaServicePayload = {
       ...DEFAULT_SEA_SERVICE_PAYLOAD,
       sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
-    });
+    };
+
+    setPayload(resetPayload);
   };
 
   return (
@@ -146,8 +204,6 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
  * ============================================================
  * HOOK
  * ============================================================
- *
- * Convenience hook to consume the Sea Service context.
  */
 export function useSeaService() {
   const ctx = useContext(SeaServiceContext);

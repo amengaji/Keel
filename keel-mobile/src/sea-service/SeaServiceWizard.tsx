@@ -40,6 +40,7 @@ import NavigationCommunicationSection from "./sections/NavigationCommunicationSe
 import LifeSavingAppliancesSection from "./sections/LifeSavingAppliancesSection";
 import FireFightingAppliancesSection from "./sections/FireFightingAppliancesSection";
 import InertGasSystemSection from "./sections/InertGasSystemSection";
+import PollutionPreventionSection from "./sections/PollutionPreventionSection";
 
 /**
  * Wizard steps currently implemented.
@@ -56,7 +57,8 @@ type WizardStep =
   | "NAVIGATION_COMMUNICATION"
   | "LIFE_SAVING_APPLIANCES"
   | "FIRE_FIGHTING_APPLIANCES"
-  | "INERT_GAS_SYSTEM";
+  | "INERT_GAS_SYSTEM"
+  | "POLLUTION_PREVENTION";
 
 
 
@@ -259,6 +261,10 @@ export default function SeaServiceWizard() {
     }
     if (sectionKey === "FIRE_FIGHTING_APPLIANCES") {
     setCurrentStep("FIRE_FIGHTING_APPLIANCES");
+    return;
+    }
+    if (sectionKey === "POLLUTION_PREVENTION") {
+    setCurrentStep("POLLUTION_PREVENTION");
     return;
     }
     if (sectionKey === "INERT_GAS_SYSTEM") {
@@ -767,7 +773,7 @@ if (currentStep === "SHIP_TYPE") {
 
     /**
      * ============================================================
-     * RENDER — STEP 7: AUXILIARY MACHINERY AND ELECTRICAL
+     * RENDER — STEP 7: DECK MACHINERY & MAEUVERING
      * ============================================================
      */
     if (currentStep === "DECK_MACHINERY_MANEUVERING") {
@@ -1012,6 +1018,45 @@ if (currentStep === "INERT_GAS_SYSTEM") {
       </View>
       <Divider />
       <InertGasSystemSection />
+    </View>
+  );
+}
+/**
+ * ============================================================
+ * RENDER — STEP 13: POLLUTION PREVENTION (MARPOL)
+ * ============================================================
+ */
+if (currentStep === "POLLUTION_PREVENTION") {
+  return (
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.background,
+          paddingBottom: androidSystemFooterPadding,
+        },
+      ]}
+    >
+      <View style={styles.sectionHeader}>
+        <Button
+          mode="outlined"
+          onPress={() => setCurrentStep("SECTION_OVERVIEW")}
+        >
+          Back to Sections
+        </Button>
+        <Button
+          mode="text"
+          onPress={() =>
+            toast.info(
+              "Remember to tap Save Section before leaving."
+            )
+          }
+        >
+          Help
+        </Button>
+      </View>
+      <Divider />
+      <PollutionPreventionSection/>
     </View>
   );
 }

@@ -28,7 +28,7 @@
  * - Real data wiring happens later
  */
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import {
   Text,
@@ -46,13 +46,44 @@ import { useDailyLogs } from "../daily-logs/DailyLogsContext";
 import { useNavigation } from "@react-navigation/native";
 import { TouchableOpacity } from "react-native";
 import { useToast } from "../components/toast/useToast";
+import { ensureSeedTasksExist, getAllTaskRecords } from "../db/tasks";
+
 
 
 export default function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<any>();
 
-  
+    // ------------------------------------------------------------
+  // Toast (errors only — Home is read-only)
+  // ------------------------------------------------------------
+  const toast = useToast();
+
+  // ------------------------------------------------------------
+  // Tasks — SQLite-backed summary (Option C)
+  // ------------------------------------------------------------
+  const [taskTotalCount, setTaskTotalCount] = useState(0);
+  const [taskCompletedCount, setTaskCompletedCount] = useState(0);
+  const [taskPendingCount, setTaskPendingCount] = useState(0);
+
+  useEffect(() => {
+    try {
+      // Safe seed: inserts only if table is empty
+      ensureSeedTasksExist();
+
+      const allTasks = getAllTaskRecords();
+      const completed = allTasks.filter((t) => t.status === "COMPLETED").length;
+      const pending = allTasks.filter((t) => t.status !== "COMPLETED").length;
+
+      setTaskTotalCount(allTasks.length);
+      setTaskCompletedCount(completed);
+      setTaskPendingCount(pending);
+    } catch (err) {
+      console.error("HomeScreen: failed to load Tasks from SQLite:", err);
+      toast.error("Failed to load tasks.");
+    }
+  }, [toast]);
+
   // ------------------------------------------------------------
   // Sea Service data (single source of truth)
   // ------------------------------------------------------------
@@ -168,23 +199,33 @@ export default function HomeScreen() {
 
             <Divider style={styles.dividerSmall} />
 
-        <Text style={styles.placeholderText}>
-          Sea Service Status:{" "}
-          <Text style={{ fontWeight: "700" }}>
-            {seaServiceStatusText}
-          </Text>
-        </Text>
-
-        <Text style={styles.placeholderSubText}>
-          Sections completed:{" "}
-          {seaServiceSummary.completedSections} /{" "}
-          {seaServiceSummary.totalSections}
-        </Text>
-
-
-            <Text style={styles.placeholderSubText}>
-              (No progress data available yet)
+          <Text style={styles.placeholderText}>
+            Sea Service Status:{" "}
+            <Text style={{ fontWeight: "700" }}>
+              {payload?.lastUpdatedAt
+                ? payload?.sections
+                  ? seaServiceSummary.completedSections ===
+                    seaServiceSummary.totalSections
+                    ? "Finalised / Complete"
+                    : "Draft In Progress"
+                  : "Not Started"
+                : "Not Started"}
             </Text>
+          </Text>
+
+          <Text style={styles.placeholderSubText}>
+            Sections completed:{" "}
+            {seaServiceSummary.completedSections} /{" "}
+            {seaServiceSummary.totalSections}
+          </Text>
+
+          {payload?.lastUpdatedAt && (
+            <Text style={styles.placeholderSubText}>
+              Last updated:{" "}
+              {new Date(payload.lastUpdatedAt).toLocaleDateString()}
+            </Text>
+          )}
+
           </Card.Content>
         </Card>
 
@@ -248,12 +289,33 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
 
-        {/* --- Tasks (future) --- */}
+        {/* --- Tasks (SQLite-backed) --- */}
         <ComplianceIndicatorCard
           title="Tasks"
-          status="NOT_AVAILABLE"
-          summary="Task completion data is not yet available"
+          status={
+            taskTotalCount === 0
+              ? "NOT_AVAILABLE"
+              : taskPendingCount > 0
+              ? "ATTENTION"
+              : "ON_TRACK"
+          }
+          summary={
+            taskTotalCount === 0
+              ? "No tasks available yet"
+              : `${taskCompletedCount} of ${taskTotalCount} completed • ${taskPendingCount} pending`
+          }
+          explanation={
+            taskTotalCount > 0 && taskPendingCount > 0
+              ? "Some training tasks are not completed yet."
+              : undefined
+          }
+          recommendation={
+            taskTotalCount > 0 && taskPendingCount > 0
+              ? "Open Tasks and complete pending items to keep your record audit-ready."
+              : undefined
+          }
         />
+
 
         {/* --- Familiarisation (future) --- */}
         <ComplianceIndicatorCard

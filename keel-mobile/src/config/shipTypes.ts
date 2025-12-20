@@ -60,6 +60,7 @@ export const SHIP_TYPES: ShipTypeDefinition[] = [
       "NAVIGATION_COMMUNICATION",
       "LIFE_SAVING_APPLIANCES",
       "FIRE_FIGHTING_APPLIANCES",
+      "POLLUTION_PREVENTION",
     ],
   },
   {
@@ -75,6 +76,7 @@ export const SHIP_TYPES: ShipTypeDefinition[] = [
       "NAVIGATION_COMMUNICATION",
       "LIFE_SAVING_APPLIANCES",
       "FIRE_FIGHTING_APPLIANCES",
+      "POLLUTION_PREVENTION",
     ],
   },
   {
@@ -90,6 +92,7 @@ export const SHIP_TYPES: ShipTypeDefinition[] = [
       "NAVIGATION_COMMUNICATION",
       "LIFE_SAVING_APPLIANCES",
       "FIRE_FIGHTING_APPLIANCES",
+      "POLLUTION_PREVENTION",
     ],
   },
   {
@@ -105,6 +108,7 @@ export const SHIP_TYPES: ShipTypeDefinition[] = [
       "NAVIGATION_COMMUNICATION",
       "LIFE_SAVING_APPLIANCES",
       "FIRE_FIGHTING_APPLIANCES",
+      "POLLUTION_PREVENTION",
     ],
   },
   {
@@ -120,6 +124,7 @@ export const SHIP_TYPES: ShipTypeDefinition[] = [
       "NAVIGATION_COMMUNICATION",
       "LIFE_SAVING_APPLIANCES",
       "FIRE_FIGHTING_APPLIANCES",
+      "POLLUTION_PREVENTION",
     ],
   },
   {
@@ -135,6 +140,7 @@ export const SHIP_TYPES: ShipTypeDefinition[] = [
       "NAVIGATION_COMMUNICATION",
       "LIFE_SAVING_APPLIANCES",
       "FIRE_FIGHTING_APPLIANCES",
+      "POLLUTION_PREVENTION",
     ],
   },
   {
@@ -150,7 +156,9 @@ export const SHIP_TYPES: ShipTypeDefinition[] = [
       "NAVIGATION_COMMUNICATION",
       "LIFE_SAVING_APPLIANCES",
       "FIRE_FIGHTING_APPLIANCES",
+      "POLLUTION_PREVENTION",
       "INERT_GAS_SYSTEM",
+
     ],
   },
   {
@@ -166,6 +174,7 @@ export const SHIP_TYPES: ShipTypeDefinition[] = [
       "NAVIGATION_COMMUNICATION",
       "LIFE_SAVING_APPLIANCES",
       "FIRE_FIGHTING_APPLIANCES",
+      "POLLUTION_PREVENTION",
       "INERT_GAS_SYSTEM",
     ],
   },
@@ -182,6 +191,7 @@ export const SHIP_TYPES: ShipTypeDefinition[] = [
       "NAVIGATION_COMMUNICATION",
       "LIFE_SAVING_APPLIANCES",
       "FIRE_FIGHTING_APPLIANCES",
+      "POLLUTION_PREVENTION",
       "INERT_GAS_SYSTEM",
     ],
   },
@@ -197,6 +207,7 @@ export const SHIP_TYPES: ShipTypeDefinition[] = [
       "NAVIGATION_COMMUNICATION",
       "LIFE_SAVING_APPLIANCES",
       "FIRE_FIGHTING_APPLIANCES",
+      "POLLUTION_PREVENTION",
     ],
   },
 ];

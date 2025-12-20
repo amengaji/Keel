@@ -44,6 +44,7 @@ export interface SeaServicePayload {
     NAVIGATION_COMMUNICATION: Record<string, any>;
     LIFE_SAVING_APPLIANCES: Record<string, any>;
     FIRE_FIGHTING_APPLIANCES: Record<string, any>;
+    POLLUTION_PREVENTION: Record <string, any>;
     INERT_GAS_SYSTEM: Record<string, any>;
   };
 }
@@ -72,6 +73,7 @@ export const DEFAULT_SEA_SERVICE_PAYLOAD: SeaServicePayload = {
     NAVIGATION_COMMUNICATION: {},
     LIFE_SAVING_APPLIANCES: {},
     FIRE_FIGHTING_APPLIANCES: {},
+    POLLUTION_PREVENTION:{},
     INERT_GAS_SYSTEM: {},
   },
 };
