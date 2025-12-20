@@ -52,6 +52,9 @@ export type DailyLogDBInput = {
   // Lookout flag (BOOLEAN in UI, INTEGER in DB)
   isLookout?: boolean | null;
 
+  // Daily Work category payload (JSON string array)
+  dailyWorkCategories?: string | null;
+
   // Engine watch payload (JSON string)
   machineryMonitored?: string | null;
 };
@@ -90,14 +93,14 @@ export function insertDailyLog(log: DailyLogDBInput): void {
       weather,
       steering_minutes,
       is_lookout,
-
+      daily_work_categories,
       machinery_monitored
     )
     VALUES (
       ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?,
       ?
     )
 
@@ -127,6 +130,7 @@ export function insertDailyLog(log: DailyLogDBInput): void {
       log.steeringMinutes ?? null,
       log.isLookout != null ? (log.isLookout ? 1 : 0) : null,
 
+      log.dailyWorkCategories ?? null, 
       log.machineryMonitored ?? null,
     ]
   );
@@ -164,6 +168,8 @@ export function updateDailyLog(log: DailyLogDBInput): void {
       weather = ?,
       steering_minutes = ?,
       is_lookout = ?,
+
+      daily_work_categories = ?,
 
       machinery_monitored = ?
     WHERE id = ?
@@ -245,7 +251,7 @@ export function getAllDailyLogs(): DailyLogDBInput[] {
       weather,
       steering_minutes AS steeringMinutes,
       is_lookout AS isLookout,
-
+      daily_work_categories AS dailyWorkCategories,
       machinery_monitored AS machineryMonitored
     FROM daily_logs
     ORDER BY date DESC, created_at DESC

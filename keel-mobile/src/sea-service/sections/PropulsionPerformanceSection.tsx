@@ -10,11 +10,15 @@
  * - Mandatory section (all fields required)
  * - Draft-safe: user can save and return anytime
  *
- * DESIGN RULES:
- * - Keyboard-safe scrolling
- * - Explicit validation before save
- * - Toast feedback for success / error
- * - Light & dark mode compatible
+ * UX PATTERN (STANDARDISED):
+ * - Scrollable form content
+ * - Sticky Save bar at bottom (correct Android height)
+ * - Keyboard-safe
+ * - Toast feedback
+ *
+ * ⚠️ IMPORTANT:
+ * This file follows the SAME sticky-bar layout as:
+ * - DimensionsTonnageSection (confirmed working)
  */
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -34,15 +38,9 @@ import { useToast } from "../../components/toast/useToast";
 
 /**
  * Section key constant
- * (kept explicit to avoid typos)
  */
 const SECTION_KEY = "PROPULSION_PERFORMANCE";
 
-/**
- * ============================================================
- * COMPONENT
- * ============================================================
- */
 export default function PropulsionPerformanceSection() {
   const theme = useTheme();
   const toast = useToast();
@@ -51,13 +49,19 @@ export default function PropulsionPerformanceSection() {
 
   /**
    * ------------------------------------------------------------
-   * LOCAL FORM STATE
+   * LOAD EXISTING DRAFT (IF ANY)
    * ------------------------------------------------------------
-   * Loaded from context draft (if exists)
    */
   const existingData =
-    payload.sections?.[SECTION_KEY as keyof typeof payload.sections] || {};
+    payload.sections?.[
+      SECTION_KEY as keyof typeof payload.sections
+    ] || {};
 
+  /**
+   * ------------------------------------------------------------
+   * LOCAL FORM STATE
+   * ------------------------------------------------------------
+   */
   const [form, setForm] = useState({
     mainEngineMakeModel: "",
     mainEngineType: "",
@@ -73,7 +77,7 @@ export default function PropulsionPerformanceSection() {
   });
 
   /**
-   * Load draft data on mount
+   * Restore draft on mount
    */
   useEffect(() => {
     if (existingData && Object.keys(existingData).length > 0) {
@@ -83,13 +87,12 @@ export default function PropulsionPerformanceSection() {
 
   /**
    * ------------------------------------------------------------
-   * VALIDATION
+   * VALIDATION — ALL FIELDS MANDATORY
    * ------------------------------------------------------------
-   * All fields are mandatory in this section
    */
   const isFormValid = useMemo(() => {
     return Object.values(form).every(
-      (value) => value !== null && String(value).trim() !== ""
+      (value) => String(value).trim() !== ""
     );
   }, [form]);
 
@@ -98,7 +101,10 @@ export default function PropulsionPerformanceSection() {
    * HANDLERS
    * ------------------------------------------------------------
    */
-  const handleChange = (key: keyof typeof form, value: string) => {
+  const handleChange = (
+    key: keyof typeof form,
+    value: string
+  ) => {
     setForm((prev) => ({
       ...prev,
       [key]: value,
@@ -107,13 +113,17 @@ export default function PropulsionPerformanceSection() {
 
   const handleSave = () => {
     if (!isFormValid) {
-      toast.error("Please complete all propulsion fields before saving.");
+      toast.error(
+        "Please complete all propulsion fields before saving."
+      );
       return;
     }
 
     updateSection(SECTION_KEY, form);
 
-    toast.success("Main propulsion & performance details saved.");
+    toast.success(
+      "Main propulsion & performance details saved."
+    );
   };
 
   /**
@@ -122,152 +132,179 @@ export default function PropulsionPerformanceSection() {
    * ============================================================
    */
   return (
-    <KeyboardAwareScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={[
-        styles.container,
-        { backgroundColor: theme.colors.background },
-      ]}
-      enableOnAndroid
-      keyboardShouldPersistTaps="handled"
-      extraScrollHeight={24}
-    >
-      <Text variant="headlineSmall" style={styles.title}>
-        Main Propulsion & Performance
-      </Text>
-
-      <Text variant="bodyMedium" style={styles.subtitle}>
-        Enter main engine and propulsion performance details. All fields are
-        mandatory.
-      </Text>
-
-      <Divider style={styles.divider} />
-
-      {/* ---------------- MAIN ENGINE ---------------- */}
-      <TextInput
-        label="Main Engine Make & Model"
-        value={form.mainEngineMakeModel}
-        onChangeText={(v) =>
-          handleChange("mainEngineMakeModel", v)
-        }
-        mode="outlined"
-        style={styles.input}
-      />
-
-      <TextInput
-        label="Main Engine Type (2-stroke / 4-stroke)"
-        value={form.mainEngineType}
-        onChangeText={(v) =>
-          handleChange("mainEngineType", v)
-        }
-        mode="outlined"
-        style={styles.input}
-      />
-
-      <TextInput
-        label="Number of Main Engines"
-        value={form.numberOfMainEngines}
-        onChangeText={(v) =>
-          handleChange("numberOfMainEngines", v)
-        }
-        keyboardType="numeric"
-        mode="outlined"
-        style={styles.input}
-      />
-
-      <TextInput
-        label="Maximum Continuous Rating (kW / BHP)"
-        value={form.mcrPower}
-        onChangeText={(v) => handleChange("mcrPower", v)}
-        mode="outlined"
-        style={styles.input}
-      />
-
-      <TextInput
-        label="RPM at MCR"
-        value={form.rpmAtMcr}
-        onChangeText={(v) => handleChange("rpmAtMcr", v)}
-        keyboardType="numeric"
-        mode="outlined"
-        style={styles.input}
-      />
-
-      {/* ---------------- PERFORMANCE ---------------- */}
-      <TextInput
-        label="Service Speed (knots)"
-        value={form.serviceSpeedKnots}
-        onChangeText={(v) =>
-          handleChange("serviceSpeedKnots", v)
-        }
-        keyboardType="numeric"
-        mode="outlined"
-        style={styles.input}
-      />
-
-      <TextInput
-        label="Fuel Type(s) (HFO / MDO / LNG / etc.)"
-        value={form.fuelTypes}
-        onChangeText={(v) => handleChange("fuelTypes", v)}
-        mode="outlined"
-        style={styles.input}
-      />
-
-      <TextInput
-        label="Daily Fuel Consumption (at service speed)"
-        value={form.dailyFuelConsumption}
-        onChangeText={(v) =>
-          handleChange("dailyFuelConsumption", v)
-        }
-        mode="outlined"
-        style={styles.input}
-      />
-
-      {/* ---------------- PROPULSION ---------------- */}
-      <TextInput
-        label="Propeller Type (Fixed / CPP)"
-        value={form.propellerType}
-        onChangeText={(v) =>
-          handleChange("propellerType", v)
-        }
-        mode="outlined"
-        style={styles.input}
-      />
-
-      <TextInput
-        label="Number of Propellers"
-        value={form.numberOfPropellers}
-        onChangeText={(v) =>
-          handleChange("numberOfPropellers", v)
-        }
-        keyboardType="numeric"
-        mode="outlined"
-        style={styles.input}
-      />
-
-      <TextInput
-        label="Rudder Type (Spade / Semi-balanced / etc.)"
-        value={form.rudderType}
-        onChangeText={(v) =>
-          handleChange("rudderType", v)
-        }
-        mode="outlined"
-        style={styles.input}
-      />
-
-      {!isFormValid && (
-        <HelperText type="error" visible>
-          All fields in this section are mandatory.
-        </HelperText>
-      )}
-
-      <Button
-        mode="contained"
-        style={styles.saveButton}
-        onPress={handleSave}
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      {/* =====================================================
+          SCROLLABLE FORM CONTENT
+          ===================================================== */}
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          styles.content,
+          {
+            // Reserve space for sticky save bar
+            paddingBottom: 120,
+          },
+        ]}
+        enableOnAndroid
+        keyboardShouldPersistTaps="handled"
+        extraScrollHeight={80}
+        showsVerticalScrollIndicator={false}
       >
-        Save Section
-      </Button>
-    </KeyboardAwareScrollView>
+        <Text variant="headlineSmall" style={styles.title}>
+          Main Propulsion & Performance
+        </Text>
+
+        <Text variant="bodyMedium" style={styles.subtitle}>
+          Enter main engine and propulsion performance details.
+          All fields are mandatory.
+        </Text>
+
+        <Divider style={styles.divider} />
+
+        {/* ---------------- MAIN ENGINE ---------------- */}
+        <TextInput
+          label="Main Engine Make & Model"
+          value={form.mainEngineMakeModel}
+          onChangeText={(v) =>
+            handleChange("mainEngineMakeModel", v)
+          }
+          mode="outlined"
+          style={styles.input}
+        />
+
+        <TextInput
+          label="Main Engine Type (2-stroke / 4-stroke)"
+          value={form.mainEngineType}
+          onChangeText={(v) =>
+            handleChange("mainEngineType", v)
+          }
+          mode="outlined"
+          style={styles.input}
+        />
+
+        <TextInput
+          label="Number of Main Engines"
+          value={form.numberOfMainEngines}
+          onChangeText={(v) =>
+            handleChange("numberOfMainEngines", v)
+          }
+          keyboardType="numeric"
+          mode="outlined"
+          style={styles.input}
+        />
+
+        <TextInput
+          label="Maximum Continuous Rating (kW / BHP)"
+          value={form.mcrPower}
+          onChangeText={(v) =>
+            handleChange("mcrPower", v)
+          }
+          mode="outlined"
+          style={styles.input}
+        />
+
+        <TextInput
+          label="RPM at MCR"
+          value={form.rpmAtMcr}
+          onChangeText={(v) =>
+            handleChange("rpmAtMcr", v)
+          }
+          keyboardType="numeric"
+          mode="outlined"
+          style={styles.input}
+        />
+
+        {/* ---------------- PERFORMANCE ---------------- */}
+        <TextInput
+          label="Service Speed (knots)"
+          value={form.serviceSpeedKnots}
+          onChangeText={(v) =>
+            handleChange("serviceSpeedKnots", v)
+          }
+          keyboardType="numeric"
+          mode="outlined"
+          style={styles.input}
+        />
+
+        <TextInput
+          label="Fuel Type(s) (HFO / MDO / LNG / etc.)"
+          value={form.fuelTypes}
+          onChangeText={(v) =>
+            handleChange("fuelTypes", v)
+          }
+          mode="outlined"
+          style={styles.input}
+        />
+
+        <TextInput
+          label="Daily Fuel Consumption (at service speed)"
+          value={form.dailyFuelConsumption}
+          onChangeText={(v) =>
+            handleChange("dailyFuelConsumption", v)
+          }
+          mode="outlined"
+          style={styles.input}
+        />
+
+        {/* ---------------- PROPULSION ---------------- */}
+        <TextInput
+          label="Propeller Type (Fixed / CPP)"
+          value={form.propellerType}
+          onChangeText={(v) =>
+            handleChange("propellerType", v)
+          }
+          mode="outlined"
+          style={styles.input}
+        />
+
+        <TextInput
+          label="Number of Propellers"
+          value={form.numberOfPropellers}
+          onChangeText={(v) =>
+            handleChange("numberOfPropellers", v)
+          }
+          keyboardType="numeric"
+          mode="outlined"
+          style={styles.input}
+        />
+
+        <TextInput
+          label="Rudder Type (Spade / Semi-balanced / etc.)"
+          value={form.rudderType}
+          onChangeText={(v) =>
+            handleChange("rudderType", v)
+          }
+          mode="outlined"
+          style={styles.input}
+        />
+
+        {!isFormValid && (
+          <HelperText type="error" visible>
+            All fields in this section are mandatory.
+          </HelperText>
+        )}
+      </KeyboardAwareScrollView>
+
+      {/* =====================================================
+          STICKY SAVE BAR (CORRECT HEIGHT)
+          ===================================================== */}
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            backgroundColor: theme.colors.background,
+            borderTopColor: theme.colors.outlineVariant,
+          },
+        ]}
+      >
+        <Button
+          mode="contained"
+          onPress={handleSave}
+        >
+          Save Section
+        </Button>
+      </View>
+    </View>
   );
 }
 
@@ -277,25 +314,37 @@ export default function PropulsionPerformanceSection() {
  * ============================================================
  */
 const styles = StyleSheet.create({
-  container: {
+  content: {
     padding: 16,
-    paddingBottom: 32,
   },
+
   title: {
     fontWeight: "700",
     marginBottom: 8,
   },
+
   subtitle: {
     opacity: 0.8,
     marginBottom: 12,
   },
+
   divider: {
     marginBottom: 16,
   },
+
   input: {
     marginBottom: 12,
   },
-  saveButton: {
-    marginTop: 20,
+
+  /**
+   * Sticky bottom bar
+   * - Height intentionally minimal
+   * - Same as Dimensions & Tonnages
+   */
+  bottomBar: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderTopWidth: 1,
   },
 });

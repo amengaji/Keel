@@ -8,13 +8,11 @@
  * PURPOSE:
  * - Render cargo capability fields dynamically
  *   based on selected ship type
- * - Support grouped config (Cargo / Load Line / Tanks)
  *
- * DESIGN RULES (CRITICAL):
- * - Draft-safe: partial save ALWAYS allowed
- * - Completion decided ONLY in SeaServiceWizard
- * - UI renders ONLY applicable cargo fields
- * - Keyboard-safe on Android & iOS
+ * RULES:
+ * - Draft-safe (partial save allowed)
+ * - Completion handled ONLY in SeaServiceWizard
+ * - Sticky Save bar (correct height)
  */
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -47,9 +45,9 @@ import {
 const SECTION_KEY = "CARGO_CAPABILITIES";
 
 /**
- * ============================================================
- * HELPER — MAP SHIP TYPE → CARGO PROFILE
- * ============================================================
+ * ------------------------------------------------------------
+ * MAP SHIP TYPE → CARGO PROFILE
+ * ------------------------------------------------------------
  */
 function mapShipTypeToCargoProfile(
   shipType?: string
@@ -77,11 +75,6 @@ function mapShipTypeToCargoProfile(
   }
 }
 
-/**
- * ============================================================
- * COMPONENT
- * ============================================================
- */
 export default function CargoCapabilitiesSection() {
   const theme = useTheme();
   const toast = useToast();
@@ -93,22 +86,10 @@ export default function CargoCapabilitiesSection() {
    * PROFILE RESOLUTION
    * ------------------------------------------------------------
    */
-    const cargoProfileKey: CargoProfileKey | undefined = useMemo(() => {
-    /**
-     * IMPORTANT:
-     * - payload.shipType may be null
-     * - mapShipTypeToCargoProfile expects string | undefined
-     * - Normalize null → undefined explicitly for strict TS safety
-     */
-    const normalizedShipType =
-        payload.shipType ?? undefined;
-
-    const profile =
-        mapShipTypeToCargoProfile(normalizedShipType);
-
-    return profile ?? undefined;
-    }, [payload.shipType]);
-
+  const cargoProfileKey: CargoProfileKey | undefined = useMemo(() => {
+    const normalizedShipType = payload.shipType ?? undefined;
+    return mapShipTypeToCargoProfile(normalizedShipType) ?? undefined;
+  }, [payload.shipType]);
 
   const cargoProfile = cargoProfileKey
     ? CARGO_PROFILES[cargoProfileKey]
@@ -120,7 +101,9 @@ export default function CargoCapabilitiesSection() {
    * ------------------------------------------------------------
    */
   const existingData =
-    payload.sections?.[SECTION_KEY as keyof typeof payload.sections] || {};
+    payload.sections?.[
+      SECTION_KEY as keyof typeof payload.sections
+    ] || {};
 
   /**
    * ------------------------------------------------------------
@@ -130,7 +113,7 @@ export default function CargoCapabilitiesSection() {
   const [form, setForm] = useState<Record<string, any>>({});
 
   /**
-   * Initialize form when profile or draft changes
+   * Initialise form when profile loads
    */
   useEffect(() => {
     if (!cargoProfile) return;
@@ -149,7 +132,7 @@ export default function CargoCapabilitiesSection() {
 
   /**
    * ------------------------------------------------------------
-   * FIELD CHANGE HANDLER
+   * FIELD UPDATE
    * ------------------------------------------------------------
    */
   const updateField = (key: string, value: any) => {
@@ -161,7 +144,7 @@ export default function CargoCapabilitiesSection() {
 
   /**
    * ------------------------------------------------------------
-   * SAVE HANDLER (DRAFT SAFE)
+   * SAVE (DRAFT SAFE)
    * ------------------------------------------------------------
    */
   const handleSave = () => {
@@ -177,132 +160,153 @@ export default function CargoCapabilitiesSection() {
 
   if (!cargoProfile) {
     return (
-      <KeyboardAwareScrollView
-        contentContainerStyle={[
-          styles.container,
-          { backgroundColor: theme.colors.background },
-        ]}
-      >
-        <Text variant="headlineSmall" style={styles.title}>
-          Cargo Capabilities
-        </Text>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <KeyboardAwareScrollView
+          contentContainerStyle={styles.content}
+        >
+          <Text variant="headlineSmall" style={styles.title}>
+            Cargo Capabilities
+          </Text>
 
-        <HelperText type="error" visible>
-          Cargo profile could not be determined for the selected ship type.
-        </HelperText>
-      </KeyboardAwareScrollView>
+          <HelperText type="error" visible>
+            Cargo profile could not be determined for the selected ship type.
+          </HelperText>
+        </KeyboardAwareScrollView>
+      </View>
     );
   }
 
   return (
-    <KeyboardAwareScrollView
-      contentContainerStyle={[
-        styles.container,
-        { backgroundColor: theme.colors.background },
-      ]}
-      enableOnAndroid
-      keyboardShouldPersistTaps="handled"
-      extraScrollHeight={24}
-    >
-      <Text variant="headlineSmall" style={styles.title}>
-        {cargoProfile.title}
-      </Text>
-
-      <Text variant="bodyMedium" style={styles.subtitle}>
-        {cargoProfile.description}
-      </Text>
-
-      {/* ================= GROUPS ================= */}
-      {cargoProfile.groups.map((group) => (
-        <View key={group.groupKey} style={styles.groupBlock}>
-          <Divider style={styles.divider} />
-
-          <Text variant="titleMedium" style={styles.groupTitle}>
-            {group.title}
-          </Text>
-
-          {group.description && (
-            <Text variant="bodySmall" style={styles.groupDescription}>
-              {group.description}
-            </Text>
-          )}
-
-          {group.fields.map((field) => {
-            const value = form[field.key];
-
-            /* ---------- TEXT / NUMERIC ---------- */
-            if (field.uiType === "text" || field.uiType === "numeric") {
-              return (
-                <TextInput
-                  key={field.key}
-                  label={field.label}
-                  value={String(value ?? "")}
-                  onChangeText={(v) =>
-                    updateField(field.key, v)
-                  }
-                  keyboardType={
-                    field.uiType === "numeric" ? "numeric" : "default"
-                  }
-                  mode="outlined"
-                  style={styles.input}
-                />
-              );
-            }
-
-            /* ---------- SWITCH ---------- */
-            if (field.uiType === "switch") {
-              return (
-                <View key={field.key} style={styles.switchRow}>
-                  <Text>{field.label}</Text>
-                  <Switch
-                    value={Boolean(value)}
-                    onValueChange={(v) =>
-                      updateField(field.key, v)
-                    }
-                  />
-                </View>
-              );
-            }
-
-            /* ---------- DROPDOWN / RADIO ---------- */
-            if (
-              field.uiType === "dropdown" ||
-              field.uiType === "radio"
-            ) {
-              return (
-                <View key={field.key} style={styles.segmentBlock}>
-                  <Text style={styles.segmentLabel}>
-                    {field.label}
-                  </Text>
-                  <SegmentedButtons
-                    value={String(value ?? "")}
-                    onValueChange={(v) =>
-                      updateField(field.key, v)
-                    }
-                    buttons={(field.options ?? []).map(
-                      (opt) => ({
-                        value: opt,
-                        label: opt,
-                      })
-                    )}
-                  />
-                </View>
-              );
-            }
-
-            return null;
-          })}
-        </View>
-      ))}
-
-      <Button
-        mode="contained"
-        style={styles.saveButton}
-        onPress={handleSave}
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      {/* =====================================================
+          SCROLLABLE CONTENT
+          ===================================================== */}
+      <KeyboardAwareScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 120 },
+        ]}
+        enableOnAndroid
+        keyboardShouldPersistTaps="handled"
+        extraScrollHeight={80}
+        showsVerticalScrollIndicator={false}
       >
-        Save Section
-      </Button>
-    </KeyboardAwareScrollView>
+        <Text variant="headlineSmall" style={styles.title}>
+          {cargoProfile.title}
+        </Text>
+
+        <Text variant="bodyMedium" style={styles.subtitle}>
+          {cargoProfile.description}
+        </Text>
+
+        {cargoProfile.groups.map((group) => (
+          <View key={group.groupKey} style={styles.groupBlock}>
+            <Divider style={styles.divider} />
+
+            <Text variant="titleMedium" style={styles.groupTitle}>
+              {group.title}
+            </Text>
+
+            {group.description && (
+              <Text
+                variant="bodySmall"
+                style={styles.groupDescription}
+              >
+                {group.description}
+              </Text>
+            )}
+
+            {group.fields.map((field) => {
+              const value = form[field.key];
+
+              if (field.uiType === "text" || field.uiType === "numeric") {
+                return (
+                  <TextInput
+                    key={field.key}
+                    label={field.label}
+                    value={String(value ?? "")}
+                    onChangeText={(v) =>
+                      updateField(field.key, v)
+                    }
+                    keyboardType={
+                      field.uiType === "numeric"
+                        ? "numeric"
+                        : "default"
+                    }
+                    mode="outlined"
+                    style={styles.input}
+                  />
+                );
+              }
+
+              if (field.uiType === "switch") {
+                return (
+                  <View
+                    key={field.key}
+                    style={styles.switchRow}
+                  >
+                    <Text>{field.label}</Text>
+                    <Switch
+                      value={Boolean(value)}
+                      onValueChange={(v) =>
+                        updateField(field.key, v)
+                      }
+                    />
+                  </View>
+                );
+              }
+
+              if (
+                field.uiType === "dropdown" ||
+                field.uiType === "radio"
+              ) {
+                return (
+                  <View
+                    key={field.key}
+                    style={styles.segmentBlock}
+                  >
+                    <Text style={styles.segmentLabel}>
+                      {field.label}
+                    </Text>
+                    <SegmentedButtons
+                      value={String(value ?? "")}
+                      onValueChange={(v) =>
+                        updateField(field.key, v)
+                      }
+                      buttons={(field.options ?? []).map(
+                        (opt) => ({
+                          value: opt,
+                          label: opt,
+                        })
+                      )}
+                    />
+                  </View>
+                );
+              }
+
+              return null;
+            })}
+          </View>
+        ))}
+      </KeyboardAwareScrollView>
+
+      {/* =====================================================
+          STICKY SAVE BAR
+          ===================================================== */}
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            backgroundColor: theme.colors.background,
+            borderTopColor: theme.colors.outlineVariant,
+          },
+        ]}
+      >
+        <Button mode="contained" onPress={handleSave}>
+          Save Section
+        </Button>
+      </View>
+    </View>
   );
 }
 
@@ -312,9 +316,8 @@ export default function CargoCapabilitiesSection() {
  * ============================================================
  */
 const styles = StyleSheet.create({
-  container: {
+  content: {
     padding: 16,
-    paddingBottom: 40,
   },
   title: {
     fontWeight: "700",
@@ -355,7 +358,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     fontWeight: "600",
   },
-  saveButton: {
-    marginTop: 24,
+  bottomBar: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderTopWidth: 1,
   },
 });

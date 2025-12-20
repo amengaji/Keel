@@ -83,6 +83,7 @@ export default function LifeSavingAppliancesSection() {
   };
 
   return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
     <KeyboardAwareScrollView
       style={{ flex: 1 }}
       contentContainerStyle={[
@@ -403,11 +404,21 @@ export default function LifeSavingAppliancesSection() {
   />
 )}
 
-
-      <Button mode="contained" style={styles.save} onPress={save}>
-        Save Section
-      </Button>
     </KeyboardAwareScrollView>
+    <View
+  style={[
+    styles.stickyBar,
+    {
+      backgroundColor: theme.colors.background,
+      borderTopColor: theme.colors.outlineVariant,
+    },
+  ]}
+>
+  <Button mode="contained" onPress={save}>
+    Save Section
+  </Button>
+</View>
+</View>
   );
 }
 
@@ -423,4 +434,13 @@ const styles = StyleSheet.create({
   input: { marginBottom: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
   save: { marginTop: 24 },
+  stickyBar: {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  bottom: 0,
+  padding: 12,
+  borderTopWidth: 1,
+},
+
 });

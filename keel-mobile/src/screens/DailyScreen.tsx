@@ -14,6 +14,7 @@ import { calculateDailyWatchTotals } from "../utils/watchAggregation";
 import { calculateWeeklyWatchTotals } from "../utils/watchWeeklyAggregation";
 import { checkStcwCompliance } from "../utils/stcwCompliance";
 import CheckboxBox from "../components/common/CheckboxBox";
+import type { DailyLogEntry } from "../daily-logs/dailyLogsDomain";
 
 /**
  * ============================================================
@@ -46,43 +47,6 @@ type PortWatchType =
  */
 type LogType = "DAILY" | "BRIDGE" | "ENGINE" | "PORT";
 
-
-type DailyLogEntry = {
-  id: string;
-  date: Date;
-  type: LogType;
-
-    /**
-   * Port Watch subtype (only meaningful when type === "PORT")
-   * Stored in DB column: portWatchType
-   */
-  portWatchType?: PortWatchType | null;
-  
-  startTime?: Date;
-  endTime?: Date;
-  summary: string;
-  remarks?: string;
-
-  latDeg?: number | null;
-  latMin?: number | null;
-  latDir?: "N" | "S" | null;
-  lonDeg?: number | null;
-  lonMin?: number | null;
-  lonDir?: "E" | "W" | null;
-
-  courseDeg?: number | null;
-  speedKn?: number | null;
-  weather?: string | null;
-  steeringMinutes?: number | null;
-  isLookout?: boolean;
-
-    /**
-   * ENGINE WATCH PAYLOAD (JSON)
-   * Stored in SQLite column: machinery_monitored
-   * We keep it as a string here and parse it only when needed (edit mode).
-   */
-  machineryMonitored?: string | null;
-};
 
 const LOG_TYPE_LABEL: Record<LogType, string> = {
   DAILY: "Daily",
@@ -510,7 +474,7 @@ const getEngineWatchQualifiesAsWatch = (): boolean => {
   const [abnormalRemarks, setAbnormalRemarks] = useState("");
 
 
-const isTimeRequired = logType !== "DAILY";
+const isTimeRequired = logType !== "DAILY" || (dutyMode === "DAILY_WORK");
 
 /**
  * Port Watch and Bridge Watch may cross midnight,
@@ -661,7 +625,7 @@ const resetForm = () => {
   // --------------------------------------------------
   // EXIT EDIT MODE
   // --------------------------------------------------
-  setEditingLogId(null);
+  //setEditingLogId(null);
 
   // --------------------------------------------------
   // CORE LOG CONTEXT
@@ -1145,31 +1109,37 @@ remarks:
      * 6. UPDATE LOCAL UI LIST
      * --------------------------------------------------
      */
-    setEntries((prev) => [
-      {
-        id,
-        date: (effectiveDate ?? date!)!,
-        type: logType,
-        portWatchType: logType === "PORT" ? portWatchType : null,
-        startTime: effectiveStart ?? undefined,
-        endTime: effectiveEnd ?? undefined,
-        summary,
-        remarks,
-        latDeg,
-        latMin,
-        latDir,
-        lonDeg,
-        lonMin,
-        lonDir,
-        courseDeg: courseDegNumber,
-        speedKn: speedKnNumber,
-        weather,
-        steeringMinutes,
-        isLookout,
-        machineryMonitored,
-      },
-      ...prev,
-    ]);
+setEntries((prev) => [
+  {
+    id,
+    createdAt: new Date(), // ✅ REQUIRED by DailyLogEntry
+    date: (effectiveDate ?? date!)!,
+    type: logType,
+    portWatchType: logType === "PORT" ? portWatchType === "SECURITY" ? "GANGWAY" : portWatchType : null,
+    startTime: effectiveStart ?? undefined,
+    endTime: effectiveEnd ?? undefined,
+    summary,
+    remarks,
+    latDeg,
+    latMin,
+    latDir,
+    lonDeg,
+    lonMin,
+    lonDir,
+    courseDeg: courseDegNumber,
+    speedKn: speedKnNumber,
+    weather,
+    steeringMinutes,
+    isLookout,
+    dailyWorkCategories:
+      dutyMode === "DAILY_WORK"
+        ? JSON.stringify(dailyWorkCategories)
+        : null,
+    machineryMonitored,
+  },
+  ...prev,
+]);
+
 
     Toast.show({
       type: "success",
@@ -1242,16 +1212,17 @@ const hydrateEngineStateFromJson = (json: string | null) => {
      * Also shows a diagnostic toast so we can confirm what data is received.
      */
 const handleEdit = (entry: DailyLogEntry) => {
-  // --------------------------------------------------
-  // 1. HARD RESET (prevents state bleed)
-  // --------------------------------------------------
-  resetForm();
 
   // --------------------------------------------------
-  // 2. ENTER EDIT MODE
+  // 1. ENTER EDIT MODE
   // --------------------------------------------------
   setEditingLogId(entry.id);
   setPrimaryMode("LOG");
+
+  // --------------------------------------------------
+  // 2. HARD RESET (prevents state bleed)
+  // --------------------------------------------------
+  resetForm();
 
   // --------------------------------------------------
   // 3. RESTORE UI MODE (CRITICAL FIX)
@@ -1272,7 +1243,9 @@ const handleEdit = (entry: DailyLogEntry) => {
 
   if (entry.type === "PORT") {
     setDutyMode("PORT_WATCH");
-    setPortWatchType(entry.portWatchType ?? "CARGO");
+    setPortWatchType(
+      entry.portWatchType === "GANGWAY" ? "SECURITY" :
+      entry.portWatchType ?? "CARGO");
   }
 
   // --------------------------------------------------
@@ -1283,6 +1256,36 @@ const handleEdit = (entry: DailyLogEntry) => {
   setEndTime(entry.endTime ?? null);
   setSummary(entry.summary ?? "");
   setRemarks(entry.remarks ?? "");
+
+  // --------------------------------------------------
+  // DAILY WORK — restore explicit Start/End Dates + Categories
+  // --------------------------------------------------
+  if (entry.type === "DAILY") {
+    // If your DB now stores startTime/endTime for Daily Work, rehydrate from them:
+    if (entry.startTime) {
+      setDate(new Date(entry.startTime));
+      setStartTime(new Date(entry.startTime));
+    }
+
+    if (entry.endTime) {
+      setEndDate(new Date(entry.endTime));
+      setEndTime(new Date(entry.endTime));
+    }
+
+    // Categories (stored as JSON string in dailyWorkCategories)
+    const anyEntry = entry as any;
+    if (anyEntry.dailyWorkCategories) {
+      try {
+        const parsed = JSON.parse(anyEntry.dailyWorkCategories);
+        if (Array.isArray(parsed)) {
+          setDailyWorkCategories(parsed);
+        }
+      } catch {
+        // ignore corrupt payload
+      }
+    }
+  }
+
 
   // --------------------------------------------------
   // 5. BRIDGE WATCH FIELDS
@@ -1307,6 +1310,7 @@ const handleEdit = (entry: DailyLogEntry) => {
     );
 
     setSteeringMinutes(entry.steeringMinutes ?? null);
+    setSteeringGearInUse((entry.steeringMinutes ?? 0) > 0);
     setIsLookout(!!entry.isLookout);
   }
 
@@ -1419,7 +1423,13 @@ const handleCancelEdit = () => {
       weather: weather || null,
       steeringMinutes,
       isLookout,
+      dailyWorkCategories:
+        dutyMode === "DAILY_WORK"
+          ? JSON.stringify(dailyWorkCategories)
+          : undefined,
       machineryMonitored,
+      // 🔒 CRITICAL: preserve domain invariants
+      createdAt: entries.find(e => e.id === editingLogId)?.createdAt ?? new Date(),
     };
 
     updateDailyLog({
@@ -1444,6 +1454,10 @@ const handleCancelEdit = () => {
       weather: weather || null,
       steeringMinutes,
       isLookout,
+      dailyWorkCategories:
+        dutyMode === "DAILY_WORK"
+          ? JSON.stringify(dailyWorkCategories)
+          : null,
       machineryMonitored,
     });
 
@@ -1460,6 +1474,11 @@ const handleCancelEdit = () => {
       text2: "Changes have been saved.",
       position: "top",
     });
+    // --------------------------------------------------
+    // EXIT EDIT MODE (CRITICAL)
+    // --------------------------------------------------
+    setEditingLogId(null);
+    setPrimaryMode("REVIEW"); // return to list/dashboard
 
     resetForm();
     refreshLogs();

@@ -292,6 +292,7 @@ export default function NavigationCommunicationSection() {
    * ============================================================
    */
   return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
     <KeyboardAwareScrollView
       style={{ flex: 1 }}
       contentContainerStyle={[
@@ -840,15 +841,28 @@ export default function NavigationCommunicationSection() {
           Tip: You can save an empty draft and return later.
         </HelperText>
       )}
+    </KeyboardAwareScrollView>
+        <View
+      style={[
+        styles.stickyBar,
+        {
+          backgroundColor: theme.colors.background,
+          borderTopColor: theme.colors.outlineVariant,
+        },
+      ]}
+    >
+      {!hasAnyMeaningfulValues && (
+        <HelperText type="info" visible>
+          Tip: You can save an empty draft and return later.
+        </HelperText>
+      )}
 
-      <Button mode="contained" style={styles.saveButton} onPress={handleSave}>
+      <Button mode="contained" onPress={handleSave}>
         Save Section
       </Button>
-
-      {/* Spacer so last button isn't cramped */}
-      <View style={{ height: 24 }} />
-    </KeyboardAwareScrollView>
-  );
+    </View>
+  </View>
+);
 }
 
 /**
@@ -933,7 +947,11 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
 
-  saveButton: {
-    marginTop: 8,
-  },
+stickyBar: {
+  paddingHorizontal: 16,
+  paddingTop: 8,
+  paddingBottom: 12,
+  borderTopWidth: 1,
+},
+
 });

@@ -76,16 +76,13 @@ export function initDatabase(): void {
       date TEXT NOT NULL,
       type TEXT NOT NULL,
 
-      -- New for Port Watch (D3.2): stores CARGO/ANCHOR/GANGWAY/BUNKERING
       port_watch_type TEXT,
 
       start_time TEXT,
       end_time TEXT,
       summary TEXT NOT NULL,
       remarks TEXT,
-      created_at TEXT NOT NULL,
 
-      -- Bridge navigation fields
       lat_deg INTEGER,
       lat_min REAL,
       lat_dir TEXT,
@@ -94,15 +91,15 @@ export function initDatabase(): void {
       lon_min REAL,
       lon_dir TEXT,
 
-      -- Bridge watchkeeping fields
       course_deg REAL,
       speed_kn REAL,
       weather TEXT,
       steering_minutes INTEGER,
       is_lookout INTEGER,
+      daily_work_categories TEXT,
 
-      -- Engine fields
-      machinery_monitored TEXT
+      machinery_monitored TEXT,
+      created_at TEXT NOT NULL
     );
   `);
 
@@ -127,6 +124,9 @@ export function initDatabase(): void {
     { name: "weather", type: "TEXT" },
     { name: "steering_minutes", type: "INTEGER" },
     { name: "is_lookout", type: "INTEGER" },
+
+    { name: "daily_work_categories", type: "TEXT" },
+
 
     { name: "machinery_monitored", type: "TEXT" },
   ]);

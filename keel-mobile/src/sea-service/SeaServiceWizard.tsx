@@ -22,8 +22,8 @@
  */
 
 import React, { useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
-import { Text, Card, Button, useTheme, Divider } from "react-native-paper";
+import { View, StyleSheet, ScrollView, Pressable } from "react-native";
+import { Text, Card, Button, useTheme, Divider, Searchbar, Chip, RadioButton, } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SHIP_TYPES } from "../config/shipTypes";
 import { SEA_SERVICE_SECTIONS } from "../config/seaServiceSections";
@@ -111,6 +111,89 @@ export default function SeaServiceWizard() {
     setCurrentStep("SECTION_OVERVIEW");
   };
 
+    /**
+     * ------------------------------------------------------------
+     * STEP 1 UX — SEARCH + CATEGORY FILTERING
+     * ------------------------------------------------------------
+     * Why:
+     * - Ship type lists will grow (company fleets vary).
+     * - Cadets must find their ship type quickly, even offline.
+     * - We keep config unchanged; category is derived locally.
+     */
+
+    type ShipTypeCategory =
+      | "ALL"
+      | "CARGO"
+      | "TANKER"
+      | "PASSENGER"
+      | "OFFSHORE"
+      | "OTHER";
+
+    const [shipTypeSearch, setShipTypeSearch] = useState<string>("");
+    const [shipTypeCategory, setShipTypeCategory] =
+      useState<ShipTypeCategory>("ALL");
+
+    const deriveShipTypeCategory = (code: string, label: string): ShipTypeCategory => {
+      const c = (code ?? "").toUpperCase();
+      const l = (label ?? "").toUpperCase();
+
+      // Tankers
+      if (c.includes("TANKER") || l.includes("TANKER")) return "TANKER";
+
+      // Passenger
+      if (c.includes("PASSENGER") || l.includes("PASSENGER")) return "PASSENGER";
+
+      // Offshore / support
+      if (c.includes("AHTS") || l.includes("TUG") || l.includes("SUPPLY")) return "OFFSHORE";
+
+      // Cargo family (common cadet use)
+      if (
+        c.includes("CARGO") ||
+        c.includes("BULK") ||
+        c.includes("CONTAINER") ||
+        c.includes("RO_RO") ||
+        c.includes("CAR")
+      ) {
+        return "CARGO";
+      }
+
+      return "OTHER";
+    };
+
+    const filteredShipTypes = useMemo(() => {
+      const q = shipTypeSearch.trim().toLowerCase();
+
+      return SHIP_TYPES.filter((s) => {
+        const cat = deriveShipTypeCategory(s.code, s.label);
+
+        const matchesCategory =
+          shipTypeCategory === "ALL" ? true : cat === shipTypeCategory;
+
+        const matchesSearch =
+          q.length === 0
+            ? true
+            : s.label.toLowerCase().includes(q) ||
+              s.code.toLowerCase().includes(q);
+
+        return matchesCategory && matchesSearch;
+      });
+    }, [shipTypeSearch, shipTypeCategory]);
+
+    const selectedShipType = useMemo(() => {
+      if (!payload.shipType) return null;
+      return SHIP_TYPES.find((s) => s.code === payload.shipType) ?? null;
+    }, [payload.shipType]);
+
+    const quickPickCodes = useMemo(() => {
+      // Quick picks: chosen for typical cadet deployments + fastest selection
+      return ["CONTAINER", "BULK_CARRIER", "OIL_TANKER", "CHEMICAL_TANKER"];
+    }, []);
+
+    const quickPicks = useMemo(() => {
+      return SHIP_TYPES.filter((s) => quickPickCodes.includes(s.code));
+    }, [quickPickCodes]);
+
+
   /**
    * ------------------------------------------------------------
    * SECTION ENABLEMENT (BY SHIP TYPE)
@@ -188,91 +271,318 @@ export default function SeaServiceWizard() {
 
   /**
    * ============================================================
-   * RENDER — STEP 1: SHIP TYPE
+   * RENDER — STEP 1: SHIP TYPE (REDESIGNED UX)
    * ============================================================
+   *
+   * Goals:
+   * - Fast selection (search + categories + quick picks)
+   * - Clear single-select behavior (radio pattern)
+   * - Draft-safe (selection persists immediately)
+   * - Theme-safe for light/dark modes
    */
-  if (currentStep === "SHIP_TYPE") {
-    return (
+if (currentStep === "SHIP_TYPE") {
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      {/* =====================================================
+          SCROLLABLE CONTENT
+          ===================================================== */}
       <ScrollView
-        style={[
-          styles.container,
-          { backgroundColor: theme.colors.background },
-        ]}
+        style={styles.container}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: styles.content.paddingBottom + androidSystemFooterPadding },
+          {
+            // Space for sticky bottom bar
+            paddingBottom: 160,
+          },
         ]}
+        keyboardShouldPersistTaps="handled"
       >
         <Text variant="headlineSmall" style={styles.title}>
           Step 1: Select Ship Type
         </Text>
 
         <Text variant="bodyMedium" style={styles.subtitle}>
-          Select the type of vessel you served on. This
-          controls which Sea Service sections apply.
+          Choose the vessel type you served on. KEEL will automatically show only
+          the Sea Service sections that apply.
         </Text>
 
-        <View style={styles.cardGrid}>
-          {SHIP_TYPES.map((ship) => {
-            const isSelected =
-              payload.shipType === ship.code;
+        {/* ---------------- Selected Summary ---------------- */}
+        {selectedShipType && (
+          <Card
+            style={[
+              styles.selectedSummaryCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.primary,
+              },
+            ]}
+          >
+            <Card.Content>
+              <Text style={{ fontWeight: "700" }}>Selected ship type</Text>
+              <Text style={{ marginTop: 4, opacity: 0.85 }}>
+                {selectedShipType.label}
+              </Text>
+              <Text style={{ marginTop: 6, opacity: 0.7, fontSize: 12 }}>
+                Draft saved automatically. You can change this later.
+              </Text>
+            </Card.Content>
+          </Card>
+        )}
 
+        {/* ---------------- Search ---------------- */}
+        <Searchbar
+          placeholder="Search ship types (e.g., tanker, bulk, container)"
+          value={shipTypeSearch}
+          onChangeText={setShipTypeSearch}
+          style={[
+            styles.searchBar,
+            { backgroundColor: theme.colors.surface },
+          ]}
+          inputStyle={{ fontSize: 14 }}
+        />
+
+        {/* ---------------- Category Chips ---------------- */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipRow}
+        >
+          {(
+            [
+              { key: "ALL", label: "All" },
+              { key: "CARGO", label: "Cargo" },
+              { key: "TANKER", label: "Tanker" },
+              { key: "PASSENGER", label: "Passenger" },
+              { key: "OFFSHORE", label: "Offshore" },
+              { key: "OTHER", label: "Other" },
+            ] as { key: ShipTypeCategory; label: string }[]
+          ).map((c) => {
+            const active = shipTypeCategory === c.key;
             return (
-              <Card
-                key={ship.code}
+              <Chip
+                key={c.key}
+                selected={active}
+                mode={active ? "flat" : "outlined"}
+                onPress={() => setShipTypeCategory(c.key)}
                 style={[
-                  styles.card,
-                  isSelected && {
-                    borderColor: theme.colors.primary,
-                    borderWidth: 2,
-                  },
+                  styles.chip,
+                  active && { backgroundColor: theme.colors.primary },
                 ]}
-                onPress={() =>
-                  handleSelectShipType(
-                    ship.code,
-                    ship.label
-                  )
-                }
+                textStyle={[
+                  styles.chipText,
+                  active && { color: theme.colors.onPrimary },
+                ]}
               >
-                <Card.Content>
-                  <Text
-                    variant="titleMedium"
-                    style={styles.cardTitle}
-                  >
-                    {ship.label}
-                  </Text>
+                {c.label}
+              </Chip>
+            );
+          })}
+        </ScrollView>
 
-                  {isSelected && (
-                    <Text
-                      variant="labelMedium"
+        {/* ---------------- QUICK PICKS ---------------- */}
+        {shipTypeSearch.trim().length === 0 &&
+          shipTypeCategory === "ALL" &&
+          quickPicks.length > 0 && (
+            <Card
+              style={[
+                styles.quickPickCard,
+                { backgroundColor: theme.colors.surface },
+              ]}
+            >
+              <Card.Content>
+                <Text style={{ fontWeight: "700", marginBottom: 10 }}>
+                  Quick picks
+                </Text>
+
+                <View style={styles.quickPickGrid}>
+                  {quickPicks.map((ship) => {
+                    const isSelected =
+                      payload.shipType === ship.code;
+
+                    return (
+                      <Card
+                        key={ship.code}
+                        style={[
+                          styles.quickPickItem,
+                          {
+                            backgroundColor: theme.colors.surface,
+                            borderColor: isSelected
+                              ? theme.colors.primary
+                              : theme.colors.outlineVariant,
+                            borderWidth: 1,
+                          },
+                        ]}
+                        onPress={() =>
+                          handleSelectShipType(
+                            ship.code,
+                            ship.label
+                          )
+                        }
+                      >
+                        <Card.Content>
+                          <Text style={{ fontWeight: "700" }}>
+                            {ship.label}
+                          </Text>
+                          <Text
+                            style={{
+                              marginTop: 6,
+                              opacity: 0.7,
+                              fontSize: 12,
+                            }}
+                          >
+                            Tap to select
+                          </Text>
+                        </Card.Content>
+                      </Card>
+                    );
+                  })}
+                </View>
+              </Card.Content>
+            </Card>
+          )}
+
+        {/* ---------------- HELP CARD ---------------- */}
+        <Card
+          style={[
+            styles.helperCard,
+            { backgroundColor: theme.colors.surface },
+          ]}
+        >
+          <Card.Content>
+            <Text style={{ fontWeight: "700", marginBottom: 6 }}>
+              Not sure which one to choose?
+            </Text>
+            <Text style={{ opacity: 0.8, lineHeight: 18 }}>
+              Start with the closest match. If your vessel is a
+              standard cargo ship and you are unsure, “General
+              Cargo” is usually a safe default.
+            </Text>
+          </Card.Content>
+        </Card>
+
+        {/* ---------------- RADIO LIST ---------------- */}
+        <Card
+          style={[
+            styles.listCard,
+            { backgroundColor: theme.colors.surface },
+          ]}
+        >
+          <Card.Content>
+            <View style={styles.listHeaderRow}>
+              <Text style={{ fontWeight: "700" }}>
+                All ship types
+              </Text>
+              <Text style={{ opacity: 0.7, fontSize: 12 }}>
+                {filteredShipTypes.length} shown
+              </Text>
+            </View>
+
+            <Divider style={{ marginVertical: 10 }} />
+
+            <RadioButton.Group
+              value={payload.shipType ?? ""}
+              onValueChange={(value) => {
+                const match = SHIP_TYPES.find(
+                  (s) => s.code === value
+                );
+                if (match) {
+                  handleSelectShipType(
+                    match.code,
+                    match.label
+                  );
+                }
+              }}
+            >
+              <View style={{ gap: 10 }}>
+                {filteredShipTypes.map((ship) => {
+                  const isSelected =
+                    payload.shipType === ship.code;
+
+                  return (
+                    <Pressable
+                      key={ship.code}
+                      onPress={() =>
+                        handleSelectShipType(
+                          ship.code,
+                          ship.label
+                        )
+                      }
                       style={[
-                        styles.selectedText,
+                        styles.shipRow,
                         {
-                          color:
-                            theme.colors.primary,
+                          borderColor: isSelected
+                            ? theme.colors.primary
+                            : theme.colors.outlineVariant,
+                          backgroundColor:
+                            theme.colors.background,
                         },
                       ]}
                     >
-                      Selected
-                    </Text>
-                  )}
-                </Card.Content>
-              </Card>
-            );
-          })}
-        </View>
+                      <View style={styles.shipRowLeft}>
+                        <RadioButton
+                          value={ship.code}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: "700" }}>
+                            {ship.label}
+                          </Text>
+                          <Text
+                            style={{
+                              opacity: 0.7,
+                              fontSize: 12,
+                              marginTop: 2,
+                            }}
+                          >
+                            Sections enabled:{" "}
+                            {ship.enabledSections.length}
+                          </Text>
+                        </View>
+                      </View>
 
+                      {isSelected && (
+                        <Text
+                          style={{
+                            fontWeight: "700",
+                            color: theme.colors.primary,
+                          }}
+                        >
+                          Selected
+                        </Text>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </RadioButton.Group>
+          </Card.Content>
+        </Card>
+      </ScrollView>
+
+      {/* =====================================================
+          STICKY BOTTOM BAR
+          ===================================================== */}
+      <View
+        style={[
+          styles.bottomActionBar,
+          {
+            backgroundColor: theme.colors.background,
+            borderTopColor: theme.colors.outlineVariant,
+            paddingBottom: Math.max(insets.bottom, 12),
+          },
+        ]}
+      >
         <Button
           mode="contained"
-          style={styles.nextButton}
           disabled={!payload.shipType}
           onPress={handleNextFromShipType}
         >
           Next
         </Button>
-      </ScrollView>
-    );
-  }
+      </View>
+    </View>
+  );
+}
+
 
   /**
    * ============================================================
@@ -689,7 +999,6 @@ if (currentStep === "INERT_GAS_SYSTEM") {
         >
           Back to Sections
         </Button>
-
         <Button
           mode="text"
           onPress={() =>
@@ -701,9 +1010,7 @@ if (currentStep === "INERT_GAS_SYSTEM") {
           Help
         </Button>
       </View>
-
       <Divider />
-
       <InertGasSystemSection />
     </View>
   );
@@ -715,6 +1022,7 @@ if (currentStep === "INERT_GAS_SYSTEM") {
    * ============================================================
    */
   return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
     <ScrollView
       style={[
         styles.container,
@@ -722,7 +1030,7 @@ if (currentStep === "INERT_GAS_SYSTEM") {
       ]}
       contentContainerStyle={[
         styles.content,
-        { paddingBottom: styles.content.paddingBottom + androidSystemFooterPadding },
+        { paddingBottom: 160 },
       ]}
     >
       <Text variant="headlineSmall" style={styles.title}>
@@ -1343,18 +1651,51 @@ if (section.key === "INERT_GAS_SYSTEM") {
           </Card>
         ))}
       </View>
+    </ScrollView>
 
+    {/* =====================================================
+        STICKY BOTTOM ACTION BAR
+        ===================================================== */}
+    <View
+      style={[
+        styles.bottomActionBar,
+        {
+          backgroundColor: theme.colors.background,
+          borderTopColor: theme.colors.outlineVariant,
+          paddingBottom: Math.max(insets.bottom, 12),
+          flexDirection: "row",
+          gap: 12,
+        },
+      ]}
+    >
       <Button
         mode="outlined"
-        style={styles.backButton}
-        onPress={() =>
-          setCurrentStep("SHIP_TYPE")
-        }
+        style={{ flex: 1 }}
+        onPress={() => setCurrentStep("SHIP_TYPE")}
       >
         Change Ship Type
       </Button>
-    </ScrollView>
-  );
+
+      <Button
+        mode="contained"
+        style={{ flex: 1 }}
+        onPress={() => {
+          if (enabledSections.length > 0) {
+            handleOpenSection(
+              enabledSections[0].key,
+              enabledSections[0].title
+            );
+          } else {
+            toast.info("No sections available for this ship type.");
+          }
+        }}
+      >
+        Continue
+      </Button>
+    </View>
+  </View>
+);
+
 }
 
 /**
@@ -1364,13 +1705,104 @@ if (section.key === "INERT_GAS_SYSTEM") {
  */
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  /**
+   * The wizard is ScrollView-based.
+   * We reserve bottom padding to avoid Android system nav overlap.
+   */
   content: { padding: 16, paddingBottom: 40 },
+
   title: { fontWeight: "700", marginBottom: 8 },
-  subtitle: { marginBottom: 20, opacity: 0.8 },
+  subtitle: { marginBottom: 14, opacity: 0.8, lineHeight: 18 },
+
+  /**
+   * Step 1 (Ship Type) — UX helpers
+   */
+  selectedSummaryCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+
+  searchBar: {
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+
+  chipRow: {
+    paddingVertical: 6,
+    paddingRight: 6,
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  chip: {
+    borderRadius: 999,
+  },
+
+  chipText: {
+    fontWeight: "700",
+    fontSize: 12,
+  },
+
+  quickPickCard: {
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+
+  quickPickGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  quickPickItem: {
+    width: "48%",
+    borderRadius: 12,
+  },
+
+  helperCard: {
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+
+  listCard: {
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+
+  listHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+  },
+
+  shipRow: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  shipRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+
+  /**
+   * Section overview + section screens (existing styles)
+   * (kept unchanged so we don’t create regressions)
+   */
   cardGrid: { gap: 12 },
   card: { borderRadius: 8 },
   cardTitle: { fontWeight: "600", marginBottom: 4 },
   selectedText: { marginTop: 6, fontWeight: "600" },
+
   sectionDescription: {
     opacity: 0.7,
     marginBottom: 6,
@@ -1379,6 +1811,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     opacity: 0.8,
   },
+
   nextButton: { marginTop: 16 },
   backButton: { marginTop: 24 },
 
@@ -1388,4 +1821,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+
+  bottomActionBar: {
+  paddingHorizontal: 16,
+  paddingTop: 12,
+  borderTopWidth: 1,
+},
+
 });
+

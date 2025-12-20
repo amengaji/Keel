@@ -165,6 +165,7 @@ export default function FireFightingAppliancesSection() {
    * RENDER — PART 1 SECTIONS
    * ============================================================ */
   return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
     <KeyboardAwareScrollView
       style={{ flex: 1 }}
       contentContainerStyle={[
@@ -1171,18 +1172,21 @@ export default function FireFightingAppliancesSection() {
         numberOfLines={4}
         style={styles.textArea}
       />
-
-      {/* ============================================================
-         SAVE
-         ============================================================ */}
-      <Button
-        mode="contained"
-        style={styles.save}
-        onPress={save}
+          </KeyboardAwareScrollView>
+                <View
+        style={[
+          styles.stickyBar,
+          {
+            backgroundColor: theme.colors.background,
+            borderTopColor: theme.colors.outlineVariant,
+          },
+        ]}
       >
-        Save Section
-      </Button>
-    </KeyboardAwareScrollView>
+        <Button mode="contained" onPress={save}>
+          Save Section
+        </Button>
+      </View>
+          </View>
   );
 }
 
@@ -1225,4 +1229,13 @@ const styles = StyleSheet.create({
   save: {
     marginTop: 24,
   },
+  stickyBar: {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  bottom: 0,
+  padding: 12,
+  borderTopWidth: 1,
+},
+
 });

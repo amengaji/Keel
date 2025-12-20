@@ -1,23 +1,14 @@
-//keel-mobile/src/sea-service/sections/GeneralIdentitySection.tsx
-
 /**
  * ============================================================
  * General Identity & Registry Section
  * ============================================================
  *
- * This screen captures BASIC vessel identity details.
- *
- * DESIGN PRINCIPLES:
- * - Partial save allowed
- * - No heavy validation yet
- * - Safe for exit & resume
- * - Reads/writes ONLY to SeaServiceContext
- *
- * This is the FIRST real Sea Service form.
+ * FIRST Sea Service form.
+ * Draft-safe, partial save allowed.
  */
 
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Platform } from "react-native";
+import { View, StyleSheet, Platform, ScrollView } from "react-native";
 import {
   Text,
   TextInput,
@@ -26,53 +17,36 @@ import {
   Divider,
 } from "react-native-paper";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useSeaService } from "../SeaServiceContext";
 import { useToast } from "../../components/toast/useToast";
 
-/**
- * ============================================================
- * GeneralIdentitySection
- * ============================================================
- */
 export default function GeneralIdentitySection() {
   const theme = useTheme();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
 
   const { payload, updateSection } = useSeaService();
 
   /**
-   * Load existing values from context (if resuming)
+   * Load existing values (resume-safe)
    */
-  const existing =
-    payload.sections.GENERAL_IDENTITY ?? {};
+  const existing = payload.sections.GENERAL_IDENTITY ?? {};
 
   /**
-   * Local form state
-   * ----------------
-   * We keep local state so user can type freely.
-   * On Save, we commit to context.
+   * Local draft state
    */
-  const [shipName, setShipName] = useState(
-    existing.shipName ?? ""
-  );
-  const [imoNumber, setImoNumber] = useState(
-    existing.imoNumber ?? ""
-  );
-  const [callSign, setCallSign] = useState(
-    existing.callSign ?? ""
-  );
-  const [flagState, setFlagState] = useState(
-    existing.flagState ?? ""
-  );
+  const [shipName, setShipName] = useState(existing.shipName ?? "");
+  const [imoNumber, setImoNumber] = useState(existing.imoNumber ?? "");
+  const [callSign, setCallSign] = useState(existing.callSign ?? "");
+  const [flagState, setFlagState] = useState(existing.flagState ?? "");
   const [portOfRegistry, setPortOfRegistry] = useState(
     existing.portOfRegistry ?? ""
   );
 
   /**
    * Save handler
-   * ------------
-   * Commits data into SeaServiceContext
    */
   const handleSave = () => {
     updateSection("GENERAL_IDENTITY", {
@@ -83,86 +57,91 @@ export default function GeneralIdentitySection() {
       portOfRegistry,
     });
 
-    toast.success(
-      "General Identity details saved."
-    );
+    toast.success("General Identity details saved.");
   };
 
 return (
-  <KeyboardAwareScrollView
-    style={[
-      styles.container,
-      { backgroundColor: theme.colors.background },
-    ]}
-    contentContainerStyle={[
-      styles.content,
-      { paddingBottom: 120 },
-    ]}
-    enableOnAndroid
-    extraScrollHeight={100}
-    keyboardShouldPersistTaps="handled"
-    showsVerticalScrollIndicator={false}
-  >
-    <Text variant="headlineSmall" style={styles.title}>
-      General Identity & Registry
-    </Text>
-
-    <Text variant="bodyMedium" style={styles.subtitle}>
-      Enter basic identification details of the vessel.
-      You can save and return later.
-    </Text>
-
-    <Divider style={styles.divider} />
-
-    <TextInput
-      label="Ship Name"
-      value={shipName}
-      onChangeText={setShipName}
-      mode="outlined"
-      style={styles.input}
-    />
-
-    <TextInput
-      label="IMO Number"
-      value={imoNumber}
-      onChangeText={setImoNumber}
-      mode="outlined"
-      keyboardType="numeric"
-      style={styles.input}
-    />
-
-    <TextInput
-      label="Call Sign"
-      value={callSign}
-      onChangeText={setCallSign}
-      mode="outlined"
-      style={styles.input}
-    />
-
-    <TextInput
-      label="Flag State"
-      value={flagState}
-      onChangeText={setFlagState}
-      mode="outlined"
-      style={styles.input}
-    />
-
-    <TextInput
-      label="Port of Registry"
-      value={portOfRegistry}
-      onChangeText={setPortOfRegistry}
-      mode="outlined"
-      style={styles.input}
-    />
-
-    <Button
-      mode="contained"
-      style={styles.saveButton}
-      onPress={handleSave}
+  <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    {/* ================= SCROLLABLE FORM ================= */}
+    <KeyboardAwareScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={styles.content}
+      enableOnAndroid
+      extraScrollHeight={80}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
-      Save Section
-    </Button>
-  </KeyboardAwareScrollView>
+      <Text variant="headlineSmall" style={styles.title}>
+        General Identity & Registry
+      </Text>
+
+      <Text variant="bodyMedium" style={styles.subtitle}>
+        Enter basic identification details of the vessel.
+        You can save and return later.
+      </Text>
+
+      <Divider style={styles.divider} />
+
+      <TextInput
+        label="Ship Name"
+        value={shipName}
+        onChangeText={setShipName}
+        mode="outlined"
+        style={styles.input}
+      />
+
+      <TextInput
+        label="IMO Number"
+        value={imoNumber}
+        onChangeText={setImoNumber}
+        mode="outlined"
+        keyboardType="numeric"
+        style={styles.input}
+      />
+
+      <TextInput
+        label="Call Sign"
+        value={callSign}
+        onChangeText={setCallSign}
+        mode="outlined"
+        style={styles.input}
+      />
+
+      <TextInput
+        label="Flag State"
+        value={flagState}
+        onChangeText={setFlagState}
+        mode="outlined"
+        style={styles.input}
+      />
+
+      <TextInput
+        label="Port of Registry"
+        value={portOfRegistry}
+        onChangeText={setPortOfRegistry}
+        mode="outlined"
+        style={styles.input}
+      />
+
+      {/* Spacer so last field can scroll above bar */}
+      <View style={{ height: 96 }} />
+    </KeyboardAwareScrollView>
+
+    {/* ================= STICKY SAVE BAR ================= */}
+    <View
+      style={[
+        styles.stickyBar,
+        {
+          backgroundColor: theme.colors.background,
+          borderTopColor: theme.colors.outlineVariant,
+        },
+      ]}
+    >
+      <Button mode="contained" onPress={handleSave}>
+        Save Section
+      </Button>
+    </View>
+  </View>
 );
 
 }
@@ -178,7 +157,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 40,
   },
   title: {
     fontWeight: "700",
@@ -194,7 +172,20 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: 12,
   },
-  saveButton: {
-    marginTop: 16,
+  bottomBar: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
   },
+  stickyBar: {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  bottom: 0,
+  paddingHorizontal: 16,
+  paddingTop: 12,
+  paddingBottom: Platform.OS === "android" ? 12 : 24,
+  borderTopWidth: 1,
+},
+
 });

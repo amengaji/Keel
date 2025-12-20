@@ -45,8 +45,18 @@ export interface DailyLogEntry {
    * DAILY  → general daily narrative
    * BRIDGE → bridge / watch-related narrative
    * ENGINE → engine room narrative
+   * PORT   → port watch narrative
    */
-  type: "DAILY" | "BRIDGE" | "ENGINE";
+  type: "DAILY" | "BRIDGE" | "ENGINE" | "PORT";
+  
+  /** Port Watch sub-type (if applicable) */
+  portWatchType?: "CARGO" | "ANCHOR" | "GANGWAY" | "BUNKERING" | null;
+
+  /** Absolute start timestamp (if applicable) */
+  startTime?: Date;
+
+  /** Absolute end timestamp (if applicable) */
+  endTime?: Date;
 
   /** Free-text summary entered by cadet */
   summary: string;
@@ -54,12 +64,42 @@ export interface DailyLogEntry {
   /** Optional remarks */
   remarks?: string;
 
+  /**
+   * DAILY WORK — selected categories
+   * Stored as JSON string in DB
+   * Parsed to array in UI
+   */
+  dailyWorkCategories?: string | null;
+
+  // --------------------------------------------------
+  // BRIDGE / WATCHKEEPING FIELDS
+  // --------------------------------------------------
+  latDeg?: number | null;
+  latMin?: number | null;
+  latDir?: "N" | "S" | null;
+
+  lonDeg?: number | null;
+  lonMin?: number | null;
+  lonDir?: "E" | "W" | null;
+
+  courseDeg?: number | null;
+  speedKn?: number | null;
+  weather?: string | null;
+  steeringMinutes?: number | null;
+  isLookout?: boolean | null;
+
+  // --------------------------------------------------
+  // ENGINE WATCH
+  // --------------------------------------------------
+  machineryMonitored?: string | null;
+
   /** Creation timestamp (local) */
   createdAt: Date;
 
   /** Last modification timestamp */
   updatedAt?: Date;
 }
+
 
 /* ============================================================
  * Compliance-Oriented Status

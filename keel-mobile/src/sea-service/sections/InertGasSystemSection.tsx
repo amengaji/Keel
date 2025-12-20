@@ -183,6 +183,7 @@ export default function InertGasSystemSection() {
    * RENDER
    * ============================================================ */
   return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
     <KeyboardAwareScrollView
       style={{ flex: 1 }}
       contentContainerStyle={[
@@ -574,11 +575,21 @@ export default function InertGasSystemSection() {
         numberOfLines={4}
         style={styles.textArea}
       />
-
-      <Button mode="contained" style={styles.save} onPress={save}>
-        Save Section
-      </Button>
     </KeyboardAwareScrollView>
+    <View
+  style={[
+    styles.stickyBar,
+    {
+      backgroundColor: theme.colors.background,
+      borderTopColor: theme.colors.outlineVariant,
+    },
+  ]}
+>
+  <Button mode="contained" onPress={save}>
+    Save Section
+  </Button>
+</View>
+</View>
   );
 }
 
@@ -609,4 +620,13 @@ const styles = StyleSheet.create({
   noteText: { opacity: 0.85, marginBottom: 4 },
 
   save: { marginTop: 16 },
+  stickyBar: {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  bottom: 0,
+  padding: 12,
+  borderTopWidth: 1,
+},
+
 });

@@ -1,5 +1,3 @@
-//keel-mobile/src/sea-service/sections/DimensionsTonnageSection.tsx
-
 /**
  * ============================================================
  * Dimensions & Tonnages Section
@@ -9,12 +7,13 @@
  *
  * RULES:
  * - Partial save allowed
- * - Completed status will be handled in SeaServiceWizard.tsx
- * - Uses KeyboardAwareScrollView to avoid keyboard overlap
+ * - Completed status handled in SeaServiceWizard.tsx
+ * - Sticky Save bar (UX consistency)
+ * - Keyboard + Android system-nav safe
  */
 
 import React, { useState } from "react";
-import { StyleSheet } from "react-native";
+import { View, StyleSheet, Platform } from "react-native";
 import {
   Text,
   TextInput,
@@ -23,6 +22,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useSeaService } from "../SeaServiceContext";
 import { useToast } from "../../components/toast/useToast";
@@ -30,19 +30,21 @@ import { useToast } from "../../components/toast/useToast";
 export default function DimensionsTonnageSection() {
   const theme = useTheme();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
 
   const { payload, updateSection } = useSeaService();
 
   /**
-   * Load existing saved values (if any)
+   * Load existing saved values (resume-safe)
    */
   const existing =
     payload.sections.DIMENSIONS_TONNAGE ?? {};
 
   /**
-   * Local state (editable)
-   * NOTE: Keep values as strings for easier typing.
-   * Later we can validate/convert to numbers.
+   * Local editable state
+   * NOTE:
+   * - Stored as strings for typing comfort
+   * - Validation/conversion can be added later
    */
   const [grossTonnage, setGrossTonnage] = useState(
     existing.grossTonnage ?? ""
@@ -64,7 +66,7 @@ export default function DimensionsTonnageSection() {
   );
 
   /**
-   * Save into context (draft-safe)
+   * Save handler (draft-safe)
    */
   const handleSave = () => {
     updateSection("DIMENSIONS_TONNAGE", {
@@ -79,15 +81,16 @@ export default function DimensionsTonnageSection() {
     toast.success("Dimensions & Tonnages saved.");
   };
 
-  return (
+return (
+  <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    {/* ================= SCROLLABLE CONTENT ================= */}
     <KeyboardAwareScrollView
-      style={[
-        styles.container,
-        { backgroundColor: theme.colors.background },
-      ]}
+      style={{ flex: 1 }}
       contentContainerStyle={[
         styles.content,
-        { paddingBottom: 120 },
+        {
+          paddingBottom: Platform.OS === "android" ? 96 : 80,
+        },
       ]}
       enableOnAndroid
       extraScrollHeight={100}
@@ -105,7 +108,6 @@ export default function DimensionsTonnageSection() {
 
       <Divider style={styles.divider} />
 
-      {/* Gross Tonnage */}
       <TextInput
         label="Gross Tonnage (GT)"
         value={grossTonnage}
@@ -113,10 +115,8 @@ export default function DimensionsTonnageSection() {
         mode="outlined"
         keyboardType="numeric"
         style={styles.input}
-        placeholder="e.g. 45000"
       />
 
-      {/* Net Tonnage */}
       <TextInput
         label="Net Tonnage (NT)"
         value={netTonnage}
@@ -124,10 +124,8 @@ export default function DimensionsTonnageSection() {
         mode="outlined"
         keyboardType="numeric"
         style={styles.input}
-        placeholder="e.g. 28000"
       />
 
-      {/* Deadweight */}
       <TextInput
         label="Deadweight Tonnage (DWT)"
         value={deadweightTonnage}
@@ -135,12 +133,10 @@ export default function DimensionsTonnageSection() {
         mode="outlined"
         keyboardType="numeric"
         style={styles.input}
-        placeholder="e.g. 76000"
       />
 
       <Divider style={styles.divider} />
 
-      {/* LOA */}
       <TextInput
         label="Length Overall (LOA) (m)"
         value={loaMeters}
@@ -148,10 +144,8 @@ export default function DimensionsTonnageSection() {
         mode="outlined"
         keyboardType="numeric"
         style={styles.input}
-        placeholder="e.g. 228.5"
       />
 
-      {/* Breadth */}
       <TextInput
         label="Breadth (m)"
         value={breadthMeters}
@@ -159,10 +153,8 @@ export default function DimensionsTonnageSection() {
         mode="outlined"
         keyboardType="numeric"
         style={styles.input}
-        placeholder="e.g. 32.2"
       />
 
-      {/* Summer Draft */}
       <TextInput
         label="Summer Draft (m)"
         value={summerDraftMeters}
@@ -170,41 +162,61 @@ export default function DimensionsTonnageSection() {
         mode="outlined"
         keyboardType="numeric"
         style={styles.input}
-        placeholder="e.g. 13.8"
       />
+    </KeyboardAwareScrollView>
 
-      <Button
-        mode="contained"
-        style={styles.saveButton}
-        onPress={handleSave}
-      >
+    {/* ================= STICKY SAVE BAR ================= */}
+    <View
+      style={[
+        styles.bottomBar,
+        {
+          paddingBottom: Platform.OS === "android" ? 12 : 8,
+        },
+      ]}
+    >
+      <Button mode="contained" onPress={handleSave}>
         Save Section
       </Button>
-    </KeyboardAwareScrollView>
-  );
+    </View>
+  </View>
+);
+
 }
 
+/**
+ * ============================================================
+ * STYLES
+ * ============================================================
+ */
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
   content: {
     padding: 16,
-    paddingBottom: 40,
   },
+
   title: {
     fontWeight: "700",
     marginBottom: 8,
   },
+
   subtitle: {
     opacity: 0.8,
     marginBottom: 12,
   },
+
   divider: {
     marginVertical: 12,
   },
+
   input: {
     marginBottom: 12,
   },
-  saveButton: {
-    marginTop: 16,
+
+  bottomBar: {
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    backgroundColor: "transparent",
   },
 });
