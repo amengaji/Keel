@@ -9,6 +9,7 @@ import BottomTabNavigator from "./BottomTabNavigator";
 import AppHeader from "../components/layout/AppHeader";
 
 import SeaServiceWizardScreen from "../screens/SeaServiceWizardScreen";
+import TaskDetailsScreen from "../screens/TaskDetailsScreen";
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
 
@@ -25,13 +26,23 @@ const Stack = createNativeStackNavigator<MainStackParamList>();
  */
 export default function MainNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {/* Normal app layout with AppHeader + Tabs */}
-      <Stack.Screen name="MainTabs" component={MainLayout} />
+<Stack.Navigator screenOptions={{ headerShown: false }}>
+  {/* Normal app layout with AppHeader + Tabs */}
+  <Stack.Screen name="MainTabs" component={MainLayout} />
 
-      {/* Full-screen wizard (separate screen, its own header) */}
-      <Stack.Screen name="SeaServiceWizard" component={SeaServiceWizardScreen} />
-    </Stack.Navigator>
+  {/* Full-screen Sea Service wizard */}
+  <Stack.Screen
+    name="SeaServiceWizard"
+    component={SeaServiceWizardScreen}
+  />
+
+  {/* Task Details (drill-down, inspector-safe) */}
+  <Stack.Screen
+    name="TaskDetails"
+    component={TaskDetailsScreen}
+  />
+</Stack.Navigator>
+
   );
 }
 
