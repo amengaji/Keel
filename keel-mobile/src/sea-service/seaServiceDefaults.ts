@@ -2,68 +2,74 @@
 
 /**
  * ============================================================
- * Sea Service Default Payload
+ * Sea Service Default Payload (FOUNDATION)
  * ============================================================
  *
- * This file defines the DEFAULT (empty) structure for
- * a Sea Service record.
+ * PURPOSE:
+ * - Define a SAFE, COMPLETE default structure for Sea Service
+ * - Prevent undefined access crashes
+ * - Enable draft-first, sign-on → sign-off lifecycle
  *
  * IMPORTANT:
- * - Every major data group is initialized
- * - Prevents undefined access errors
- * - Enables save & resume at any stage of the wizard
+ * - NO UI code
+ * - NO database code
+ * - NO business rules
  *
- * NO UI CODE
- * NO DATABASE CODE
- * NO BUSINESS LOGIC
+ * This file is the SINGLE SOURCE OF TRUTH
+ * for Sea Service payload shape.
  */
 
 /**
- * Top-level Sea Service payload structure.
+ * ============================================================
+ * Service Period (Sign-On / Sign-Off)
+ * ============================================================
+ *
+ * Maritime rules:
+ * - Sign-on is mandatory to start service
+ * - Sign-off happens much later
+ * - Drafts MUST support null sign-off
+ */
+export interface SeaServicePeriod {
+  /** Date cadet joined the vessel (YYYY-MM-DD) */
+  signOnDate: Date | null;
+
+  /** Port where cadet joined */
+  signOnPort: string | null;
+
+  /** Date cadet signed off (nullable until completion) */
+  signOffDate: Date | null;
+
+  /** Port where cadet signed off (nullable until completion) */
+  signOffPort: string | null;
+}
+
+/**
+ * ============================================================
+ * Top-level Sea Service payload
+ * ============================================================
  *
  * This object is:
- * - Serialized to JSON
- * - Stored in SQLite
- * - Synced to backend later
+ * - Stored as JSON in SQLite
+ * - Draft-safe
+ * - Future sync-ready
  */
 export interface SeaServicePayload {
-  /**
-   * Ship type selected by cadet
-   * (controls conditional sections later)
-   */
+  /** Ship type selected once per service */
   shipType: string | null;
 
-  /**
-   * Last local update timestamp (epoch ms)
-   * Used for draft freshness + sync ordering
-   */
+  /** Sign-on / sign-off lifecycle */
+  servicePeriod: SeaServicePeriod;
+
+  /** Timestamp of last update (epoch ms) */
   lastUpdatedAt: number | null;
 
-  /**
-   * ============================================================
-   * SERVICE PERIOD (VESSEL CONTRACT)
-   * ============================================================
-   *
-   * Applies to the entire Sea Service entry.
-   * NOT a section — must be completed before finalize.
-   *
-   * Stored as ISO strings (YYYY-MM-DD) for inspector clarity.
+    /**
+   * Section completion tracking
+   * Used for finalize gating and UX indicators
    */
-  servicePeriod: {
-    signOnDate: string | null;
-    signOnPort: string | null;
-    signOffDate: string | null;
-    signOffPort: string | null;
-  };
+  sectionStatus: Record<string, SeaServiceSectionStatus>;
 
-  /**
-   * ============================================================
-   * SECTION-WISE DATA
-   * ============================================================
-   *
-   * Each section owns its own internal keys.
-   * Empty object = not started.
-   */
+  /** Section-wise technical data */
   sections: {
     GENERAL_IDENTITY: Record<string, any>;
     DIMENSIONS_TONNAGE: Record<string, any>;
@@ -80,24 +86,55 @@ export interface SeaServicePayload {
 }
 
 /**
+ * Section completion status
+ * - INCOMPLETE: not yet saved
+ * - COMPLETE: saved at least once
+ */
+export type SeaServiceSectionStatus =
+  | "INCOMPLETE"
+  | "COMPLETE";
+
+/**
  * ============================================================
- * DEFAULT EMPTY PAYLOAD
+ * DEFAULT EMPTY PAYLOAD (DRAFT-SAFE)
  * ============================================================
  *
  * Used when:
- * - Starting a new Sea Service entry
+ * - Starting a new Sea Service
  * - Creating a draft
- * - Resetting corrupted data
+ * - Recovering from corrupted storage
+ *
+ * GUARANTEE:
+ * - No property in SeaServicePayload is ever undefined
  */
 export const DEFAULT_SEA_SERVICE_PAYLOAD: SeaServicePayload = {
   shipType: null,
-  lastUpdatedAt: null,
 
+  /**
+   * Service period ALWAYS exists.
+   * Sign-off fields remain null until cadet signs off.
+   */
   servicePeriod: {
     signOnDate: null,
     signOnPort: null,
     signOffDate: null,
     signOffPort: null,
+  },
+
+  lastUpdatedAt: null,
+
+    sectionStatus: {
+    GENERAL_IDENTITY: "INCOMPLETE",
+    DIMENSIONS_TONNAGE: "INCOMPLETE",
+    PROPULSION_PERFORMANCE: "INCOMPLETE",
+    AUX_MACHINERY_ELECTRICAL: "INCOMPLETE",
+    DECK_MACHINERY_MANEUVERING: "INCOMPLETE",
+    CARGO_CAPABILITIES: "INCOMPLETE",
+    NAVIGATION_COMMUNICATION: "INCOMPLETE",
+    LIFE_SAVING_APPLIANCES: "INCOMPLETE",
+    FIRE_FIGHTING_APPLIANCES: "INCOMPLETE",
+    POLLUTION_PREVENTION: "INCOMPLETE",
+    INERT_GAS_SYSTEM: "INCOMPLETE",
   },
 
   sections: {
@@ -120,11 +157,8 @@ export const DEFAULT_SEA_SERVICE_PAYLOAD: SeaServicePayload = {
  * NOTES
  * ============================================================
  *
- * - servicePeriod lives OUTSIDE sections intentionally
- * - Finalize will be gated on:
- *   • servicePeriod complete
- *   • all mandatory sections completed
- *
- * - No DB migration required (JSON payload only)
- * - Existing installs remain fully compatible
+ * - This structure is intentionally verbose.
+ * - Backward-compatible with existing SQLite records.
+ * - Future fields can be added safely without migration.
+ * - All lifecycle logic lives OUTSIDE this file.
  */

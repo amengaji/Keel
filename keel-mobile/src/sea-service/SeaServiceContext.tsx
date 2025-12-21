@@ -41,6 +41,9 @@ import { useToast } from "../components/toast/useToast";
  */
 interface SeaServiceContextType {
   payload: SeaServicePayload;
+
+  canFinalize: boolean;
+
   startNewDraft: () => void;
   updateSection: (
     sectionKey: keyof SeaServicePayload["sections"],
@@ -145,26 +148,36 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
     setPayload(freshPayload);
   };
 
-  /**
-   * Update data for a given section.
-   * Shallow-merge only the affected section.
-   */
-  const updateSection = (
-    sectionKey: keyof SeaServicePayload["sections"],
-    data: Record<string, any>
-  ) => {
-    setPayload((prev) => ({
-      ...prev,
-      lastUpdatedAt: Date.now(),
-      sections: {
-        ...prev.sections,
-        [sectionKey]: {
-          ...prev.sections[sectionKey],
-          ...data,
+    /**
+     * Update data for a given section.
+     * - Merges section data
+     * - Marks section as COMPLETE
+     * - Keeps draft-safe behavior
+     */
+    const updateSection = (
+      sectionKey: keyof SeaServicePayload["sections"],
+      data: Record<string, any>
+    ) => {
+      setPayload((prev) => ({
+        ...prev,
+        lastUpdatedAt: Date.now(),
+
+        // Mark this section as completed
+        sectionStatus: {
+          ...prev.sectionStatus,
+          [sectionKey]: "COMPLETE",
         },
-      },
-    }));
-  };
+
+        sections: {
+          ...prev.sections,
+          [sectionKey]: {
+            ...prev.sections[sectionKey],
+            ...data,
+          },
+        },
+      }));
+    };
+
   /**
  * Update service period (sign on / off details)
  * Stored at top-level, not inside sections
@@ -206,10 +219,36 @@ const updateServicePeriod = (
     setPayload(resetPayload);
   };
 
+  /**
+ * ============================================================
+ * FINALIZATION ELIGIBILITY (DERIVED STATE)
+ * ============================================================
+ *
+ * Rules:
+ * - Must have sign-on date
+ * - Sign-off date NOT required
+ * - All mandatory sections must be COMPLETE
+ */
+const canFinalize = (() => {
+  const period = payload.servicePeriod;
+
+  if (!period?.signOnDate) return false;
+
+  const statuses = payload.sectionStatus ?? {};
+
+  const mandatorySections = Object.keys(payload.sections);
+
+  return mandatorySections.every(
+    (key) => statuses[key] === "COMPLETE"
+  );
+})();
+
+
   return (
     <SeaServiceContext.Provider
       value={{
         payload,
+        canFinalize,
         startNewDraft,
         updateSection,
         updateServicePeriod,

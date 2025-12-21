@@ -78,8 +78,8 @@ export default function SeaServiceWizard() {
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
 
 
-  const { payload, setShipType, updateServicePeriod } = useSeaService();
-  const canFinalize = canFinalizeSeaService(payload, payload.shipType ?? undefined);
+  const { payload, setShipType, canFinalize, updateServicePeriod } = useSeaService();
+//  const canFinalize = canFinalizeSeaService(payload, payload.shipType ?? undefined);
 
 
   /** Internal wizard step state */
@@ -128,22 +128,22 @@ export default function SeaServiceWizard() {
     // ------------------------------------------------------------
   // Service Period (local draft state)
   // ------------------------------------------------------------
-  const [signOnDate, setSignOnDate] = useState<Date | null>(
-    payload.servicePeriod.signOnDate
-      ? new Date(payload.servicePeriod.signOnDate)
-      : null
-  );
-  const [signOnPort, setSignOnPort] = useState(
-    payload.servicePeriod.signOnPort ?? ""
-  );
-  const [signOffDate, setSignOffDate] = useState<Date | null>(
-    payload.servicePeriod.signOffDate
-      ? new Date(payload.servicePeriod.signOffDate)
-      : null
-  );
-  const [signOffPort, setSignOffPort] = useState(
-    payload.servicePeriod.signOffPort ?? ""
-  );
+const [signOnDate, setSignOnDate] = useState<Date | null>(
+  payload.servicePeriod?.signOnDate ?? null
+);
+
+const [signOffDate, setSignOffDate] = useState<Date | null>(
+  payload.servicePeriod?.signOffDate ?? null
+);
+
+const [signOnPort, setSignOnPort] = useState(
+  payload.servicePeriod?.signOnPort ?? ""
+);
+
+const [signOffPort, setSignOffPort] = useState(
+  payload.servicePeriod?.signOffPort ?? ""
+);
+
 
 
     /**
@@ -652,7 +652,6 @@ if (currentStep === "SERVICE_PERIOD") {
 
         <DateInputField
           label="Date of Sign Off"
-          required
           value={signOffDate}
           onChange={setSignOffDate}
         />
@@ -689,11 +688,9 @@ if (currentStep === "SERVICE_PERIOD") {
             }
 
             updateServicePeriod({
-              signOnDate: signOnDate.toISOString().slice(0, 10),
+              signOnDate,
               signOnPort: signOnPort.trim(),
-              signOffDate: signOffDate
-                ? signOffDate.toISOString().slice(0, 10)
-                : null,
+              signOffDate,
               signOffPort: signOffPort.trim() || null,
             });
 
@@ -1850,6 +1847,16 @@ if (section.key === "INERT_GAS_SYSTEM") {
   </Button>
 )}
 
+{!canFinalize && (
+  <Text
+    variant="bodySmall"
+    style={{ opacity: 0.6, marginTop: 8, textAlign: "center" }}
+  >
+    Complete all required sections and ensure sign-on date is entered to finalize.
+  </Text>
+)}
+
+
 
   <Button
     mode="contained"
@@ -2043,6 +2050,7 @@ const styles = StyleSheet.create({
   paddingHorizontal: 16,
   paddingTop: 12,
   borderTopWidth: 1,
+  paddingBottom: 64,
 },
 
 });
