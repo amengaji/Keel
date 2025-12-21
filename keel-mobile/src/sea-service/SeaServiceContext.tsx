@@ -34,6 +34,7 @@ import {
 import {
   getSeaServicePayloadOrDefault,
   upsertSeaServiceDraft,
+  getSeaServiceRecord,
 } from "../db/seaService";
 import { useToast } from "../components/toast/useToast";
 
@@ -97,6 +98,14 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
    */
   useEffect(() => {
     try {
+      const record = getSeaServiceRecord();
+
+      if (record && record.status === "FINAL") {
+        // Do NOT hydrate finalized records into wizard
+        hasHydratedRef.current = true;
+        return;
+      }
+
       const storedPayload = getSeaServicePayloadOrDefault();
 
       setPayload({
@@ -105,6 +114,7 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
       });
 
       hasHydratedRef.current = true;
+
     } catch (err) {
       console.error("Failed to load Sea Service draft:", err);
       toast.error("Failed to load Sea Service draft. Using empty form.");
