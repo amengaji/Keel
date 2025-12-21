@@ -9,8 +9,8 @@
  * a Sea Service record.
  *
  * IMPORTANT:
- * - Every section is initialized, even if not used
- * - This prevents undefined access errors
+ * - Every major data group is initialized
+ * - Prevents undefined access errors
  * - Enables save & resume at any stage of the wizard
  *
  * NO UI CODE
@@ -21,19 +21,49 @@
 /**
  * Top-level Sea Service payload structure.
  *
- * This object will eventually be:
+ * This object is:
  * - Serialized to JSON
  * - Stored in SQLite
  * - Synced to backend later
  */
 export interface SeaServicePayload {
-  /** Ship type selected by cadet */
+  /**
+   * Ship type selected by cadet
+   * (controls conditional sections later)
+   */
   shipType: string | null;
 
-  /** Timestamp of last update (epoch ms) */
+  /**
+   * Last local update timestamp (epoch ms)
+   * Used for draft freshness + sync ordering
+   */
   lastUpdatedAt: number | null;
 
-  /** Section-wise data */
+  /**
+   * ============================================================
+   * SERVICE PERIOD (VESSEL CONTRACT)
+   * ============================================================
+   *
+   * Applies to the entire Sea Service entry.
+   * NOT a section — must be completed before finalize.
+   *
+   * Stored as ISO strings (YYYY-MM-DD) for inspector clarity.
+   */
+  servicePeriod: {
+    signOnDate: string | null;
+    signOnPort: string | null;
+    signOffDate: string | null;
+    signOffPort: string | null;
+  };
+
+  /**
+   * ============================================================
+   * SECTION-WISE DATA
+   * ============================================================
+   *
+   * Each section owns its own internal keys.
+   * Empty object = not started.
+   */
   sections: {
     GENERAL_IDENTITY: Record<string, any>;
     DIMENSIONS_TONNAGE: Record<string, any>;
@@ -44,7 +74,7 @@ export interface SeaServicePayload {
     NAVIGATION_COMMUNICATION: Record<string, any>;
     LIFE_SAVING_APPLIANCES: Record<string, any>;
     FIRE_FIGHTING_APPLIANCES: Record<string, any>;
-    POLLUTION_PREVENTION: Record <string, any>;
+    POLLUTION_PREVENTION: Record<string, any>;
     INERT_GAS_SYSTEM: Record<string, any>;
   };
 }
@@ -63,6 +93,13 @@ export const DEFAULT_SEA_SERVICE_PAYLOAD: SeaServicePayload = {
   shipType: null,
   lastUpdatedAt: null,
 
+  servicePeriod: {
+    signOnDate: null,
+    signOnPort: null,
+    signOffDate: null,
+    signOffPort: null,
+  },
+
   sections: {
     GENERAL_IDENTITY: {},
     DIMENSIONS_TONNAGE: {},
@@ -73,7 +110,7 @@ export const DEFAULT_SEA_SERVICE_PAYLOAD: SeaServicePayload = {
     NAVIGATION_COMMUNICATION: {},
     LIFE_SAVING_APPLIANCES: {},
     FIRE_FIGHTING_APPLIANCES: {},
-    POLLUTION_PREVENTION:{},
+    POLLUTION_PREVENTION: {},
     INERT_GAS_SYSTEM: {},
   },
 };
@@ -83,14 +120,11 @@ export const DEFAULT_SEA_SERVICE_PAYLOAD: SeaServicePayload = {
  * NOTES
  * ============================================================
  *
- * - Even if a section is not enabled for a ship type,
- *   its data container still exists.
+ * - servicePeriod lives OUTSIDE sections intentionally
+ * - Finalize will be gated on:
+ *   • servicePeriod complete
+ *   • all mandatory sections completed
  *
- * - This design simplifies:
- *   - Conditional rendering
- *   - Partial saves
- *   - Backward compatibility
- *
- * - Field-level defaults will be applied later
- *   during UI rendering, not here.
+ * - No DB migration required (JSON payload only)
+ * - Existing installs remain fully compatible
  */

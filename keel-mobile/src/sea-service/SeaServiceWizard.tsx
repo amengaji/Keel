@@ -23,12 +23,18 @@
 
 import React, { useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable } from "react-native";
-import { Text, Card, Button, useTheme, Divider, Searchbar, Chip, RadioButton, } from "react-native-paper";
+import { Text, Card, Button, useTheme, Divider, Searchbar, Chip, RadioButton, TextInput} from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SHIP_TYPES } from "../config/shipTypes";
 import { SEA_SERVICE_SECTIONS } from "../config/seaServiceSections";
 import { useSeaService } from "./SeaServiceContext";
 import { useToast } from "../components/toast/useToast";
+import { useNavigation } from "@react-navigation/native";
+import { finalizeSeaService } from "../db/seaService";
+import { Dialog, Portal } from "react-native-paper";
+import DateInputField from "../components/inputs/DateInputField";
+import { canFinalizeSeaService } from "./seaServiceStatus";
+
 
 import PropulsionPerformanceSection from "./sections/PropulsionPerformanceSection";
 import GeneralIdentitySection from "./sections/GeneralIdentitySection";
@@ -47,6 +53,7 @@ import PollutionPreventionSection from "./sections/PollutionPreventionSection";
  */
 type WizardStep =
   | "SHIP_TYPE"
+  | "SERVICE_PERIOD"
   | "SECTION_OVERVIEW"
   | "GENERAL_IDENTITY"
   | "DIMENSIONS_TONNAGE"
@@ -67,8 +74,13 @@ export default function SeaServiceWizard() {
   const theme = useTheme();
   const toast = useToast();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
 
-  const { payload, setShipType } = useSeaService();
+
+  const { payload, setShipType, updateServicePeriod } = useSeaService();
+  const canFinalize = canFinalizeSeaService(payload, payload.shipType ?? undefined);
+
 
   /** Internal wizard step state */
   const [currentStep, setCurrentStep] =
@@ -110,8 +122,29 @@ export default function SeaServiceWizard() {
       toast.error("Please select a ship type first.");
       return;
     }
-    setCurrentStep("SECTION_OVERVIEW");
+    setCurrentStep("SERVICE_PERIOD");
   };
+
+    // ------------------------------------------------------------
+  // Service Period (local draft state)
+  // ------------------------------------------------------------
+  const [signOnDate, setSignOnDate] = useState<Date | null>(
+    payload.servicePeriod.signOnDate
+      ? new Date(payload.servicePeriod.signOnDate)
+      : null
+  );
+  const [signOnPort, setSignOnPort] = useState(
+    payload.servicePeriod.signOnPort ?? ""
+  );
+  const [signOffDate, setSignOffDate] = useState<Date | null>(
+    payload.servicePeriod.signOffDate
+      ? new Date(payload.servicePeriod.signOffDate)
+      : null
+  );
+  const [signOffPort, setSignOffPort] = useState(
+    payload.servicePeriod.signOffPort ?? ""
+  );
+
 
     /**
      * ------------------------------------------------------------
@@ -589,6 +622,92 @@ if (currentStep === "SHIP_TYPE") {
   );
 }
 
+/**
+ * ============================================================
+ * RENDER — SERVICE PERIOD
+ * ============================================================
+ */
+if (currentStep === "SERVICE_PERIOD") {
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <Text variant="titleLarge" style={{ fontWeight: "700", marginBottom: 16 }}>
+          Service Period
+        </Text>
+
+        <DateInputField
+          label="Date of Sign On"
+          required
+          value={signOnDate}
+          onChange={setSignOnDate}
+        />
+
+        <TextInput
+          mode="outlined"
+          label="Port of Joining *"
+          value={signOnPort}
+          onChangeText={setSignOnPort}
+          style={{ marginTop: 12 }}
+        />
+
+        <DateInputField
+          label="Date of Sign Off"
+          required
+          value={signOffDate}
+          onChange={setSignOffDate}
+        />
+
+        <TextInput
+          mode="outlined"
+          label="Port of Sign Off *"
+          value={signOffPort}
+          onChangeText={setSignOffPort}
+          style={{ marginTop: 12 }}
+        />
+      </ScrollView>
+
+      {/* =====================================================
+          STICKY SAVE BAR
+         ===================================================== */}
+      <View
+        style={[
+          styles.bottomActionBar,
+          {
+            backgroundColor: theme.colors.background,
+            borderTopColor: theme.colors.outlineVariant,
+            paddingBottom: Math.max(insets.bottom, 12),
+          },
+        ]}
+      >
+        <Button
+          mode="contained"
+          style={{ flex: 1 }}
+          onPress={() => {
+            if (!signOnDate || !signOnPort) {
+              toast.error("Please complete all service period fields.");
+              return;
+            }
+
+            updateServicePeriod({
+              signOnDate: signOnDate.toISOString().slice(0, 10),
+              signOnPort: signOnPort.trim(),
+              signOffDate: signOffDate
+                ? signOffDate.toISOString().slice(0, 10)
+                : null,
+              signOffPort: signOffPort.trim() || null,
+            });
+
+            
+            toast.success("Service period saved.");
+            setCurrentStep("SECTION_OVERVIEW");
+          }}
+        >
+          Save & Continue
+        </Button>
+      </View>
+    </View>
+  );
+}
 
   /**
    * ============================================================
@@ -1701,43 +1820,96 @@ if (section.key === "INERT_GAS_SYSTEM") {
     {/* =====================================================
         STICKY BOTTOM ACTION BAR
         ===================================================== */}
-    <View
-      style={[
-        styles.bottomActionBar,
-        {
-          backgroundColor: theme.colors.background,
-          borderTopColor: theme.colors.outlineVariant,
-          paddingBottom: Math.max(insets.bottom, 12),
-          flexDirection: "row",
-          gap: 12,
-        },
-      ]}
-    >
-      <Button
-        mode="outlined"
-        style={{ flex: 1 }}
-        onPress={() => setCurrentStep("SHIP_TYPE")}
-      >
-        Change Ship Type
-      </Button>
+<View
+  style={[
+    styles.bottomActionBar,
+    {
+      backgroundColor: theme.colors.background,
+      borderTopColor: theme.colors.outlineVariant,
+      paddingBottom: Math.max(insets.bottom, 12),
+      flexDirection: "row",
+      gap: 12,
+    },
+  ]}
+>
+  <Button
+    mode="outlined"
+    style={{ flex: 1 }}
+    onPress={() => setCurrentStep("SHIP_TYPE")}
+  >
+    Change Ship Type
+  </Button>
 
-      <Button
-        mode="contained"
-        style={{ flex: 1 }}
-        onPress={() => {
-          if (enabledSections.length > 0) {
-            handleOpenSection(
-              enabledSections[0].key,
-              enabledSections[0].title
-            );
-          } else {
-            toast.info("No sections available for this ship type.");
-          }
-        }}
-      >
-        Continue
-      </Button>
-    </View>
+{canFinalize && (
+  <Button
+    mode="outlined"
+    style={{ flex: 1 }}
+    onPress={() => setShowFinalizeConfirm(true)}
+  >
+    Finalize
+  </Button>
+)}
+
+
+  <Button
+    mode="contained"
+    style={{ flex: 1 }}
+    onPress={() => {
+      if (enabledSections.length > 0) {
+        handleOpenSection(
+          enabledSections[0].key,
+          enabledSections[0].title
+        );
+      } else {
+        toast.info("No sections available for this ship type.");
+      }
+    }}
+  >
+    Continue
+  </Button>
+
+  {/* =====================================================
+      FINALIZE CONFIRMATION DIALOG
+     ===================================================== */}
+  <Portal>
+    <Dialog
+      visible={showFinalizeConfirm}
+      onDismiss={() => setShowFinalizeConfirm(false)}
+    >
+      <Dialog.Title>Finalize Sea Service</Dialog.Title>
+
+      <Dialog.Content>
+        <Text>
+          Once finalized, this Sea Service record will be locked
+          and marked as complete. You can still view it later.
+        </Text>
+      </Dialog.Content>
+
+      <Dialog.Actions>
+        <Button onPress={() => setShowFinalizeConfirm(false)}>
+          Cancel
+        </Button>
+
+        <Button
+          onPress={() => {
+            try {
+              finalizeSeaService();
+              setShowFinalizeConfirm(false);
+              toast.success("Sea Service finalized successfully.");
+              navigation.goBack();
+            } catch (err) {
+              console.error("Finalize Sea Service failed:", err);
+              toast.error("Failed to finalize Sea Service.");
+            }
+          }}
+        >
+          Finalize
+        </Button>
+      </Dialog.Actions>
+    </Dialog>
+  </Portal>
+</View>
+
   </View>
 );
 

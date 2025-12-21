@@ -54,6 +54,36 @@ function hasValue(v: any): boolean {
 
 /**
  * ------------------------------------------------------------
+ * Check if Service Period is fully completed
+ * ------------------------------------------------------------
+ */
+export function isServicePeriodComplete(
+  servicePeriod: {
+    signOnDate: string | null;
+    signOnPort: string | null;
+    signOffDate: string | null;
+    signOffPort: string | null;
+  } | undefined
+): boolean {
+  if (!servicePeriod) return false;
+
+  const { signOnDate, signOnPort, signOffDate, signOffPort } = servicePeriod;
+
+  return (
+    typeof signOnDate === "string" &&
+    signOnDate.length > 0 &&
+    typeof signOnPort === "string" &&
+    signOnPort.trim().length > 0 &&
+    typeof signOffDate === "string" &&
+    signOffDate.length > 0 &&
+    typeof signOffPort === "string" &&
+    signOffPort.trim().length > 0
+  );
+}
+
+
+/**
+ * ------------------------------------------------------------
  * Get status for a SINGLE Sea Service section
  * ------------------------------------------------------------
  *
@@ -183,3 +213,32 @@ export function getSeaServiceSummary(
     notStartedSections: notStarted,
   };
 }
+/**
+ * ------------------------------------------------------------
+ * Check if Sea Service can be FINALIZED
+ * ------------------------------------------------------------
+ *
+ * Rules:
+ * - Service Period must be complete
+ * - ALL sections must be COMPLETED
+ */
+export function canFinalizeSeaService(
+  payload: {
+    servicePeriod?: any;
+    sections?: Record<string, any>;
+  },
+  shipType?: string
+): boolean {
+  if (!payload?.sections) return false;
+
+  // 1️⃣ Service Period check
+  if (!isServicePeriodComplete(payload.servicePeriod)) {
+    return false;
+  }
+
+  // 2️⃣ Section completion check
+  const summary = getSeaServiceSummary(payload.sections, shipType);
+
+  return summary.completedSections === summary.totalSections;
+}
+

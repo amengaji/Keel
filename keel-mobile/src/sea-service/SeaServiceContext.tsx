@@ -48,6 +48,10 @@ interface SeaServiceContextType {
   ) => void;
   setShipType: (shipTypeCode: string) => void;
   resetDraft: () => void;
+    updateServicePeriod: (
+    period: SeaServicePayload["servicePeriod"]
+  ) => void;
+
 }
 
 /**
@@ -161,6 +165,23 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
       },
     }));
   };
+  /**
+ * Update service period (sign on / off details)
+ * Stored at top-level, not inside sections
+ */
+const updateServicePeriod = (
+  period: SeaServicePayload["servicePeriod"]
+) => {
+  setPayload((prev) => ({
+    ...prev,
+    lastUpdatedAt: Date.now(),
+    servicePeriod: {
+      ...prev.servicePeriod,
+      ...period,
+    },
+  }));
+};
+
 
   /**
    * Set ship type selected by cadet.
@@ -191,6 +212,7 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
         payload,
         startNewDraft,
         updateSection,
+        updateServicePeriod,
         setShipType,
         resetDraft,
       }}
