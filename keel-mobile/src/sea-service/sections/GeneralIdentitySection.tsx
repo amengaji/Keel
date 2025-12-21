@@ -18,6 +18,7 @@ import {
 } from "react-native-paper";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 
 import { useSeaService } from "../SeaServiceContext";
 import { useToast } from "../../components/toast/useToast";
@@ -26,6 +27,7 @@ export default function GeneralIdentitySection() {
   const theme = useTheme();
   const toast = useToast();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
 
   const { payload, updateSection } = useSeaService();
 
@@ -58,6 +60,15 @@ export default function GeneralIdentitySection() {
     });
 
     toast.success("General Identity details saved.");
+
+    
+  /**
+   * UX RULE:
+   * Saving a section returns cadet to Sections overview
+   * (commit + exit, not linger)
+   */
+  navigation.goBack();
+
   };
 
 return (

@@ -29,12 +29,15 @@ import React, {
 import {
   SeaServicePayload,
   DEFAULT_SEA_SERVICE_PAYLOAD,
+  SeaServiceSectionStatusMap
 } from "./seaServiceDefaults";
 import {
   getSeaServicePayloadOrDefault,
   upsertSeaServiceDraft,
 } from "../db/seaService";
 import { useToast } from "../components/toast/useToast";
+
+
 
 /**
  * Context shape exposed to consumers.
@@ -154,29 +157,31 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
      * - Marks section as COMPLETE
      * - Keeps draft-safe behavior
      */
-    const updateSection = (
-      sectionKey: keyof SeaServicePayload["sections"],
-      data: Record<string, any>
-    ) => {
-      setPayload((prev) => ({
-        ...prev,
-        lastUpdatedAt: Date.now(),
+const updateSection = (
+  sectionKey: keyof SeaServicePayload["sections"],
+  data: Record<string, any>
+) => {
+  setPayload((prev) => ({
+    ...prev,
+    lastUpdatedAt: Date.now(),
 
-        // Mark this section as completed
-        sectionStatus: {
-          ...prev.sectionStatus,
-          [sectionKey]: "COMPLETE",
-        },
+    // Mark this section as completed
+    sectionStatus: {
+      ...prev.sectionStatus,
+      [sectionKey]: "COMPLETE",
+    },
 
-        sections: {
-          ...prev.sections,
-          [sectionKey]: {
-            ...prev.sections[sectionKey],
-            ...data,
-          },
-        },
-      }));
-    };
+    // Update section data
+    sections: {
+      ...prev.sections,
+      [sectionKey]: {
+        ...prev.sections[sectionKey],
+        ...data,
+      },
+    },
+  }));
+};
+
 
   /**
  * Update service period (sign on / off details)
@@ -232,16 +237,26 @@ const updateServicePeriod = (
 const canFinalize = (() => {
   const period = payload.servicePeriod;
 
-  if (!period?.signOnDate) return false;
+  // Sign-on is mandatory
+  if (!period || !period.signOnDate) return false;
 
-  const statuses = payload.sectionStatus ?? {};
+  const statuses = payload.sectionStatus;
 
-  const mandatorySections = Object.keys(payload.sections);
+  // Safety: sectionStatus must exist
+  if (!statuses) return false;
 
-  return mandatorySections.every(
+  // Typed section keys (NO string indexing)
+  const sectionKeys = Object.keys(payload.sections) as Array<
+    keyof typeof payload.sections
+  >;
+
+  return sectionKeys.every(
     (key) => statuses[key] === "COMPLETE"
   );
 })();
+
+
+
 
 
   return (

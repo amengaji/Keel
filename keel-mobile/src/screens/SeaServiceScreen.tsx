@@ -25,6 +25,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { MainStackParamList } from "../navigation/types";
 import { useToast } from "../components/toast/useToast";
 import { getSeaServiceRecord } from "../db/seaService";
+import { useSeaService } from "../sea-service/SeaServiceContext";
+
 
 function formatDate(
   value: string | Date | null | undefined
@@ -46,6 +48,7 @@ function formatDate(
 export default function SeaServiceScreen() {
   const theme = useTheme();
   const toast = useToast();
+  const { startNewDraft } = useSeaService();
 
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
@@ -70,9 +73,14 @@ export default function SeaServiceScreen() {
    * DERIVED STATE
    * ============================================================
    */
-    const hasDraft =
+    const isDraft =
       !!seaServiceRecord &&
       seaServiceRecord.status === "DRAFT";
+
+    const isFinalized =
+      !!seaServiceRecord &&
+      seaServiceRecord.status === "FINAL";
+
 
 
   /**
@@ -86,9 +94,11 @@ export default function SeaServiceScreen() {
   };
 
   const handleAddSeaService = () => {
+    startNewDraft();
     navigation.navigate("SeaServiceWizard");
-    toast.info("Starting Sea Service...");
+    toast.info("Starting new Sea Service...");
   };
+
 
   return (
     <ScrollView
@@ -110,7 +120,7 @@ export default function SeaServiceScreen() {
       {/* --------------------------------------------------------
           ACTIVE SERVICE CARD
          -------------------------------------------------------- */}
-      {hasDraft && (
+      {isDraft && (
         <Card style={styles.serviceCard}>
           <Card.Content>
             <View style={styles.cardHeader}>
@@ -144,11 +154,41 @@ export default function SeaServiceScreen() {
         </Card>
       )}
 
+    {isFinalized && (
+      <Card style={styles.serviceCard}>
+        <Card.Content>
+          <View style={styles.cardHeader}>
+            <Text variant="titleMedium" style={{ fontWeight: "600" }}>
+              {seaServiceRecord.shipName || "Completed Sea Service"}
+            </Text>
+
+            <Chip mode="outlined">COMPLETED</Chip>
+          </View>
+
+          {seaServiceRecord.imoNumber && (
+            <Text variant="bodySmall" style={styles.metaText}>
+              IMO: {seaServiceRecord.imoNumber}
+            </Text>
+          )}
+
+          <Text variant="bodySmall" style={styles.metaText}>
+            Sign On:{" "}
+            {formatDate(seaServiceRecord.payload.servicePeriod?.signOnDate)}
+          </Text>
+
+          <Text variant="bodySmall" style={styles.metaText}>
+            Sign Off:{" "}
+            {formatDate(seaServiceRecord.payload.servicePeriod?.signOffDate)}
+          </Text>
+        </Card.Content>
+      </Card>
+    )}
+
 
       {/* --------------------------------------------------------
           EMPTY STATE (NO ACTIVE SERVICE)
          -------------------------------------------------------- */}
-      {!hasDraft && (
+      {!isDraft && (
         <Card style={styles.emptyCard}>
           <Card.Content>
             <Text variant="bodyMedium" style={styles.emptyText}>
@@ -162,35 +202,11 @@ export default function SeaServiceScreen() {
         </Card>
       )}
 
-      {hasDraft && (
-  <Card style={styles.serviceCard}>
-    <Card.Content>
-      <Text variant="titleMedium" style={{ fontWeight: "600" }}>
-        Sign On / Sign Off
-      </Text>
-
-      <Text variant="bodySmall" style={styles.metaText}>
-        Manage joining and relieving dates
-      </Text>
-    </Card.Content>
-
-    <Card.Actions>
-      <Button
-        mode="outlined"
-        onPress={() => navigation.navigate("SeaServiceWizard")}
-      >
-        Edit Dates
-      </Button>
-    </Card.Actions>
-  </Card>
-)}
-
-
       {/* --------------------------------------------------------
           ADD SEA SERVICE CTA
           - Only shown when no active service exists
          -------------------------------------------------------- */}
-      {!hasDraft && (
+      {!isDraft && (
         <Button
           mode="contained"
           style={styles.addButton}

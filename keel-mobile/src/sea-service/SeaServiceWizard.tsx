@@ -77,9 +77,28 @@ export default function SeaServiceWizard() {
   const navigation = useNavigation();
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
 
+  const { payload, setShipType, updateServicePeriod } = useSeaService();
 
-  const { payload, setShipType, canFinalize, updateServicePeriod } = useSeaService();
-//  const canFinalize = canFinalizeSeaService(payload, payload.shipType ?? undefined);
+  const canFinalize = (() => {
+  const period = payload.servicePeriod;
+
+  // Maritime hard rule:
+  // Cannot finalize without BOTH sign-on and sign-off
+  if (!period?.signOnDate) return false;
+  if (!period?.signOffDate) return false;
+
+  const statuses = payload.sectionStatus ?? {};
+
+  const mandatorySections = Object.keys(payload.sections) as Array<
+    keyof typeof statuses
+  >;
+
+  return mandatorySections.every(
+    (key) => statuses[key] === "COMPLETE"
+  );
+})();
+
+
 
 
   /** Internal wizard step state */
@@ -1817,44 +1836,44 @@ if (section.key === "INERT_GAS_SYSTEM") {
     {/* =====================================================
         STICKY BOTTOM ACTION BAR
         ===================================================== */}
-<View
-  style={[
-    styles.bottomActionBar,
-    {
-      backgroundColor: theme.colors.background,
-      borderTopColor: theme.colors.outlineVariant,
-      paddingBottom: Math.max(insets.bottom, 12),
-      flexDirection: "row",
-      gap: 12,
-    },
-  ]}
->
-  <Button
-    mode="outlined"
-    style={{ flex: 1 }}
-    onPress={() => setCurrentStep("SHIP_TYPE")}
-  >
-    Change Ship Type
-  </Button>
+    <View
+      style={[
+        styles.bottomActionBar,
+        {
+          backgroundColor: theme.colors.background,
+          borderTopColor: theme.colors.outlineVariant,
+          paddingBottom: Math.max(insets.bottom, 12),
+          flexDirection: "row",
+          gap: 12,
+        },
+      ]}
+    >
+      <Button
+        mode="outlined"
+        style={{ flex: 1 }}
+        onPress={() => setCurrentStep("SHIP_TYPE")}
+      >
+        Change Ship Type
+      </Button>
 
-{canFinalize && (
-  <Button
-    mode="outlined"
-    style={{ flex: 1 }}
-    onPress={() => setShowFinalizeConfirm(true)}
-  >
-    Finalize
-  </Button>
-)}
+    {canFinalize && (
+      <Button
+        mode="outlined"
+        style={{ flex: 1 }}
+        onPress={() => setShowFinalizeConfirm(true)}
+      >
+        Finalize
+      </Button>
+    )}
 
-{!canFinalize && (
-  <Text
-    variant="bodySmall"
-    style={{ opacity: 0.6, marginTop: 8, textAlign: "center" }}
-  >
-    Complete all required sections and ensure sign-on date is entered to finalize.
-  </Text>
-)}
+    {!canFinalize && (
+      <Text
+        variant="bodySmall"
+        style={{ opacity: 0.6, marginTop: 8, textAlign: "center" }}
+      >
+        Complete all required sections and ensure sign-on date is entered to finalize.
+      </Text>
+    )}
 
 
 

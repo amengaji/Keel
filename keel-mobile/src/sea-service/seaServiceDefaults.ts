@@ -67,7 +67,7 @@ export interface SeaServicePayload {
    * Section completion tracking
    * Used for finalize gating and UX indicators
    */
-  sectionStatus: Record<string, SeaServiceSectionStatus>;
+  sectionStatus: SeaServiceSectionStatusMap;
 
   /** Section-wise technical data */
   sections: {
@@ -93,6 +93,32 @@ export interface SeaServicePayload {
 export type SeaServiceSectionStatus =
   | "INCOMPLETE"
   | "COMPLETE";
+
+
+  /**
+ * Typed section keys (prevents typos and missing keys)
+ */
+export type SeaServiceSectionKey =
+  | "GENERAL_IDENTITY"
+  | "DIMENSIONS_TONNAGE"
+  | "PROPULSION_PERFORMANCE"
+  | "AUX_MACHINERY_ELECTRICAL"
+  | "DECK_MACHINERY_MANEUVERING"
+  | "CARGO_CAPABILITIES"
+  | "NAVIGATION_COMMUNICATION"
+  | "LIFE_SAVING_APPLIANCES"
+  | "FIRE_FIGHTING_APPLIANCES"
+  | "POLLUTION_PREVENTION"
+  | "INERT_GAS_SYSTEM";
+
+/**
+ * Section completion map (strict)
+ */
+export type SeaServiceSectionStatusMap = Record<
+  SeaServiceSectionKey,
+  SeaServiceSectionStatus
+>;
+
 
 /**
  * ============================================================
