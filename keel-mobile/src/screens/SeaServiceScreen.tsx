@@ -206,15 +206,24 @@ export default function SeaServiceScreen() {
           ADD SEA SERVICE CTA
           - Only shown when no active service exists
          -------------------------------------------------------- */}
-      {!isDraft && (
-        <Button
-          mode="contained"
-          style={styles.addButton}
-          onPress={handleAddSeaService}
+      <Button
+        mode="contained"
+        style={styles.addButton}
+        disabled={isDraft}
+        onPress={handleAddSeaService}
+      >
+        Add Sea Service
+      </Button>
+
+      {isDraft && (
+        <Text
+          variant="bodySmall"
+          style={{ textAlign: "center", marginTop: 8, opacity: 0.6 }}
         >
-          Add Sea Service
-        </Button>
+          Complete and finalize the current Sea Service before adding a new one.
+        </Text>
       )}
+
     </ScrollView>
   );
 }

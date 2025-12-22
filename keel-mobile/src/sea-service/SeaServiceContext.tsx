@@ -45,6 +45,9 @@ import { useToast } from "../components/toast/useToast";
  */
 interface SeaServiceContextType {
   payload: SeaServicePayload;
+    // Active Sea Service DB record id (null if no active draft exists)
+  seaServiceId: string | null;
+
 
   canFinalize: boolean;
 
@@ -85,11 +88,22 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
     sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
   }));
 
+  // Holds the DB record ID for the active Sea Service
+  const [seaServiceId, setSeaServiceId] = useState<string | null>(null);
+
+
   /**
    * Track whether initial DB load is complete.
    * Prevents accidental overwrite on first render.
    */
   const hasHydratedRef = useRef(false);
+
+  /**
+   * Track if current Sea Service is FINAL.
+   * FINAL records must be READ-ONLY.
+   */
+  const isFinalizedRef = useRef<boolean>(false);
+
 
   /**
    * ============================================================
@@ -100,27 +114,38 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
     try {
       const record = getSeaServiceRecord();
 
-      if (record && record.status === "FINAL") {
-        // Do NOT hydrate finalized records into wizard
-        hasHydratedRef.current = true;
-        return;
+      if (record) {
+        isFinalizedRef.current = record.status === "FINAL";
+
+          // Store DB record ID separately from payload
+        setSeaServiceId(record.id);
+
+        setPayload({
+          ...record.payload,
+          sections: { ...record.payload.sections },
+        });
+      } else {
+        isFinalizedRef.current = false;
+
+        setSeaServiceId(null);
+
+
+        setPayload({
+          ...DEFAULT_SEA_SERVICE_PAYLOAD,
+          sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
+        });
       }
 
-      const storedPayload = getSeaServicePayloadOrDefault();
-
-      setPayload({
-        ...storedPayload,
-        sections: { ...storedPayload.sections },
-      });
-
       hasHydratedRef.current = true;
-
     } catch (err) {
-      console.error("Failed to load Sea Service draft:", err);
-      toast.error("Failed to load Sea Service draft. Using empty form.");
+      console.error("Failed to hydrate Sea Service:", err);
+      toast.error("Failed to load Sea Service draft.");
       hasHydratedRef.current = true;
     }
   }, [toast]);
+
+
+
 
   /**
    * ============================================================
@@ -133,7 +158,8 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
     if (!hasHydratedRef.current) return;
 
     try {
-      upsertSeaServiceDraft(payload);
+      if (!seaServiceId) return;
+      upsertSeaServiceDraft(seaServiceId, payload);
       // Silent success (no toast spam)
     } catch (err) {
       console.error("Auto-save Sea Service failed:", err);
@@ -152,6 +178,7 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
    * Overwrites current in-memory state and DB record.
    */
   const startNewDraft = () => {
+    if (isFinalizedRef.current) return;
     const freshPayload: SeaServicePayload = {
       ...DEFAULT_SEA_SERVICE_PAYLOAD,
       sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
@@ -171,6 +198,7 @@ const updateSection = (
   sectionKey: keyof SeaServicePayload["sections"],
   data: Record<string, any>
 ) => {
+  if (isFinalizedRef.current) return;
   setPayload((prev) => ({
     ...prev,
     lastUpdatedAt: Date.now(),
@@ -200,6 +228,7 @@ const updateSection = (
 const updateServicePeriod = (
   period: SeaServicePayload["servicePeriod"]
 ) => {
+  if (isFinalizedRef.current) return;
   setPayload((prev) => ({
     ...prev,
     lastUpdatedAt: Date.now(),
@@ -215,6 +244,7 @@ const updateServicePeriod = (
    * Set ship type selected by cadet.
    */
   const setShipType = (shipTypeCode: string) => {
+    if (isFinalizedRef.current) return;
     setPayload((prev) => ({
       ...prev,
       shipType: shipTypeCode,
@@ -226,6 +256,7 @@ const updateServicePeriod = (
    * Reset draft completely (memory + DB).
    */
   const resetDraft = () => {
+    if (isFinalizedRef.current) return;
     const resetPayload: SeaServicePayload = {
       ...DEFAULT_SEA_SERVICE_PAYLOAD,
       sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
@@ -273,6 +304,7 @@ const canFinalize = (() => {
     <SeaServiceContext.Provider
       value={{
         payload,
+        seaServiceId,
         canFinalize,
         startNewDraft,
         updateSection,

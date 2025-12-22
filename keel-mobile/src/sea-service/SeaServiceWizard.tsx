@@ -77,27 +77,40 @@ export default function SeaServiceWizard() {
   const navigation = useNavigation();
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
 
-  const { payload, setShipType, updateServicePeriod } = useSeaService();
+  const { payload, seaServiceId, updateSection, setShipType, updateServicePeriod, } = useSeaService();
 
-  const canFinalize = (() => {
+/**
+ * ============================================================
+ * FINALIZE ELIGIBILITY (SINGLE SOURCE OF TRUTH)
+ * ============================================================
+ *
+ * Rules:
+ * - Cadet MUST have signed on
+ * - ALL sections must be COMPLETE
+ * - Sign-off is NOT required
+ */
+const canFinalize = (() => {
   const period = payload.servicePeriod;
 
-  // Maritime hard rule:
-  // Cannot finalize without BOTH sign-on and sign-off
+  // Sign-on is mandatory
   if (!period?.signOnDate) return false;
-  if (!period?.signOffDate) return false;
 
-  const statuses = payload.sectionStatus ?? {};
+  const statuses = payload.sectionStatus;
 
-  const mandatorySections = Object.keys(payload.sections) as Array<
-    keyof typeof statuses
-  >;
+  if (!statuses) return false;
 
-  return mandatorySections.every(
-    (key) => statuses[key] === "COMPLETE"
-  );
+  // Every defined section must be COMPLETE
+  return (Object.keys(payload.sections) as Array<
+    keyof typeof payload.sections
+  >).every((key) => statuses[key] === "COMPLETE");
 })();
 
+
+/**
+ * FINAL records are read-only.
+ * UI must reflect this clearly.
+ */
+const isReadOnly = !canFinalize && payload?.servicePeriod?.signOffDate !== null;
 
 
 
@@ -1918,8 +1931,13 @@ if (section.key === "INERT_GAS_SYSTEM") {
 
         <Button
           onPress={() => {
+            if (!seaServiceId) {
+              toast.error("No active Sea Service draft found.");
+              return;
+            }
+
             try {
-              finalizeSeaService();
+              finalizeSeaService(seaServiceId);
               setShowFinalizeConfirm(false);
               toast.success("Sea Service finalized successfully.");
               navigation.goBack();
@@ -1928,6 +1946,7 @@ if (section.key === "INERT_GAS_SYSTEM") {
               toast.error("Failed to finalize Sea Service.");
             }
           }}
+
         >
           Finalize
         </Button>

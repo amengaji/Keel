@@ -17,8 +17,12 @@ import * as SQLite from "expo-sqlite";
  * - daily_logs
  * - watchkeeping
  *
- * NEW TABLES (THIS STEP):
- * - sea_service_records
+ * SEA SERVICE (UPGRADED IN THIS STEP):
+ * - sea_service_records now supports:
+ *   - Multiple records (history)
+ *   - Exactly ONE active DRAFT at a time (enforced by DB index)
+ *
+ * NEW TABLES (UNCHANGED HERE):
  * - task_records
  */
 
@@ -127,15 +131,29 @@ export function initDatabase(): void {
   ]);
 
   /* ==========================================================
-   * SEA SERVICE (NEW — OPTION A)
-   * ========================================================== */
+   * SEA SERVICE (OPTION 3 — HYBRID)
+   * ==========================================================
+   *
+   * Key business rule:
+   * - Multiple Sea Service records are allowed (history)
+   * - Exactly ONE can be status='DRAFT' at any time
+   *
+   * Why enforce at DB layer?
+   * - Prevents edge cases/offline race conditions
+   * - Guarantees audit-grade integrity
+   */
   database.execSync(`
     CREATE TABLE IF NOT EXISTS sea_service_records (
       id TEXT PRIMARY KEY NOT NULL,
 
-      -- Identifies the vessel / service period logically
+      -- Vessel identity (duplicated for fast dashboard listing/search)
       ship_name TEXT,
       imo_number TEXT,
+
+      -- Service period (ISO date strings: "YYYY-MM-DD")
+      -- These are duplicated for fast dashboard listing/filtering.
+      sign_on_date TEXT,
+      sign_off_date TEXT,
 
       -- Entire Sea Service payload (JSON)
       payload_json TEXT NOT NULL,
@@ -153,8 +171,38 @@ export function initDatabase(): void {
     );
   `);
 
+  /**
+   * SAFE migrations for existing installs:
+   * - Add service period columns (for dashboard listing)
+   */
+  ensureColumns(database, "sea_service_records", [
+    { name: "sign_on_date", type: "TEXT" },
+    { name: "sign_off_date", type: "TEXT" },
+  ]);
+
+  /**
+   * Enforce ONLY ONE DRAFT record (critical Option 3 rule).
+   * This is a partial unique index:
+   * - Applies ONLY to rows where status='DRAFT'
+   * - Allows unlimited FINAL records
+   */
+  database.execSync(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_sea_service_single_draft
+    ON sea_service_records(status)
+    WHERE status = 'DRAFT';
+  `);
+
+  /**
+   * Helpful indexes for history sorting and listing.
+   * (Does not enforce rules, only speeds up queries.)
+   */
+  database.execSync(`
+    CREATE INDEX IF NOT EXISTS idx_sea_service_status_updated
+    ON sea_service_records(status, updated_at);
+  `);
+
   /* ==========================================================
-   * TASKS (NEW — OPTION A)
+   * TASKS (NEW — OPTION A)  (UNCHANGED)
    * ========================================================== */
   database.execSync(`
     CREATE TABLE IF NOT EXISTS task_records (
