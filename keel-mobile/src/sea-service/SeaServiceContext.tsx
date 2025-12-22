@@ -5,17 +5,17 @@
  * Sea Service Context (SQLite-Backed, Draft-Safe)
  * ============================================================
  *
- * RESPONSIBILITIES (UPDATED):
- * - Hold in-memory Sea Service payload
- * - Load draft from SQLite on mount
- * - Auto-save draft:
- *    • On every section update
- *    • On wizard unmount / exit
+ * RESPONSIBILITIES:
+ * - Hold ACTIVE Sea Service draft payload in memory (DRAFT only)
+ * - Load ACTIVE draft from SQLite on mount
+ * - Load FINAL Sea Service history list from SQLite on mount
+ * - Auto-save DRAFT on payload changes (draft-safe)
+ * - Central authority for finalization (DRAFT → FINAL)
  *
- * STILL NOT RESPONSIBLE FOR:
+ * NOT RESPONSIBLE FOR:
  * - UI rendering
  * - Navigation
- * - Sync to backend (future step)
+ * - Backend sync (future)
  */
 
 import React, {
@@ -26,42 +26,81 @@ import React, {
   useEffect,
   useRef,
 } from "react";
+
 import {
   SeaServicePayload,
   DEFAULT_SEA_SERVICE_PAYLOAD,
-  SeaServiceSectionStatusMap
 } from "./seaServiceDefaults";
+
+import type { SeaServiceRecord } from "../db/seaService";
+
 import {
-  getSeaServicePayloadOrDefault,
+  getActiveSeaServiceDraft,
+  getSeaServiceFinalHistory,
   upsertSeaServiceDraft,
-  getSeaServiceRecord,
+  finalizeSeaService,
+  discardSeaServiceDraft,
 } from "../db/seaService";
+
 import { useToast } from "../components/toast/useToast";
-
-
+import { canFinalizeSeaService } from "./seaServiceStatus";
 
 /**
  * Context shape exposed to consumers.
  */
 interface SeaServiceContextType {
+  
+  /**
+   * ACTIVE draft payload only (if seaServiceId exists).
+   * When there is no active draft, payload is the default empty payload.
+   */
   payload: SeaServicePayload;
-    // Active Sea Service DB record id (null if no active draft exists)
+
+  /**
+   * Active Sea Service DB record id (null if no active draft exists).
+   */
   seaServiceId: string | null;
 
+  /**
+   * FINAL history list (read-only).
+   * Multiple records, sorted latest-first.
+   */
+  finalHistory: SeaServiceRecord[];
 
+  /**
+   * Finalization eligibility (central authority).
+   */
   canFinalize: boolean;
 
+  /**
+   * Actions
+   */
   startNewDraft: () => void;
   updateSection: (
     sectionKey: keyof SeaServicePayload["sections"],
     data: Record<string, any>
   ) => void;
+  updateServicePeriod: (period: SeaServicePayload["servicePeriod"]) => void;
   setShipType: (shipTypeCode: string) => void;
   resetDraft: () => void;
-    updateServicePeriod: (
-    period: SeaServicePayload["servicePeriod"]
-  ) => void;
 
+  /**
+   * Central finalize action (DRAFT → FINAL).
+   * UI must call via confirmation dialog.
+   */
+  finalizeSeaService: () => Promise<void>;
+
+    /**
+   * Discard ACTIVE draft (DRAFT only).
+   * Must never delete FINAL records.
+   */
+  discardDraft: () => Promise<void>;
+
+
+  /**
+   * Refresh FINAL history list from DB (useful after finalize).
+   */
+  refreshFinalHistory: () => void;
 }
 
 /**
@@ -71,64 +110,75 @@ const SeaServiceContext = createContext<SeaServiceContextType | undefined>(
   undefined
 );
 
-/**
- * ============================================================
- * PROVIDER
- * ============================================================
- */
 export function SeaServiceProvider({ children }: { children: ReactNode }) {
   const toast = useToast();
 
   /**
    * In-memory payload state.
-   * Initialized empty, then hydrated from SQLite.
+   * This represents ONLY the ACTIVE draft payload.
    */
   const [payload, setPayload] = useState<SeaServicePayload>(() => ({
     ...DEFAULT_SEA_SERVICE_PAYLOAD,
     sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
   }));
 
-  // Holds the DB record ID for the active Sea Service
+  /**
+   * DB record id for the active DRAFT (null if none).
+   */
   const [seaServiceId, setSeaServiceId] = useState<string | null>(null);
 
+  /**
+   * FINAL records history list.
+   */
+  const [finalHistory, setFinalHistory] = useState<SeaServiceRecord[]>([]);
 
   /**
-   * Track whether initial DB load is complete.
-   * Prevents accidental overwrite on first render.
+   * Track whether initial DB hydration is done.
+   * Prevents accidental overwrite during first render.
    */
   const hasHydratedRef = useRef(false);
 
   /**
-   * Track if current Sea Service is FINAL.
-   * FINAL records must be READ-ONLY.
+   * ============================================================
+   * Helper: refresh FINAL history (read-only)
+   * ============================================================
    */
-  const isFinalizedRef = useRef<boolean>(false);
-
+  const refreshFinalHistory = () => {
+    try {
+      const finals = getSeaServiceFinalHistory();
+      setFinalHistory(finals);
+    } catch (err) {
+      console.error("Failed to load Sea Service history:", err);
+      toast.error("Failed to load Sea Service history.");
+    }
+  };
 
   /**
    * ============================================================
    * INITIAL LOAD — SQLite → Context
    * ============================================================
+   *
+   * IMPORTANT:
+   * - Context holds ACTIVE draft only.
+   * - FINAL records are shown via finalHistory[].
    */
   useEffect(() => {
     try {
-      const record = getSeaServiceRecord();
+      // 1) Load FINAL history (always)
+      refreshFinalHistory();
 
-      if (record) {
-        isFinalizedRef.current = record.status === "FINAL";
+      // 2) Load ACTIVE draft (if any)
+      const draft = getActiveSeaServiceDraft();
 
-          // Store DB record ID separately from payload
-        setSeaServiceId(record.id);
+      if (draft) {
+        setSeaServiceId(draft.id);
 
         setPayload({
-          ...record.payload,
-          sections: { ...record.payload.sections },
+          ...draft.payload,
+          sections: { ...draft.payload.sections },
         });
       } else {
-        isFinalizedRef.current = false;
-
         setSeaServiceId(null);
-
 
         setPayload({
           ...DEFAULT_SEA_SERVICE_PAYLOAD,
@@ -139,20 +189,19 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
       hasHydratedRef.current = true;
     } catch (err) {
       console.error("Failed to hydrate Sea Service:", err);
-      toast.error("Failed to load Sea Service draft.");
+      toast.error("Failed to load Sea Service.");
       hasHydratedRef.current = true;
     }
-  }, [toast]);
-
-
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * ============================================================
-   * AUTO-SAVE — Context → SQLite
+   * AUTO-SAVE — Context → SQLite (DRAFT only)
    * ============================================================
    *
    * Triggered on ANY payload change AFTER hydration.
+   * Only saves when seaServiceId exists (active DRAFT exists).
    */
   useEffect(() => {
     if (!hasHydratedRef.current) return;
@@ -160,12 +209,12 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
     try {
       if (!seaServiceId) return;
       upsertSeaServiceDraft(seaServiceId, payload);
-      // Silent success (no toast spam)
+      // silent success (no toast spam)
     } catch (err) {
       console.error("Auto-save Sea Service failed:", err);
       toast.error("Auto-save failed. Your draft may not be saved.");
     }
-  }, [payload, toast]);
+  }, [payload, seaServiceId, toast]);
 
   /**
    * ============================================================
@@ -174,11 +223,12 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
    */
 
   /**
-   * Start a brand-new draft.
-   * Overwrites current in-memory state and DB record.
+   * Start a brand-new draft (memory only).
+   * NOTE:
+   * - Creating the DB row (id) is handled by your existing flow when a draft is persisted.
+   * - We keep this lightweight and draft-safe.
    */
   const startNewDraft = () => {
-    if (isFinalizedRef.current) return;
     const freshPayload: SeaServicePayload = {
       ...DEFAULT_SEA_SERVICE_PAYLOAD,
       sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
@@ -188,63 +238,51 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
     setPayload(freshPayload);
   };
 
-    /**
-     * Update data for a given section.
-     * - Merges section data
-     * - Marks section as COMPLETE
-     * - Keeps draft-safe behavior
-     */
-const updateSection = (
-  sectionKey: keyof SeaServicePayload["sections"],
-  data: Record<string, any>
-) => {
-  if (isFinalizedRef.current) return;
-  setPayload((prev) => ({
-    ...prev,
-    lastUpdatedAt: Date.now(),
-
-    // Mark this section as completed
-    sectionStatus: {
-      ...prev.sectionStatus,
-      [sectionKey]: "COMPLETE",
-    },
-
-    // Update section data
-    sections: {
-      ...prev.sections,
-      [sectionKey]: {
-        ...prev.sections[sectionKey],
-        ...data,
+  /**
+   * Update data for a given section:
+   * - merges section data
+   * - marks section as COMPLETE
+   */
+  const updateSection = (
+    sectionKey: keyof SeaServicePayload["sections"],
+    data: Record<string, any>
+  ) => {
+    setPayload((prev) => ({
+      ...prev,
+      lastUpdatedAt: Date.now(),
+      sectionStatus: {
+        ...prev.sectionStatus,
+        [sectionKey]: "COMPLETE",
       },
-    },
-  }));
-};
-
+      sections: {
+        ...prev.sections,
+        [sectionKey]: {
+          ...prev.sections[sectionKey],
+          ...data,
+        },
+      },
+    }));
+  };
 
   /**
- * Update service period (sign on / off details)
- * Stored at top-level, not inside sections
- */
-const updateServicePeriod = (
-  period: SeaServicePayload["servicePeriod"]
-) => {
-  if (isFinalizedRef.current) return;
-  setPayload((prev) => ({
-    ...prev,
-    lastUpdatedAt: Date.now(),
-    servicePeriod: {
-      ...prev.servicePeriod,
-      ...period,
-    },
-  }));
-};
-
+   * Update service period (sign on/off).
+   * Stored at top-level.
+   */
+  const updateServicePeriod = (period: SeaServicePayload["servicePeriod"]) => {
+    setPayload((prev) => ({
+      ...prev,
+      lastUpdatedAt: Date.now(),
+      servicePeriod: {
+        ...prev.servicePeriod,
+        ...period,
+      },
+    }));
+  };
 
   /**
    * Set ship type selected by cadet.
    */
   const setShipType = (shipTypeCode: string) => {
-    if (isFinalizedRef.current) return;
     setPayload((prev) => ({
       ...prev,
       shipType: shipTypeCode,
@@ -253,64 +291,118 @@ const updateServicePeriod = (
   };
 
   /**
-   * Reset draft completely (memory + DB).
+   * Reset draft completely (memory only).
+   * DB removal (discard) is a separate step (approved for DRAFT only).
    */
   const resetDraft = () => {
-    if (isFinalizedRef.current) return;
-    const resetPayload: SeaServicePayload = {
+    setPayload({
       ...DEFAULT_SEA_SERVICE_PAYLOAD,
       sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
-    };
-
-    setPayload(resetPayload);
+    });
   };
 
   /**
- * ============================================================
- * FINALIZATION ELIGIBILITY (DERIVED STATE)
- * ============================================================
- *
- * Rules:
- * - Must have sign-on date
- * - Sign-off date NOT required
- * - All mandatory sections must be COMPLETE
- */
-const canFinalize = (() => {
-  const period = payload.servicePeriod;
+   * ============================================================
+   * FINALIZATION ELIGIBILITY (CENTRAL AUTHORITY)
+   * ============================================================
+   */
+  const canFinalize = canFinalizeSeaService(payload);
 
-  // Sign-on is mandatory
-  if (!period || !period.signOnDate) return false;
+  /**
+   * ============================================================
+   * FINALIZE SEA SERVICE (CENTRAL AUTHORITY)
+   * ============================================================
+   *
+   * - Validates eligibility (canFinalize)
+   * - Updates DB status DRAFT → FINAL
+   * - Clears active draft id + resets payload
+   * - Refreshes FINAL history list
+   */
+  const finalizeSeaServiceAction = async () => {
+    try {
+      if (!seaServiceId) {
+        toast.error("No active Sea Service to finalize.");
+        return;
+      }
 
-  const statuses = payload.sectionStatus;
+      if (!canFinalize) {
+        toast.error(
+          "Sea Service is not eligible for finalization. Please complete all requirements."
+        );
+        return;
+      }
 
-  // Safety: sectionStatus must exist
-  if (!statuses) return false;
+      // DB: DRAFT → FINAL (authoritative lifecycle transition)
+      finalizeSeaService(seaServiceId);
 
-  // Typed section keys (NO string indexing)
-  const sectionKeys = Object.keys(payload.sections) as Array<
-    keyof typeof payload.sections
-  >;
+      // Clear active draft in memory
+      setSeaServiceId(null);
+      setPayload({
+        ...DEFAULT_SEA_SERVICE_PAYLOAD,
+        sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
+      });
 
-  return sectionKeys.every(
-    (key) => statuses[key] === "COMPLETE"
-  );
-})();
+      // Refresh history list
+      refreshFinalHistory();
 
+      toast.success("Sea Service finalized successfully.");
+    } catch (err) {
+      console.error("Failed to finalize Sea Service:", err);
+      toast.error("Failed to finalize Sea Service. Please try again.");
+    }
 
+    
+  };
+  /**
+   * ============================================================
+   * DISCARD DRAFT (DRAFT ONLY — CENTRAL AUTHORITY)
+   * ============================================================
+   *
+   * - Deletes the ACTIVE DRAFT from DB
+   * - Clears active draft id + resets payload
+   * - FINAL records remain untouched (immutable)
+   */
+  const discardDraftAction = async () => {
+    try {
+      if (!seaServiceId) {
+        toast.error("No active draft to discard.");
+        return;
+      }
 
+      // DB: delete only if status is DRAFT (guard is inside DB function)
+      discardSeaServiceDraft(seaServiceId);
 
+      // Clear active draft in memory
+      setSeaServiceId(null);
+      setPayload({
+        ...DEFAULT_SEA_SERVICE_PAYLOAD,
+        sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
+      });
+
+      toast.success("Draft discarded successfully.");
+    } catch (err) {
+      console.error("Failed to discard Sea Service draft:", err);
+      toast.error("Failed to discard draft. Please try again.");
+    }
+  };
+
+  
 
   return (
     <SeaServiceContext.Provider
       value={{
         payload,
         seaServiceId,
+        finalHistory,
         canFinalize,
         startNewDraft,
         updateSection,
         updateServicePeriod,
         setShipType,
         resetDraft,
+        finalizeSeaService: finalizeSeaServiceAction,
+        discardDraft: discardDraftAction,
+        refreshFinalHistory,
       }}
     >
       {children}
@@ -319,16 +411,12 @@ const canFinalize = (() => {
 }
 
 /**
- * ============================================================
- * HOOK
- * ============================================================
+ * Hook
  */
 export function useSeaService() {
   const ctx = useContext(SeaServiceContext);
   if (!ctx) {
-    throw new Error(
-      "useSeaService must be used within a SeaServiceProvider"
-    );
+    throw new Error("useSeaService must be used within a SeaServiceProvider");
   }
   return ctx;
 }

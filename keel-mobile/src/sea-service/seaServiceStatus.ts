@@ -2,35 +2,29 @@
 
 /**
  * ============================================================
- * Sea Service — Section Status Utility
+ * Sea Service — Status & Finalization Authority
  * ============================================================
  *
- * PURPOSE:
- * - Single source of truth for Sea Service section status
- * - Used by:
- *   - SeaServiceWizard (navigation + completion logic)
- *   - Home Dashboard (read-only compliance snapshot)
+ * THIS FILE IS THE SINGLE SOURCE OF TRUTH FOR:
+ * - Section status calculation
+ * - Dashboard summaries
+ * - Finalization eligibility (SIGN-OFF REQUIRED)
  *
  * IMPORTANT:
- * - PURE LOGIC ONLY
- * - NO React
- * - NO UI
- * - NO side effects
- *
- * Status meanings (Inspector-grade):
- * - NOT_STARTED     → No interaction
- * - IN_PROGRESS     → Partial / draft data
- * - COMPLETED       → Compliance-critical data recorded
+ * - Existing exports are preserved for backward compatibility
+ * - Finalization rules are now CENTRALIZED and AUDIT-SAFE
  */
 
 import {
   SEA_SERVICE_SECTIONS,
   SeaServiceSectionKey,
 } from "../config/seaServiceSections";
+import { SeaServicePayload } from "./seaServiceDefaults";
 
 /**
- * Standardised section status values.
- * Kept string-based for easy display and comparison.
+ * ============================================================
+ * SECTION STATUS TYPES
+ * ============================================================
  */
 export type SeaServiceSectionStatus =
   | "NOT_STARTED"
@@ -38,9 +32,9 @@ export type SeaServiceSectionStatus =
   | "COMPLETED";
 
 /**
- * ------------------------------------------------------------
- * Helper: check if a value is meaningfully filled
- * ------------------------------------------------------------
+ * ============================================================
+ * INTERNAL HELPERS
+ * ============================================================
  */
 function hasValue(v: any): boolean {
   if (v === null || v === undefined) return false;
@@ -52,45 +46,53 @@ function hasValue(v: any): boolean {
   return false;
 }
 
+function isValidDateValue(value: unknown): boolean {
+  if (!value) return false;
+
+  if (typeof value === "string") {
+    return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+  }
+
+  if (value instanceof Date) {
+    return !isNaN(value.getTime());
+  }
+
+  return false;
+}
+
 /**
- * ------------------------------------------------------------
- * Check if Service Period is fully completed
- * ------------------------------------------------------------
+ * ============================================================
+ * SERVICE PERIOD COMPLETION (UPDATED)
+ * ============================================================
+ *
+ * SIGN-OFF IS NOW REQUIRED (APPROVED RULE)
  */
 export function isServicePeriodComplete(
-  servicePeriod: {
-    signOnDate: string | null;
-    signOnPort: string | null;
-    signOffDate: string | null;
-    signOffPort: string | null;
-  } | undefined
+  servicePeriod:
+    | {
+        signOnDate: string | Date | null;
+        signOnPort: string | null;
+        signOffDate: string | Date | null;
+        signOffPort: string | null;
+      }
+    | undefined
 ): boolean {
   if (!servicePeriod) return false;
 
-  const { signOnDate, signOnPort, signOffDate, signOffPort } = servicePeriod;
-
   return (
-    typeof signOnDate === "string" &&
-    signOnDate.length > 0 &&
-    typeof signOnPort === "string" &&
-    signOnPort.trim().length > 0 &&
-    typeof signOffDate === "string" &&
-    signOffDate.length > 0 &&
-    typeof signOffPort === "string" &&
-    signOffPort.trim().length > 0
+    isValidDateValue(servicePeriod.signOnDate) &&
+    typeof servicePeriod.signOnPort === "string" &&
+    servicePeriod.signOnPort.trim().length > 0 &&
+    isValidDateValue(servicePeriod.signOffDate) &&
+    typeof servicePeriod.signOffPort === "string" &&
+    servicePeriod.signOffPort.trim().length > 0
   );
 }
 
-
 /**
- * ------------------------------------------------------------
- * Get status for a SINGLE Sea Service section
- * ------------------------------------------------------------
- *
- * NOTE:
- * - This function intentionally stays conservative.
- * - It detects interaction vs emptiness reliably.
- * - Compliance rules can be tightened per section later.
+ * ============================================================
+ * SECTION STATUS (UNCHANGED LOGIC)
+ * ============================================================
  */
 export function getSeaServiceSectionStatus(
   sectionKey: SeaServiceSectionKey,
@@ -101,42 +103,22 @@ export function getSeaServiceSectionStatus(
     return "NOT_STARTED";
   }
 
-  // Detect ANY interaction
   const hasAnyData = Object.values(sectionData).some(hasValue);
-  if (!hasAnyData) {
-    return "NOT_STARTED";
-  }
-
-  /**
-   * Section-specific compliance logic
-   * ----------------------------------
-   * We ONLY lock COMPLETED where rules are clear.
-   * Everything else defaults safely to IN_PROGRESS.
-   */
+  if (!hasAnyData) return "NOT_STARTED";
 
   switch (sectionKey) {
-    case "LIFE_SAVING_APPLIANCES": {
-      // If at least one major LSA category exists, we consider it completed.
-      if (
-        sectionData.lifeboatsAvailable ||
+    case "LIFE_SAVING_APPLIANCES":
+      return sectionData.lifeboatsAvailable ||
         sectionData.lifeRaftsAvailable ||
         sectionData.lifeJacketsAvailable
-      ) {
-        return "COMPLETED";
-      }
-      return "IN_PROGRESS";
-    }
+        ? "COMPLETED"
+        : "IN_PROGRESS";
 
-    case "FIRE_FIGHTING_APPLIANCES": {
-      // Completion if core systems exist
-      if (
-        sectionData.engineRoomFixedAvailable ||
+    case "FIRE_FIGHTING_APPLIANCES":
+      return sectionData.engineRoomFixedAvailable ||
         sectionData.portableExtinguishersAvailable
-      ) {
-        return "COMPLETED";
-      }
-      return "IN_PROGRESS";
-    }
+        ? "COMPLETED"
+        : "IN_PROGRESS";
 
     case "INERT_GAS_SYSTEM": {
       const isTanker =
@@ -145,7 +127,6 @@ export function getSeaServiceSectionStatus(
         shipType === "PRODUCT_TANKER" ||
         shipType === "CHEMICAL_TANKER";
 
-      // Not fitted but justified → completed for non-tankers
       if (
         !sectionData.igsFitted &&
         !isTanker &&
@@ -155,7 +136,6 @@ export function getSeaServiceSectionStatus(
         return "COMPLETED";
       }
 
-      // Fitted + core components → completed
       if (
         sectionData.igsFitted &&
         (sectionData.scrubberAvailable ||
@@ -169,21 +149,14 @@ export function getSeaServiceSectionStatus(
     }
 
     default:
-      // For other sections, any interaction = IN_PROGRESS
       return "IN_PROGRESS";
   }
 }
 
 /**
- * ------------------------------------------------------------
- * Get OVERALL Sea Service summary
- * ------------------------------------------------------------
- *
- * Returns:
- * - totalSections
- * - completedSections
- * - inProgressSections
- * - notStartedSections
+ * ============================================================
+ * DASHBOARD SUMMARY (BACKWARD COMPATIBLE)
+ * ============================================================
  */
 export function getSeaServiceSummary(
   sectionsData: Record<string, any> | undefined,
@@ -213,32 +186,28 @@ export function getSeaServiceSummary(
     notStartedSections: notStarted,
   };
 }
+
 /**
- * ------------------------------------------------------------
- * Check if Sea Service can be FINALIZED
- * ------------------------------------------------------------
+ * ============================================================
+ * FINALIZATION AUTHORITY (SINGLE SOURCE OF TRUTH)
+ * ============================================================
  *
- * Rules:
- * - Service Period must be complete
- * - ALL sections must be COMPLETED
+ * SIGN-OFF REQUIRED
+ * OPTION A: ALL SECTIONS MUST BE COMPLETED
  */
 export function canFinalizeSeaService(
-  payload: {
-    servicePeriod?: any;
-    sections?: Record<string, any>;
-  },
+  payload: SeaServicePayload,
   shipType?: string
 ): boolean {
   if (!payload?.sections) return false;
 
-  // 1️⃣ Service Period check
+  // 1️⃣ Service Period must be complete
   if (!isServicePeriodComplete(payload.servicePeriod)) {
     return false;
   }
 
-  // 2️⃣ Section completion check
+  // 2️⃣ ALL sections must be COMPLETED (Option A)
   const summary = getSeaServiceSummary(payload.sections, shipType);
 
   return summary.completedSections === summary.totalSections;
 }
-

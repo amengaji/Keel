@@ -276,6 +276,33 @@ export function upsertSeaServiceDraft(
     ]
   );
 }
+/**
+ * ============================================================
+ * Finalize Sea Service Record
+ * ============================================================
+ *
+ * - Transitions record status to FINAL
+ * - Payload is NOT modified
+ * - FINAL records become immutable
+ */
+export async function finalizeSeaServiceRecord(recordId: string) {
+  if (!recordId) {
+    throw new Error("Missing Sea Service record ID");
+  }
+
+  const db = getDatabase();
+
+  await db.execAsync(
+    `
+    UPDATE sea_service
+    SET status = 'FINAL',
+        updated_at = strftime('%s','now')
+    WHERE id = '${recordId}'
+    `
+  );
+}
+
+
 
 /**
  * ============================================================
@@ -472,6 +499,36 @@ export function finalizeSeaService(recordId: string): void {
  * - If DRAFT exists -> return it
  * - Else -> return most recent FINAL (if any)
  */
+
+/**
+ * ------------------------------------------------------------
+ * Discard Sea Service Draft (DRAFT only)
+ * ------------------------------------------------------------
+ *
+ * RULE (APPROVED):
+ * - ONLY DRAFT can be deleted
+ * - FINAL is immutable (must never be deleted from UI)
+ *
+ * SAFETY:
+ * - WHERE status='DRAFT' prevents accidental deletion of FINAL
+ */
+export function discardSeaServiceDraft(recordId: string): void {
+  if (!recordId) {
+    throw new Error("Missing Sea Service record ID");
+  }
+
+  const db = getDatabase();
+
+  // Delete ONLY if it's still a DRAFT
+  db.runSync(
+    `
+    DELETE FROM sea_service_records
+    WHERE id = ? AND status = 'DRAFT';
+    `,
+    [recordId]
+  );
+}
+
 export function getSeaServiceRecord(): SeaServiceRecord | null {
   const draft = getActiveSeaServiceDraft();
   if (draft) return draft;
