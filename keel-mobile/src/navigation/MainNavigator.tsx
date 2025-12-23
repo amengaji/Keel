@@ -10,6 +10,7 @@ import AppHeader from "../components/layout/AppHeader";
 
 import SeaServiceWizardScreen from "../screens/SeaServiceWizardScreen";
 import TaskDetailsScreen from "../screens/TaskDetailsScreen";
+import StartSeaServiceScreen from "../screens/StartSeaServiceScreen";
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
 
@@ -29,6 +30,16 @@ export default function MainNavigator() {
 <Stack.Navigator screenOptions={{ headerShown: false }}>
   {/* Normal app layout with AppHeader + Tabs */}
   <Stack.Screen name="MainTabs" component={MainLayout} />
+
+  <Stack.Screen
+  name="StartSeaService"
+  component={StartSeaServiceScreen}
+  options={{
+    title: "Start Sea Service",
+    presentation: "modal",
+  }}
+/>
+
 
   {/* Full-screen Sea Service wizard */}
   <Stack.Screen

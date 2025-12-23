@@ -25,6 +25,7 @@ export type AuthStackParamList = {
  * ------------------------------------------------------------ */
 export type MainStackParamList = {
   MainTabs: undefined;
+  StartSeaService: undefined;
 
   /**
    * Full-screen Sea Service Wizard

@@ -11,6 +11,7 @@
  * - Load FINAL Sea Service history list from SQLite on mount
  * - Auto-save DRAFT on payload changes (draft-safe)
  * - Central authority for finalization (DRAFT → FINAL)
+ * - EXPLICITLY create DRAFT from StartSeaServiceScreen (Phase 4)
  *
  * NOT RESPONSIBLE FOR:
  * - UI rendering
@@ -35,6 +36,7 @@ import {
 import type { SeaServiceRecord } from "../db/seaService";
 
 import {
+  createSeaServiceDraft,
   getActiveSeaServiceDraft,
   getSeaServiceFinalHistory,
   upsertSeaServiceDraft,
@@ -49,7 +51,6 @@ import { canFinalizeSeaService } from "./seaServiceStatus";
  * Context shape exposed to consumers.
  */
 interface SeaServiceContextType {
-  
   /**
    * ACTIVE draft payload only (if seaServiceId exists).
    * When there is no active draft, payload is the default empty payload.
@@ -73,16 +74,25 @@ interface SeaServiceContextType {
   canFinalize: boolean;
 
   /**
+   * EXPLICIT creation (transaction) from StartSeaServiceScreen.
+   * This is the ONLY correct way to start a Sea Service.
+   */
+  startSeaServiceDraft: (args: {
+    shipType: string;
+    signOnDate: string;
+    signOnPort: string;
+  }) => Promise<void>;
+
+  /**
    * Actions
    */
-  startNewDraft: () => void;
   updateSection: (
     sectionKey: keyof SeaServicePayload["sections"],
     data: Record<string, any>
   ) => void;
+
   updateServicePeriod: (period: SeaServicePayload["servicePeriod"]) => void;
   setShipType: (shipTypeCode: string) => void;
-  resetDraft: () => void;
 
   /**
    * Central finalize action (DRAFT → FINAL).
@@ -90,12 +100,11 @@ interface SeaServiceContextType {
    */
   finalizeSeaService: () => Promise<void>;
 
-    /**
+  /**
    * Discard ACTIVE draft (DRAFT only).
    * Must never delete FINAL records.
    */
   discardDraft: () => Promise<void>;
-
 
   /**
    * Refresh FINAL history list from DB (useful after finalize).
@@ -172,14 +181,12 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
 
       if (draft) {
         setSeaServiceId(draft.id);
-
         setPayload({
           ...draft.payload,
           sections: { ...draft.payload.sections },
         });
       } else {
         setSeaServiceId(null);
-
         setPayload({
           ...DEFAULT_SEA_SERVICE_PAYLOAD,
           sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
@@ -218,24 +225,53 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
 
   /**
    * ============================================================
-   * PUBLIC ACTIONS
+   * EXPLICIT START (Phase 4 – Step 2)
    * ============================================================
+   *
+   * This is the fix for:
+   * - "Add Sea Service not saving to draft after sign-on"
+   *
+   * Guarantees:
+   * - Creates the DRAFT row immediately
+   * - Hydrates context from DB record (single source of truth)
    */
+  const startSeaServiceDraft = async (args: {
+    shipType: string;
+    signOnDate: string;
+    signOnPort: string;
+  }) => {
+    try {
+      if (!hasHydratedRef.current) {
+        // Defensive: ensure provider has mounted properly
+        toast.error("Sea Service is not ready yet. Please try again.");
+        return;
+      }
 
-  /**
-   * Start a brand-new draft (memory only).
-   * NOTE:
-   * - Creating the DB row (id) is handled by your existing flow when a draft is persisted.
-   * - We keep this lightweight and draft-safe.
-   */
-  const startNewDraft = () => {
-    const freshPayload: SeaServicePayload = {
-      ...DEFAULT_SEA_SERVICE_PAYLOAD,
-      sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
-      lastUpdatedAt: Date.now(),
-    };
+      if (seaServiceId) {
+        toast.info("An active Sea Service draft already exists.");
+        return;
+      }
 
-    setPayload(freshPayload);
+      const created = createSeaServiceDraft(args);
+
+      setSeaServiceId(created.id);
+      setPayload({
+        ...created.payload,
+        sections: { ...created.payload.sections },
+      });
+
+      toast.success("Sea Service draft started.");
+    } catch (err: any) {
+      console.error("Failed to start Sea Service draft:", err);
+
+      /**
+       * Most common reason:
+       * - DB unique index prevented a second DRAFT
+       */
+      toast.error(
+        "Failed to start Sea Service. Please ensure no active draft exists."
+      );
+    }
   };
 
   /**
@@ -251,13 +287,13 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
       ...prev,
       lastUpdatedAt: Date.now(),
       sectionStatus: {
-        ...prev.sectionStatus,
+        ...(prev as any).sectionStatus,
         [sectionKey]: "COMPLETE",
       },
       sections: {
         ...prev.sections,
         [sectionKey]: {
-          ...prev.sections[sectionKey],
+          ...(prev.sections as any)[sectionKey],
           ...data,
         },
       },
@@ -273,14 +309,15 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
       ...prev,
       lastUpdatedAt: Date.now(),
       servicePeriod: {
-        ...prev.servicePeriod,
-        ...period,
+        ...(prev as any).servicePeriod,
+        ...(period as any),
       },
     }));
   };
 
   /**
    * Set ship type selected by cadet.
+   * (Editable via the metadata edit sheet later.)
    */
   const setShipType = (shipTypeCode: string) => {
     setPayload((prev) => ({
@@ -288,17 +325,6 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
       shipType: shipTypeCode,
       lastUpdatedAt: Date.now(),
     }));
-  };
-
-  /**
-   * Reset draft completely (memory only).
-   * DB removal (discard) is a separate step (approved for DRAFT only).
-   */
-  const resetDraft = () => {
-    setPayload({
-      ...DEFAULT_SEA_SERVICE_PAYLOAD,
-      sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
-    });
   };
 
   /**
@@ -350,9 +376,8 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
       console.error("Failed to finalize Sea Service:", err);
       toast.error("Failed to finalize Sea Service. Please try again.");
     }
-
-    
   };
+
   /**
    * ============================================================
    * DISCARD DRAFT (DRAFT ONLY — CENTRAL AUTHORITY)
@@ -369,10 +394,8 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // DB: delete only if status is DRAFT (guard is inside DB function)
       discardSeaServiceDraft(seaServiceId);
 
-      // Clear active draft in memory
       setSeaServiceId(null);
       setPayload({
         ...DEFAULT_SEA_SERVICE_PAYLOAD,
@@ -386,8 +409,6 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  
-
   return (
     <SeaServiceContext.Provider
       value={{
@@ -395,11 +416,10 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
         seaServiceId,
         finalHistory,
         canFinalize,
-        startNewDraft,
+        startSeaServiceDraft,
         updateSection,
         updateServicePeriod,
         setShipType,
-        resetDraft,
         finalizeSeaService: finalizeSeaServiceAction,
         discardDraft: discardDraftAction,
         refreshFinalHistory,

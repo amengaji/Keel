@@ -1,4 +1,5 @@
 //keel-mobile/src/db/seaService.ts
+
 import { getDatabase } from "./database";
 import {
   DEFAULT_SEA_SERVICE_PAYLOAD,
@@ -7,184 +8,178 @@ import {
 
 /**
  * ============================================================
- * Sea Service — Local DB Adapter (Option 3 Hybrid)
+ * Sea Service — Local DB Adapter (Option 3: Hybrid)
  * ============================================================
  *
- * GOAL (FINAL DECISION):
- * - Multiple Sea Service records (per vessel stay)
- * - Exactly ONE active record can be DRAFT at a time
- * - FINAL records are read-only at UI/domain layer
+ * REQUIREMENTS:
+ * - Multiple Sea Service records are allowed (FINAL history)
+ * - Exactly ONE active DRAFT can exist at a time (DB unique index)
+ *
+ * TABLE: sea_service_records
+ * - id TEXT PK
+ * - ship_name, imo_number (fast listing)
+ * - sign_on_date, sign_off_date (fast listing)
+ * - payload_json (full payload)
+ * - status: DRAFT | FINAL
  *
  * IMPORTANT:
- * - NO UI changes here
- * - NO toast calls here (Screens/Contexts handle toasts)
- * - Dates are stored as ISO strings "YYYY-MM-DD" inside payload and in columns
- *
- * TABLE:
- * - sea_service_records
- *   - status: DRAFT | FINAL
- *   - DB enforces only one DRAFT via partial unique index
+ * - Dates are stored as ISO strings "YYYY-MM-DD" in DB columns.
+ * - Payload is stored as JSON (future sync-ready).
  */
 
 /**
- * Standardised sync states (future server sync)
- * Kept as string literals so we don't break DB values later.
- */
-export type SyncState =
-  | "LOCAL_ONLY"
-  | "DIRTY"
-  | "SYNCING"
-  | "SYNCED"
-  | "CONFLICT";
-
-/**
- * Sea Service record as returned by DB adapter.
- * Payload is always returned as a usable object.
+ * DB record model used by UI (dashboard + history).
  */
 export type SeaServiceRecord = {
   id: string;
-
   shipName: string | null;
   imoNumber: string | null;
-
-  // Duplicated service period columns (ISO date strings "YYYY-MM-DD")
   signOnDate: string | null;
   signOffDate: string | null;
-
-  payload: SeaServicePayload;
-
   status: "DRAFT" | "FINAL";
-  lastUpdatedAt: number | null;
-
-  remoteId: string | null;
-  syncState: SyncState;
-
+  payload: SeaServicePayload;
   createdAt: string;
   updatedAt: string;
 };
 
 /**
  * ------------------------------------------------------------
- * Helper: safe JSON parse
+ * Helpers
  * ------------------------------------------------------------
- * If payload is corrupt, we fail safe by returning defaults.
  */
-function safeParsePayload(payloadJson: string): SeaServicePayload {
+
+/**
+ * Generates a stable local id without extra dependencies.
+ * (Good enough for offline PK; remote_id will be used later for sync.)
+ */
+function generateLocalId(): string {
+  const t = Date.now().toString(36);
+  const r = Math.random().toString(36).slice(2, 10);
+  return `ss_${t}_${r}`;
+}
+
+/**
+ * Safe JSON parse.
+ */
+function parsePayloadJson(payloadJson: string): SeaServicePayload {
   try {
-    const parsed = JSON.parse(payloadJson);
-    return parsed as SeaServicePayload;
+    const parsed = JSON.parse(payloadJson) as SeaServicePayload;
+    return {
+      ...DEFAULT_SEA_SERVICE_PAYLOAD,
+      ...parsed,
+      sections: {
+        ...DEFAULT_SEA_SERVICE_PAYLOAD.sections,
+        ...(parsed as any).sections,
+      },
+    };
   } catch {
-    // Inspector-grade behavior: never crash, never return undefined.
-    return DEFAULT_SEA_SERVICE_PAYLOAD;
+    // Corrupt record fallback (draft-safe)
+    return {
+      ...DEFAULT_SEA_SERVICE_PAYLOAD,
+      sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
+    };
   }
 }
 
 /**
- * ------------------------------------------------------------
- * Helper: create a stable local id (offline-safe)
- * ------------------------------------------------------------
- * We avoid adding new dependencies here.
- * This id is only local until backend sync assigns remote_id.
- */
-function createLocalId(): string {
-  // Example: ss_1734860440123_k9f3xq
-  return `ss_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-/**
- * ------------------------------------------------------------
- * Helper: derive ship identity fields from payload
- * ------------------------------------------------------------
- * We keep these duplicated as columns for dashboard listing and search.
+ * Ship identity is typically stored inside GENERAL_IDENTITY section.
+ * We keep DB columns for fast dashboard listing.
  */
 function deriveShipIdentity(payload: SeaServicePayload): {
   shipName: string | null;
   imoNumber: string | null;
 } {
-  const general = payload?.sections?.GENERAL_IDENTITY ?? {};
-
+  const gi = (payload as any)?.sections?.GENERAL_IDENTITY ?? {};
   const shipName =
-    typeof general.shipName === "string" && general.shipName.trim().length > 0
-      ? general.shipName.trim()
+    typeof gi?.shipName === "string" && gi.shipName.trim().length > 0
+      ? gi.shipName.trim()
       : null;
 
   const imoNumber =
-    typeof general.imoNumber === "string" && general.imoNumber.trim().length > 0
-      ? general.imoNumber.trim()
+    typeof gi?.imoNumber === "string" && gi.imoNumber.trim().length > 0
+      ? gi.imoNumber.trim()
       : null;
 
   return { shipName, imoNumber };
 }
 
 /**
- * ------------------------------------------------------------
- * Helper: derive sign-on/off ISO dates from payload.servicePeriod
- * ------------------------------------------------------------
- * IMPORTANT: We store dates as ISO strings "YYYY-MM-DD" (never Date objects).
+ * Service period is top-level in payload.
+ * DB columns store the ISO strings for fast listing/filtering.
  */
-function deriveServicePeriodDates(payload: SeaServicePayload): {
+function deriveServicePeriod(payload: SeaServicePayload): {
   signOnDate: string | null;
   signOffDate: string | null;
 } {
-  // NOTE:
-  // Your current SeaServicePayload types store dates as Date | null.
-  // We must handle Date safely here and convert to ISO "YYYY-MM-DD" for DB columns.
+  const period: any = (payload as any)?.servicePeriod ?? null;
 
-  const period = payload?.servicePeriod ?? null;
+  const signOnDate =
+    typeof period?.signOnDate === "string" && period.signOnDate.length > 0
+      ? period.signOnDate
+      : null;
 
-  const toIsoDateOnly = (value: unknown): string | null => {
-    if (!value) return null;
+  const signOffDate =
+    typeof period?.signOffDate === "string" && period.signOffDate.length > 0
+      ? period.signOffDate
+      : null;
 
-    // If already a string (e.g., migrated data), accept it if non-empty.
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      return trimmed.length > 0 ? trimmed : null;
-    }
+  return { signOnDate, signOffDate };
+}
 
-    // If a Date object, convert to YYYY-MM-DD.
-    if (value instanceof Date && !isNaN(value.getTime())) {
-      return value.toISOString().slice(0, 10);
-    }
-
-    return null;
-  };
-
-  // Use unknown to avoid TS narrowing to never (because payload types are Date|null today)
-  const rawSignOn: unknown = (period as any)?.signOnDate;
-  const rawSignOff: unknown = (period as any)?.signOffDate;
-
+/**
+ * Convert DB row to record model.
+ */
+function rowToRecord(row: any): SeaServiceRecord {
   return {
-    signOnDate: toIsoDateOnly(rawSignOn),
-    signOffDate: toIsoDateOnly(rawSignOff),
+    id: row.id,
+    shipName: row.ship_name ?? null,
+    imoNumber: row.imo_number ?? null,
+    signOnDate: row.sign_on_date ?? null,
+    signOffDate: row.sign_off_date ?? null,
+    status: row.status,
+    payload: parsePayloadJson(row.payload_json),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
-
 /**
  * ============================================================
- * createSeaServiceDraft
+ * CREATE DRAFT (EXPLICIT TRANSACTION)
  * ============================================================
- * Creates a NEW Sea Service record in DRAFT state.
  *
- * Critical behavior:
- * - If a DRAFT already exists, DB unique index will reject insert.
- * - We surface that failure to caller (Context/Screen decides toast).
+ * Called ONLY from StartSeaServiceScreen on:
+ *   "Save & Start Sea Service"
+ *
+ * Guarantees:
+ * - Inserts a new row with status='DRAFT'
+ * - DB layer enforces only one DRAFT at a time
  */
-export function createSeaServiceDraft(
-  initialPayload?: SeaServicePayload
-): { id: string } {
+export function createSeaServiceDraft(args: {
+  shipType: string;
+  signOnDate: string;
+  signOnPort: string;
+}): SeaServiceRecord {
   const db = getDatabase();
+
   const nowIso = new Date().toISOString();
+  const id = generateLocalId();
 
-  const id = createLocalId();
-
+  // Build initial payload
   const payload: SeaServicePayload = {
-    ...(initialPayload ?? DEFAULT_SEA_SERVICE_PAYLOAD),
+    ...DEFAULT_SEA_SERVICE_PAYLOAD,
+    shipType: args.shipType,
     lastUpdatedAt: Date.now(),
-  };
+    servicePeriod: {
+      ...(DEFAULT_SEA_SERVICE_PAYLOAD as any).servicePeriod,
+      signOnDate: args.signOnDate,
+      signOnPort: args.signOnPort,
+    },
+    sections: { ...DEFAULT_SEA_SERVICE_PAYLOAD.sections },
+  } as SeaServicePayload;
 
   const { shipName, imoNumber } = deriveShipIdentity(payload);
-  const { signOnDate, signOffDate } = deriveServicePeriodDates(payload);
+  const { signOnDate, signOffDate } = deriveServicePeriod(payload);
 
   db.runSync(
     `
@@ -202,8 +197,15 @@ export function createSeaServiceDraft(
       created_at,
       updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?)
-    `,
+    VALUES (
+      ?, ?, ?,
+      ?, ?,
+      ?, ?,
+      ?, ?,
+      ?, ?,
+      ?
+    );
+  `,
     [
       id,
       shipName,
@@ -211,34 +213,100 @@ export function createSeaServiceDraft(
       signOnDate,
       signOffDate,
       JSON.stringify(payload),
+      "DRAFT",
       payload.lastUpdatedAt ?? Date.now(),
-      null, // remote_id stays null until sync
-      "DIRTY",
+      null,
+      "LOCAL_ONLY",
       nowIso,
       nowIso,
     ]
   );
 
-  return { id };
+  // Read back (single source of truth)
+  const created = getSeaServiceById(id);
+  if (!created) {
+    // Extremely rare; but keeps app stable.
+    throw new Error("Failed to create Sea Service draft record.");
+  }
+  return created;
 }
 
 /**
  * ============================================================
- * upsertSeaServiceDraft
+ * READ — ACTIVE DRAFT (single)
  * ============================================================
- * Saves the payload into the EXISTING DRAFT record (by id).
- *
- * Notes:
- * - We do not create drafts here (use createSeaServiceDraft first).
- * - This function is draft-safe and sync-ready.
+ */
+export function getActiveSeaServiceDraft(): SeaServiceRecord | null {
+  const db = getDatabase();
+
+  const rows = db.getAllSync<any>(
+    `
+    SELECT *
+    FROM sea_service_records
+    WHERE status = 'DRAFT'
+    ORDER BY updated_at DESC
+    LIMIT 1;
+  `
+  );
+
+  if (!rows || rows.length === 0) return null;
+  return rowToRecord(rows[0]);
+}
+
+/**
+ * ============================================================
+ * READ — FINAL HISTORY (multiple, latest-first)
+ * ============================================================
+ */
+export function getSeaServiceFinalHistory(): SeaServiceRecord[] {
+  const db = getDatabase();
+
+  const rows = db.getAllSync<any>(
+    `
+    SELECT *
+    FROM sea_service_records
+    WHERE status = 'FINAL'
+    ORDER BY sign_on_date DESC, updated_at DESC;
+  `
+  );
+
+  return (rows ?? []).map(rowToRecord);
+}
+
+/**
+ * ============================================================
+ * READ — By ID
+ * ============================================================
+ */
+export function getSeaServiceById(id: string): SeaServiceRecord | null {
+  const db = getDatabase();
+
+  const rows = db.getAllSync<any>(
+    `
+    SELECT *
+    FROM sea_service_records
+    WHERE id = ?
+    LIMIT 1;
+  `,
+    [id]
+  );
+
+  if (!rows || rows.length === 0) return null;
+  return rowToRecord(rows[0]);
+}
+
+/**
+ * ============================================================
+ * UPDATE — Upsert active draft payload (DRAFT only)
+ * ============================================================
  */
 export function upsertSeaServiceDraft(
   recordId: string,
   payload: SeaServicePayload
 ): void {
   const db = getDatabase();
-  const nowIso = new Date().toISOString();
 
+  const nowIso = new Date().toISOString();
   const lastUpdatedAt =
     typeof payload.lastUpdatedAt === "number" ? payload.lastUpdatedAt : Date.now();
 
@@ -247,9 +315,11 @@ export function upsertSeaServiceDraft(
     lastUpdatedAt,
   };
 
+  const payloadJson = JSON.stringify(payloadToStore);
   const { shipName, imoNumber } = deriveShipIdentity(payloadToStore);
-  const { signOnDate, signOffDate } = deriveServicePeriodDates(payloadToStore);
+  const { signOnDate, signOffDate } = deriveServicePeriod(payloadToStore);
 
+  // Only updates if it is still a DRAFT.
   db.runSync(
     `
     UPDATE sea_service_records
@@ -262,214 +332,30 @@ export function upsertSeaServiceDraft(
       last_updated_at = ?,
       sync_state = 'DIRTY',
       updated_at = ?
-    WHERE id = ? AND status = 'DRAFT'
-    `,
+    WHERE id = ?
+      AND status = 'DRAFT';
+  `,
     [
       shipName,
       imoNumber,
       signOnDate,
       signOffDate,
-      JSON.stringify(payloadToStore),
+      payloadJson,
       lastUpdatedAt,
       nowIso,
       recordId,
     ]
   );
 }
-/**
- * ============================================================
- * Finalize Sea Service Record
- * ============================================================
- *
- * - Transitions record status to FINAL
- * - Payload is NOT modified
- * - FINAL records become immutable
- */
-export async function finalizeSeaServiceRecord(recordId: string) {
-  if (!recordId) {
-    throw new Error("Missing Sea Service record ID");
-  }
-
-  const db = getDatabase();
-
-  await db.execAsync(
-    `
-    UPDATE sea_service
-    SET status = 'FINAL',
-        updated_at = strftime('%s','now')
-    WHERE id = '${recordId}'
-    `
-  );
-}
-
-
 
 /**
  * ============================================================
- * getActiveSeaServiceDraft
+ * FINALIZE — DRAFT → FINAL
  * ============================================================
- * Returns the ONE active DRAFT record, if any.
- */
-export function getActiveSeaServiceDraft(): SeaServiceRecord | null {
-  const db = getDatabase();
-
-  const rows = db.getAllSync<any>(
-    `
-    SELECT
-      id,
-      ship_name AS shipName,
-      imo_number AS imoNumber,
-      sign_on_date AS signOnDate,
-      sign_off_date AS signOffDate,
-      payload_json AS payloadJson,
-      status,
-      last_updated_at AS lastUpdatedAt,
-      remote_id AS remoteId,
-      sync_state AS syncState,
-      created_at AS createdAt,
-      updated_at AS updatedAt
-    FROM sea_service_records
-    WHERE status = 'DRAFT'
-    LIMIT 1
-    `
-  );
-
-  const row = rows?.[0];
-  if (!row) return null;
-
-  const payload = safeParsePayload(String(row.payloadJson ?? ""));
-
-  return {
-    id: String(row.id),
-    shipName: row.shipName ?? null,
-    imoNumber: row.imoNumber ?? null,
-    signOnDate: row.signOnDate ?? null,
-    signOffDate: row.signOffDate ?? null,
-    payload,
-    status: "DRAFT",
-    lastUpdatedAt: typeof row.lastUpdatedAt === "number" ? row.lastUpdatedAt : null,
-    remoteId: row.remoteId ?? null,
-    syncState: (row.syncState ?? "LOCAL_ONLY") as SyncState,
-    createdAt: String(row.createdAt),
-    updatedAt: String(row.updatedAt),
-  };
-}
-
-/**
- * ============================================================
- * getSeaServiceFinalHistory
- * ============================================================
- * Returns all FINAL records for history list (latest first).
- */
-export function getSeaServiceFinalHistory(): SeaServiceRecord[] {
-  const db = getDatabase();
-
-  const rows = db.getAllSync<any>(
-    `
-    SELECT
-      id,
-      ship_name AS shipName,
-      imo_number AS imoNumber,
-      sign_on_date AS signOnDate,
-      sign_off_date AS signOffDate,
-      payload_json AS payloadJson,
-      status,
-      last_updated_at AS lastUpdatedAt,
-      remote_id AS remoteId,
-      sync_state AS syncState,
-      created_at AS createdAt,
-      updated_at AS updatedAt
-    FROM sea_service_records
-    WHERE status = 'FINAL'
-    ORDER BY updated_at DESC
-    `
-  );
-
-  return (rows ?? []).map((row: any) => {
-    const payload = safeParsePayload(String(row.payloadJson ?? ""));
-    return {
-      id: String(row.id),
-      shipName: row.shipName ?? null,
-      imoNumber: row.imoNumber ?? null,
-      signOnDate: row.signOnDate ?? null,
-      signOffDate: row.signOffDate ?? null,
-      payload,
-      status: "FINAL",
-      lastUpdatedAt:
-        typeof row.lastUpdatedAt === "number" ? row.lastUpdatedAt : null,
-      remoteId: row.remoteId ?? null,
-      syncState: (row.syncState ?? "LOCAL_ONLY") as SyncState,
-      createdAt: String(row.createdAt),
-      updatedAt: String(row.updatedAt),
-    };
-  });
-}
-
-/**
- * ============================================================
- * getSeaServiceById
- * ============================================================
- * Load a specific Sea Service record (DRAFT or FINAL).
- */
-export function getSeaServiceById(id: string): SeaServiceRecord | null {
-  const db = getDatabase();
-
-  const rows = db.getAllSync<any>(
-    `
-    SELECT
-      id,
-      ship_name AS shipName,
-      imo_number AS imoNumber,
-      sign_on_date AS signOnDate,
-      sign_off_date AS signOffDate,
-      payload_json AS payloadJson,
-      status,
-      last_updated_at AS lastUpdatedAt,
-      remote_id AS remoteId,
-      sync_state AS syncState,
-      created_at AS createdAt,
-      updated_at AS updatedAt
-    FROM sea_service_records
-    WHERE id = ?
-    LIMIT 1
-    `,
-    [id]
-  );
-
-  const row = rows?.[0];
-  if (!row) return null;
-
-  const payload = safeParsePayload(String(row.payloadJson ?? ""));
-
-  return {
-    id: String(row.id),
-    shipName: row.shipName ?? null,
-    imoNumber: row.imoNumber ?? null,
-    signOnDate: row.signOnDate ?? null,
-    signOffDate: row.signOffDate ?? null,
-    payload,
-    status: row.status === "FINAL" ? "FINAL" : "DRAFT",
-    lastUpdatedAt: typeof row.lastUpdatedAt === "number" ? row.lastUpdatedAt : null,
-    remoteId: row.remoteId ?? null,
-    syncState: (row.syncState ?? "LOCAL_ONLY") as SyncState,
-    createdAt: String(row.createdAt),
-    updatedAt: String(row.updatedAt),
-  };
-}
-
-/**
- * ============================================================
- * finalizeSeaService
- * ============================================================
- * Marks a DRAFT record as FINAL (locks lifecycle).
- *
- * IMPORTANT:
- * - Eligibility rules (sign-on/off + section completion) are enforced
- *   by the domain/UI layer BEFORE calling this.
- * - DB layer simply performs the status transition.
  */
 export function finalizeSeaService(recordId: string): void {
   const db = getDatabase();
+
   const nowIso = new Date().toISOString();
 
   db.runSync(
@@ -477,74 +363,28 @@ export function finalizeSeaService(recordId: string): void {
     UPDATE sea_service_records
     SET
       status = 'FINAL',
-      sync_state = 'DIRTY',
       updated_at = ?
-    WHERE id = ? AND status = 'DRAFT'
-    `,
+    WHERE id = ?
+      AND status = 'DRAFT';
+  `,
     [nowIso, recordId]
   );
 }
 
 /**
  * ============================================================
- * Backward-compat helpers (temporary)
+ * DISCARD — Delete DRAFT only (FINAL immutable)
  * ============================================================
- * These exist to avoid breaking older screens instantly.
- * We will cleanly refactor callers in the next steps.
- */
-
-/**
- * Old name: getSeaServiceRecord()
- * New behavior:
- * - If DRAFT exists -> return it
- * - Else -> return most recent FINAL (if any)
- */
-
-/**
- * ------------------------------------------------------------
- * Discard Sea Service Draft (DRAFT only)
- * ------------------------------------------------------------
- *
- * RULE (APPROVED):
- * - ONLY DRAFT can be deleted
- * - FINAL is immutable (must never be deleted from UI)
- *
- * SAFETY:
- * - WHERE status='DRAFT' prevents accidental deletion of FINAL
  */
 export function discardSeaServiceDraft(recordId: string): void {
-  if (!recordId) {
-    throw new Error("Missing Sea Service record ID");
-  }
-
   const db = getDatabase();
 
-  // Delete ONLY if it's still a DRAFT
   db.runSync(
     `
     DELETE FROM sea_service_records
-    WHERE id = ? AND status = 'DRAFT';
-    `,
+    WHERE id = ?
+      AND status = 'DRAFT';
+  `,
     [recordId]
   );
-}
-
-export function getSeaServiceRecord(): SeaServiceRecord | null {
-  const draft = getActiveSeaServiceDraft();
-  if (draft) return draft;
-
-  const finals: SeaServiceRecord[] = getSeaServiceFinalHistory();
-  return finals.length > 0 ? finals[0] : null;
-}
-
-/**
- * Old helper: getSeaServicePayloadOrDefault()
- * New behavior:
- * - If active draft exists -> return its payload
- * - Else return default payload
- */
-export function getSeaServicePayloadOrDefault(): SeaServicePayload {
-  const record = getActiveSeaServiceDraft();
-  if (record?.payload) return record.payload;
-  return DEFAULT_SEA_SERVICE_PAYLOAD;
 }

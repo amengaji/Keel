@@ -63,7 +63,7 @@ export default function SeaServiceScreen() {
     payload,
     seaServiceId,
     finalHistory,
-    startNewDraft,
+    
     canFinalize,
     finalizeSeaService,
     discardDraft,
@@ -110,8 +110,7 @@ export default function SeaServiceScreen() {
   };
 
   const handleAddSeaService = () => {
-    startNewDraft();
-    navigation.navigate("SeaServiceWizard");
+    navigation.navigate("StartSeaService");
     toast.info("Starting new Sea Service...");
   };
 
