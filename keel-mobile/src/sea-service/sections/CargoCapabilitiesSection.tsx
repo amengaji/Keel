@@ -52,28 +52,56 @@ const SECTION_KEY = "CARGO_CAPABILITIES";
 function mapShipTypeToCargoProfile(
   shipType?: string
 ): CargoProfileKey | null {
-  switch (shipType) {
+  if (!shipType) return null;
+
+  /**
+   * ============================================================
+   * NORMALIZE SHIP TYPE
+   * ============================================================
+   * Examples:
+   * "Bulk Carrier"   → "BULK_CARRIER"
+   * "Oil Tanker"    → "OIL_TANKER"
+   * "Ro-Ro"         → "RO_RO"
+   */
+  const normalized = shipType
+    .toUpperCase()
+    .replace(/-/g, "_")
+    .replace(/\s+/g, "_")
+    .trim();
+
+  switch (normalized) {
     case "BULK_CARRIER":
       return "BULK";
+
     case "OIL_TANKER":
     case "CHEMICAL_TANKER":
       return "LIQUID_TANKER";
+
     case "GAS_TANKER":
       return "GAS_TANKER";
+
     case "CONTAINER":
+    case "CONTAINER_SHIP":
       return "CONTAINER";
+
     case "CAR_CARRIER":
       return "CAR_CARRIER";
+
     case "RO_RO":
+    case "RORO":
       return "RO_RO";
+
     case "GENERAL_CARGO":
       return "GENERAL";
+
     case "PASSENGER":
       return "PASSENGER";
+
     default:
       return null;
   }
 }
+
 
 export default function CargoCapabilitiesSection(props: { onSaved?: () => void }) {
   const { onSaved } = props;

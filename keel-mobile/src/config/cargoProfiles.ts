@@ -329,7 +329,7 @@ export const CARGO_PROFILES: Record<
             key: "cargoCoating",
             label: "Cargo Tank Coating Type",
             uiType: "dropdown",
-            options: ["Epoxy", "Phenolic", "Stainless Steel"],
+            options: ["Epoxy", "None", "Stainless Steel", ],
             required: false,
           },
         ],
