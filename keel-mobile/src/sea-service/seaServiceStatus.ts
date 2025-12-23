@@ -120,33 +120,74 @@ export function getSeaServiceSectionStatus(
         ? "COMPLETED"
         : "IN_PROGRESS";
 
-    case "INERT_GAS_SYSTEM": {
-      const isTanker =
-        shipType === "TANKER" ||
-        shipType === "OIL_TANKER" ||
-        shipType === "PRODUCT_TANKER" ||
-        shipType === "CHEMICAL_TANKER";
+case "INERT_GAS_SYSTEM": {
+  /**
+   * ============================================================
+   * NORMALIZE SHIP TYPE (DISPLAY VALUE → ENUM)
+   * ============================================================
+   */
+  const normalizedShipType = shipType
+    ? shipType
+        .toUpperCase()
+        .replace(/-/g, "_")
+        .replace(/\s+/g, "_")
+    : "";
 
-      if (
-        !sectionData.igsFitted &&
-        !isTanker &&
-        typeof sectionData.igsNotFittedReason === "string" &&
-        sectionData.igsNotFittedReason.trim().length > 0
-      ) {
-        return "COMPLETED";
+  const isTanker =
+    normalizedShipType === "TANKER" ||
+    normalizedShipType === "OIL_TANKER" ||
+    normalizedShipType === "PRODUCT_TANKER" ||
+    normalizedShipType === "CHEMICAL_TANKER";
+
+
+  /**
+   * ============================================================
+   * CASE 1 — IGS NOT FITTED (VALID FOR NON-TANKERS)
+   * ============================================================
+   */
+  if (
+    sectionData.igsFitted === false &&
+    !isTanker &&
+    typeof sectionData.igsNotFittedReason === "string" &&
+    sectionData.igsNotFittedReason.trim().length > 0
+  ) {
+    return "COMPLETED";
+  }
+
+  /**
+   * ============================================================
+   * CASE 2 — IGS FITTED (MANDATORY ITEMS ONLY)
+   * ============================================================
+   */
+  if (sectionData.igsFitted === true) {
+const scrubberAvailable = sectionData.scrubberAvailable === true;
+const blowerAvailable = sectionData.blowerAvailable === true;
+const deckSealAvailable = sectionData.deckSealAvailable === true;
+
+    const hasMandatoryCore =
+      hasValue(sectionData.igsSourceType) &&
+      sectionData.scrubberAvailable !== undefined &&
+      sectionData.blowerAvailable !== undefined &&
+      sectionData.deckSealAvailable !== undefined &&
+      hasValue(sectionData.oxygenAnalyzerAvailable) &&
+      hasValue(sectionData.igPressureAlarmAvailable);
+
+
+    const hasBlowerDetails =
+      !blowerAvailable || hasValue(sectionData.blowerCount);
+
+    const hasDeckSealDetails =
+      !deckSealAvailable || hasValue(sectionData.deckSealType);
+
+
+        if (hasMandatoryCore && hasBlowerDetails && hasDeckSealDetails) {
+          return "COMPLETED";
+        }
       }
 
-      if (
-        sectionData.igsFitted &&
-        (sectionData.scrubberAvailable ||
-          sectionData.blowerAvailable ||
-          sectionData.deckSealAvailable)
-      ) {
-        return "COMPLETED";
-      }
+  return "IN_PROGRESS";
+}
 
-      return "IN_PROGRESS";
-    }
 
     default:
       return "IN_PROGRESS";

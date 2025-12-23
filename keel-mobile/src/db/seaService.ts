@@ -332,7 +332,7 @@ export function upsertSeaServiceDraft(
       last_updated_at = ?,
       sync_state = 'DIRTY',
       updated_at = ?
-    WHERE id = ?
+      WHERE id = ?
       AND status = 'DRAFT';
   `,
     [

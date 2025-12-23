@@ -331,18 +331,36 @@ export default function CargoCapabilitiesSection(props: { onSaved?: () => void }
                     <Text style={styles.segmentLabel}>
                       {field.label}
                     </Text>
-                    <SegmentedButtons
-                      value={String(value ?? "")}
-                      onValueChange={(v) =>
-                        updateField(field.key, v)
-                      }
-                      buttons={(field.options ?? []).map(
-                        (opt) => ({
-                          value: opt,
-                          label: opt,
-                        })
-                      )}
-                    />
+                      <SegmentedButtons
+                        value={String(value ?? "")}
+                        onValueChange={(v) => updateField(field.key, v)}
+                        buttons={(field.options ?? []).map((opt) => {
+                          const isSelected = String(value) === opt;
+
+                          return {
+                            value: opt,
+                            label: opt,
+
+                            /**
+                             * ========================================================
+                             * BRAND-ALIGNED SELECTED STYLE
+                             * ========================================================
+                             */
+                            style: {
+                              borderColor: "#3194A0",
+                              backgroundColor: isSelected
+                                ? "rgba(49, 148, 160, 0.15)"
+                                : "transparent",
+                            },
+
+                            labelStyle: {
+                              color: isSelected ? "#3194A0" : undefined,
+                              fontWeight: isSelected ? "700" : "500",
+                            },
+                          };
+                        })}
+                      />
+
                   </View>
                 );
               }
