@@ -41,7 +41,8 @@ import { useToast } from "../../components/toast/useToast";
  */
 const SECTION_KEY = "AUX_MACHINERY_ELECTRICAL";
 
-export default function AuxMachineryElectricalSection() {
+export default function AuxMachineryElectricalSection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
 
@@ -117,6 +118,15 @@ export default function AuxMachineryElectricalSection() {
   };
 
   const handleSave = () => {
+    /**
+     * ============================================================
+     * Draft-safe save (partial allowed)
+     * ============================================================
+     *
+     * - Partial entries → IN_PROGRESS
+     * - All fields filled → COMPLETE
+     * - Status logic handled centrally in SeaServiceContext
+     */
     updateSection(SECTION_KEY, form);
 
     if (isFormValid) {
@@ -125,10 +135,21 @@ export default function AuxMachineryElectricalSection() {
       );
     } else {
       toast.info(
-        "Auxiliary machinery details saved as draft."
+        "Saved as draft. Complete all fields to mark this section as Completed."
       );
     }
+
+    /**
+     * ============================================================
+     * UX RULE:
+     * After saving, always return to Sections overview
+     * ============================================================
+     */
+    if (onSaved) {
+      onSaved();
+    }
   };
+
 
   /**
    * ============================================================
@@ -333,10 +354,11 @@ export default function AuxMachineryElectricalSection() {
         />
 
         {!isFormValid && (
-          <HelperText type="error" visible>
-            All fields in this section are mandatory.
+          <HelperText type="info" visible>
+            You can save as draft. Complete all fields to mark this section as Completed.
           </HelperText>
         )}
+
       </KeyboardAwareScrollView>
 
       {/* =====================================================

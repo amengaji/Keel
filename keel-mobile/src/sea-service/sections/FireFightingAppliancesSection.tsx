@@ -25,6 +25,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { useNavigation } from "@react-navigation/native";
 
 import { useSeaService } from "../SeaServiceContext";
 import { useToast } from "../../components/toast/useToast";
@@ -37,9 +38,11 @@ const SECTION_KEY = "FIRE_FIGHTING_APPLIANCES";
 const onlyNumber = (v: string) => v.replace(/[^\d]/g, "");
 const hasText = (v: any) => typeof v === "string" && v.trim().length > 0;
 
-export default function FireFightingAppliancesSection() {
+export default function FireFightingAppliancesSection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
+  const navigation = useNavigation();
   const { payload, updateSection } = useSeaService();
 
   const existing =
@@ -154,12 +157,21 @@ export default function FireFightingAppliancesSection() {
 
   const save = () => {
     updateSection(SECTION_KEY, form);
+
     toast.info(
       hasAnyData
         ? "Fire Fighting Appliances saved."
         : "Fire Fighting Appliances saved (empty draft)."
     );
+
+    /**
+     * UX RULE (GLOBAL):
+     * Saving a section ALWAYS returns to Sections overview
+     * Cadet should continue with next section, not exit wizard
+     */
+    navigation.goBack();
   };
+
 
   /* ============================================================
    * RENDER — PART 1 SECTIONS

@@ -37,7 +37,8 @@ import { useToast } from "../../components/toast/useToast";
 
 const SECTION_KEY = "LIFE_SAVING_APPLIANCES";
 
-export default function LifeSavingAppliancesSection() {
+export default function LifeSavingAppliancesSection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
   const { payload, updateSection } = useSeaService();
@@ -77,10 +78,33 @@ export default function LifeSavingAppliancesSection() {
   const set = (k: string, v: any) =>
     setForm((p: any) => ({ ...p, [k]: v }));
 
-  const save = () => {
-    updateSection(SECTION_KEY, form);
-    toast.info("Life Saving Appliances saved.");
-  };
+const save = () => {
+  /**
+   * ============================================================
+   * Draft-safe save (partial allowed)
+   * ============================================================
+   *
+   * - Never block save
+   * - Status (NOT_STARTED / IN_PROGRESS / COMPLETE)
+   *   handled centrally in SeaServiceContext
+   */
+  updateSection(SECTION_KEY, form);
+
+  toast.info(
+    "Saved as draft. Complete all applicable items to mark this section as Completed."
+  );
+
+  /**
+   * ============================================================
+   * UX RULE:
+   * After saving, ALWAYS return to Sections overview
+   * ============================================================
+   */
+  if (onSaved) {
+    onSaved();
+  }
+};
+
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>

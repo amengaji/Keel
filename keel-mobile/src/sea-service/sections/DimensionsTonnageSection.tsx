@@ -27,7 +27,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSeaService } from "../SeaServiceContext";
 import { useToast } from "../../components/toast/useToast";
 
-export default function DimensionsTonnageSection() {
+export default function DimensionsTonnageSection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
   const insets = useSafeAreaInsets();
@@ -79,6 +80,16 @@ export default function DimensionsTonnageSection() {
     });
 
     toast.success("Dimensions & Tonnages saved.");
+    
+  /**
+   * ============================================================
+   * UX RULE (GLOBAL – ALREADY APPROVED):
+   * After saving a section, ALWAYS return to Sections overview
+   * ============================================================
+   */
+  if (onSaved) {
+    onSaved();
+  }
   };
 
 return (

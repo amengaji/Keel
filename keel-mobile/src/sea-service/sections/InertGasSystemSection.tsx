@@ -67,7 +67,8 @@ const DISTRIBUTION_OPTIONS = [
   "Mast riser / vent riser arrangement",
 ] as const;
 
-export default function InertGasSystemSection() {
+export default function InertGasSystemSection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
   const { payload, updateSection } = useSeaService();
@@ -172,12 +173,24 @@ export default function InertGasSystemSection() {
 
   const save = () => {
     updateSection(SECTION_KEY, form);
+
     toast.info(
       hasAnyData
         ? "Inert Gas System saved."
         : "Inert Gas System saved (empty draft)."
     );
+
+    /**
+     * ============================================================
+     * UX RULE (GLOBAL – ALREADY APPROVED):
+     * After saving a section, ALWAYS return to Sections overview
+     * ============================================================
+     */
+    if (onSaved) {
+      onSaved();
+    }
   };
+
 
   /* ============================================================
    * RENDER

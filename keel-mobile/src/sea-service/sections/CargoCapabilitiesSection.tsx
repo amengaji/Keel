@@ -75,7 +75,8 @@ function mapShipTypeToCargoProfile(
   }
 }
 
-export default function CargoCapabilitiesSection() {
+export default function CargoCapabilitiesSection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
 
@@ -148,9 +149,43 @@ export default function CargoCapabilitiesSection() {
    * ------------------------------------------------------------
    */
   const handleSave = () => {
+    /**
+     * ============================================================
+     * Draft-safe save (partial allowed)
+     * ============================================================
+     *
+     * - Partial entries → IN_PROGRESS
+     * - Fully filled → COMPLETE
+     * - Status computed centrally in SeaServiceContext
+     */
     updateSection(SECTION_KEY, form);
-    toast.info("Cargo capabilities saved as draft.");
+
+    const filledCount = Object.values(form).filter(
+      (v) =>
+        v !== null &&
+        v !== undefined &&
+        String(v).trim().length > 0
+    ).length;
+
+    if (filledCount === 0) {
+      toast.info("Saved as draft.");
+    } else {
+      toast.info(
+        "Saved as draft. Complete all fields to mark this section as Completed."
+      );
+    }
+
+    /**
+     * ============================================================
+     * UX RULE:
+     * After saving, always return to Sections overview
+     * ============================================================
+     */
+    if (onSaved) {
+      onSaved();
+    }
   };
+
 
   /**
    * ============================================================

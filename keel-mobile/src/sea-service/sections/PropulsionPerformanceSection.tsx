@@ -41,7 +41,8 @@ import { useToast } from "../../components/toast/useToast";
  */
 const SECTION_KEY = "PROPULSION_PERFORMANCE";
 
-export default function PropulsionPerformanceSection() {
+export default function PropulsionPerformanceSection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
 
@@ -112,19 +113,35 @@ export default function PropulsionPerformanceSection() {
   };
 
   const handleSave = () => {
-    if (!isFormValid) {
-      toast.error(
-        "Please complete all propulsion fields before saving."
-      );
-      return;
-    }
-
+    /**
+     * ============================================================
+     * Draft-safe save (partial allowed)
+     * ============================================================
+     */
     updateSection(SECTION_KEY, form);
 
-    toast.success(
-      "Main propulsion & performance details saved."
-    );
+    if (!isFormValid) {
+      toast.info(
+        "Saved as draft. Complete all fields to mark this section as Completed."
+      );
+    } else {
+      toast.success(
+        "Main propulsion & performance section completed."
+      );
+    }
+
+    /**
+     * ============================================================
+     * UX RULE:
+     * After saving, always return to Sections overview
+     * ============================================================
+     */
+    if (onSaved) {
+      onSaved();
+    }
   };
+
+
 
   /**
    * ============================================================
@@ -279,10 +296,11 @@ export default function PropulsionPerformanceSection() {
         />
 
         {!isFormValid && (
-          <HelperText type="error" visible>
-            All fields in this section are mandatory.
+          <HelperText type="info" visible>
+            You can save as draft. Complete all fields to mark this section as Completed.
           </HelperText>
         )}
+
       </KeyboardAwareScrollView>
 
       {/* =====================================================

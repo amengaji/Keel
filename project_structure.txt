@@ -135,6 +135,7 @@
 ¦   ¦   ¦   +-- SeaServiceScreen.tsx
 ¦   ¦   ¦   +-- SeaServiceWizardScreen.tsx
 ¦   ¦   ¦   +-- SettingsScreen.tsx
+¦   ¦   ¦   +-- StartSeaServiceScreen.tsx
 ¦   ¦   ¦   +-- TaskDetailsScreen.tsx
 ¦   ¦   ¦   +-- TaskListScreen.tsx
 ¦   ¦   ¦   +-- WelcomeScreen.tsx

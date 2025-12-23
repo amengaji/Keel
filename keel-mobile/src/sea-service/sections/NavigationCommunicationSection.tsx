@@ -78,7 +78,8 @@ function isMeaningful(v: unknown): boolean {
  * COMPONENT
  * ============================================================
  */
-export default function NavigationCommunicationSection() {
+export default function NavigationCommunicationSection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
   const { payload, updateSection } = useSeaService();
@@ -276,15 +277,35 @@ export default function NavigationCommunicationSection() {
    * - Wizard decides Completed / In Progress / Not Started
    */
   const handleSave = () => {
+    /**
+     * ============================================================
+     * Draft-safe save (partial allowed)
+     * ============================================================
+     *
+     * - Never block save
+     * - Completion decided centrally in SeaServiceWizard
+     */
     updateSection(SECTION_KEY, form);
 
     if (!hasAnyMeaningfulValues) {
-      toast.info("Navigation & Communication saved (empty draft).");
-      return;
+      toast.info("Saved as draft. You can complete this section later.");
+    } else {
+      toast.info(
+        "Saved as draft. Complete all required equipment to mark this section as Completed."
+      );
     }
 
-    toast.success("Navigation & Communication saved as draft.");
+    /**
+     * ============================================================
+     * UX RULE:
+     * After saving, ALWAYS return to Sections overview
+     * ============================================================
+     */
+    if (onSaved) {
+      onSaved();
+    }
   };
+
 
   /**
    * ============================================================

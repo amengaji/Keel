@@ -22,7 +22,6 @@ import { View, StyleSheet } from "react-native";
 import { Appbar, useTheme } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 
-import { SeaServiceProvider } from "../sea-service/SeaServiceContext";
 import SeaServiceWizard from "../sea-service/SeaServiceWizard";
 import { useToast } from "../components/toast/useToast";
 
@@ -54,9 +53,7 @@ export default function SeaServiceWizardScreen() {
 
       {/* Wizard + Provider */}
       <View style={styles.content}>
-        <SeaServiceProvider>
           <SeaServiceWizard />
-        </SeaServiceProvider>
       </View>
     </View>
   );

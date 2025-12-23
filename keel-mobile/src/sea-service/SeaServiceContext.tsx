@@ -274,31 +274,62 @@ export function SeaServiceProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  /**
-   * Update data for a given section:
-   * - merges section data
-   * - marks section as COMPLETE
-   */
-  const updateSection = (
-    sectionKey: keyof SeaServicePayload["sections"],
-    data: Record<string, any>
-  ) => {
-    setPayload((prev) => ({
+/**
+ * ============================================================
+ * Update data for a given section (AUDIT-SAFE)
+ * ============================================================
+ *
+ * RULES:
+ * - NOT_STARTED → no fields filled
+ * - IN_PROGRESS → some fields filled
+ * - COMPLETE → all fields filled
+ *
+ * This logic is CENTRAL and must never be duplicated in UI.
+ */
+const updateSection = (
+  sectionKey: keyof SeaServicePayload["sections"],
+  data: Record<string, any>
+) => {
+  setPayload((prev) => {
+    const mergedSection = {
+      ...(prev.sections as any)[sectionKey],
+      ...data,
+    };
+
+    const values = Object.values(mergedSection);
+    const filledCount = values.filter(
+      (v) =>
+        v !== null &&
+        v !== undefined &&
+        String(v).trim().length > 0
+    ).length;
+
+    let status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETE" =
+      "NOT_STARTED";
+
+    if (filledCount > 0 && filledCount < values.length) {
+      status = "IN_PROGRESS";
+    }
+
+    if (filledCount === values.length && values.length > 0) {
+      status = "COMPLETE";
+    }
+
+    return {
       ...prev,
       lastUpdatedAt: Date.now(),
       sectionStatus: {
         ...(prev as any).sectionStatus,
-        [sectionKey]: "COMPLETE",
+        [sectionKey]: status,
       },
       sections: {
         ...prev.sections,
-        [sectionKey]: {
-          ...(prev.sections as any)[sectionKey],
-          ...data,
-        },
+        [sectionKey]: mergedSection,
       },
-    }));
-  };
+    };
+  });
+};
+
 
   /**
    * Update service period (sign on/off).

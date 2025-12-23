@@ -23,7 +23,8 @@ import { useNavigation } from "@react-navigation/native";
 import { useSeaService } from "../SeaServiceContext";
 import { useToast } from "../../components/toast/useToast";
 
-export default function GeneralIdentitySection() {
+export default function GeneralIdentitySection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
   const insets = useSafeAreaInsets();
@@ -62,12 +63,15 @@ export default function GeneralIdentitySection() {
     toast.success("General Identity details saved.");
 
     
-  /**
-   * UX RULE:
-   * Saving a section returns cadet to Sections overview
-   * (commit + exit, not linger)
-   */
-  navigation.goBack();
+    /**
+     * UX RULE (CRITICAL):
+     * - Saving a section returns cadet to Sections overview INSIDE wizard
+     * - Do NOT navigate out to Sea Service dashboard
+     */
+    if (onSaved) {
+      onSaved();
+    }
+
 
   };
 

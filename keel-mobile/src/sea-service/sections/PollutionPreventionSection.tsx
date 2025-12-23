@@ -117,7 +117,8 @@ function Dropdown({
   );
 }
 
-export default function PollutionPreventionSection() {
+export default function PollutionPreventionSection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
   const { payload, updateSection } = useSeaService();
@@ -221,6 +222,16 @@ export default function PollutionPreventionSection() {
         ? "Pollution Prevention saved."
         : "Pollution Prevention saved (empty draft)."
     );
+    
+  /**
+   * ============================================================
+   * UX RULE (GLOBAL – ALREADY APPROVED):
+   * After saving a section, ALWAYS return to Sections overview
+   * ============================================================
+   */
+  if (onSaved) {
+    onSaved();
+  }
   };
 
   return (

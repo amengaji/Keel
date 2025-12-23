@@ -77,13 +77,20 @@ export default function SeaServiceScreen() {
     payload.sections.GENERAL_IDENTITY?.vesselName ?? "Sea Service";
   const activeImoNumber = payload.sections.GENERAL_IDENTITY?.imoNumber ?? null;
 
-  /**
-   * Section completion summary (ACTIVE draft only).
-   * Uses centralized logic from seaServiceStatus.ts — no rule duplication here.
-   */
-  const activeSectionSummary = seaServiceId
-    ? getSeaServiceSummary(payload.sections, payload.shipType ?? undefined)
-    : null;
+/**
+ * ============================================================
+ * Progress summary (SOURCE OF TRUTH = sectionStatus)
+ * ============================================================
+ */
+const sectionStatus = payload?.sectionStatus ?? {};
+
+const activeSectionSummary = {
+  completedSections: Object.values(sectionStatus).filter(
+    (s) => s === "COMPLETE"
+  ).length,
+  totalSections: Object.keys(sectionStatus).length,
+};
+
 
   /**
    * FINALIZE ELIGIBILITY (UX-only cue)
@@ -175,11 +182,45 @@ export default function SeaServiceScreen() {
         <Card style={styles.serviceCard}>
           <Card.Content>
             <View style={styles.cardHeader}>
-              <Text variant="titleMedium" style={styles.cardTitle}>
-                {activeShipName}
-              </Text>
-              <Chip mode="outlined">ACTIVE</Chip>
+              <View>
+                <Text variant="titleMedium" style={styles.cardTitle}>
+                  {activeShipName}
+                </Text>
+                <Chip mode="outlined" compact>
+                  Active
+                </Chip>
+              </View>
+
+              {/* =====================================================
+                  ICON ACTIONS — ACTIVE DRAFT (UX-2B)
+                ===================================================== */}
+              <View style={styles.iconActions}>
+                {/* Continue / Edit (✏️) */}
+                <MaterialCommunityIcons
+                  name="pencil-outline"
+                  size={30}
+                  color={theme.colors.primary}
+                  onPress={handleContinueService}
+                />
+
+                {/* Finalize (🔒) */}
+                <MaterialCommunityIcons
+                  name="lock-outline"
+                  size={30}
+                  color={canFinalizeUX ? theme.colors.primary : theme.colors.outline}
+                  onPress={canFinalizeUX ? handleFinalizePress : undefined}
+                />
+
+                {/* Discard (🗑️) */}
+                <MaterialCommunityIcons
+                  name="trash-can-outline"
+                  size={30}
+                  color={theme.colors.error}
+                  onPress={handleDiscardDraft}
+                />
+              </View>
             </View>
+
 
             {activeImoNumber && (
               <Text variant="bodySmall" style={styles.metaText}>
@@ -213,8 +254,8 @@ export default function SeaServiceScreen() {
                   <Chip mode="outlined" compact>
                     {activeSectionSummary.completedSections ===
                     activeSectionSummary.totalSections
-                      ? "READY"
-                      : "IN PROGRESS"}
+                      ? "Ready to Finalize"
+                      : "In Progress"}
                   </Chip>
                 </View>
               </View>
@@ -241,71 +282,6 @@ export default function SeaServiceScreen() {
               )}
             </View>
           </Card.Content>
-
-          <Card.Actions style={styles.actionsStack}>
-            <Button
-              mode="contained"
-              onPress={handleContinueService}
-              style={styles.actionButton}
-              contentStyle={styles.actionButtonContent}
-            >
-              Continue Sea Service
-            </Button>
-
-            <Button
-              mode="outlined"
-              onPress={() => navigation.navigate("SeaServiceWizard")}
-              style={styles.actionButton}
-              contentStyle={styles.actionButtonContent}
-              icon={({ size, color }) => (
-                <MaterialCommunityIcons
-                  name="pencil-outline"
-                  size={size}
-                  color={color}
-                />
-              )}
-            >
-              Edit Sign-On / Sign-Off
-            </Button>
-
-            <Button
-              mode="contained"
-              disabled={!canFinalize}
-              onPress={handleFinalizePress}
-              style={styles.actionButton}
-              contentStyle={styles.actionButtonContent}
-              icon={({ size, color }) => (
-                <MaterialCommunityIcons
-                  name="lock-outline"
-                  size={size}
-                  color={color}
-                />
-              )}
-            >
-              Finalize Sea Service
-            </Button>
-            {/* Divider to separate destructive action */}
-            <View style={{ height: 1, backgroundColor: theme.colors.outline, marginVertical: 6 }} />
-
-            {/* Discard Draft — DRAFT ONLY */}
-            <Button
-              mode="outlined"
-              onPress={handleDiscardDraft}
-              style={styles.actionButton}
-              contentStyle={styles.actionButtonContent}
-              textColor={theme.colors.error}
-              icon={({ size }) => (
-                <MaterialCommunityIcons
-                  name="trash-can-outline"
-                  size={size}
-                  color={theme.colors.error}
-                />
-              )}
-            >
-              Discard Draft
-            </Button>
-
-          </Card.Actions>
 
         </Card>
       )}
@@ -555,6 +531,12 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: "center",
   },
+  iconActions: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 14,
+},
+
 
 
   emptyCard: { marginTop: 8, marginBottom: 16 },

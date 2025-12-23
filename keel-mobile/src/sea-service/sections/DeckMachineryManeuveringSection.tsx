@@ -35,7 +35,8 @@ import { useToast } from "../../components/toast/useToast";
  */
 const SECTION_KEY = "DECK_MACHINERY_MANEUVERING";
 
-export default function DeckMachineryManeuveringSection() {
+export default function DeckMachineryManeuveringSection(props: { onSaved?: () => void }) {
+  const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
 
@@ -104,6 +105,15 @@ export default function DeckMachineryManeuveringSection() {
   };
 
   const handleSave = () => {
+    /**
+     * ============================================================
+     * Draft-safe save (partial allowed)
+     * ============================================================
+     *
+     * - Partial entries → IN_PROGRESS
+     * - Fully filled → COMPLETED
+     * - Status logic handled centrally in SeaServiceContext
+     */
     updateSection(SECTION_KEY, form);
 
     if (isFormComplete) {
@@ -112,10 +122,21 @@ export default function DeckMachineryManeuveringSection() {
       );
     } else {
       toast.info(
-        "Deck machinery details saved as draft."
+        "Saved as draft. Complete all fields to mark this section as Completed."
       );
     }
+
+    /**
+     * ============================================================
+     * UX RULE:
+     * After saving, always return to Sections overview
+     * ============================================================
+     */
+    if (onSaved) {
+      onSaved();
+    }
   };
+
 
   /**
    * ============================================================

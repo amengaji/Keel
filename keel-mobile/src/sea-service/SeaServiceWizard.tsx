@@ -29,7 +29,7 @@ import { SHIP_TYPES } from "../config/shipTypes";
 import { SEA_SERVICE_SECTIONS } from "../config/seaServiceSections";
 import { useSeaService } from "./SeaServiceContext";
 import { useToast } from "../components/toast/useToast";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { finalizeSeaService } from "../db/seaService";
 import { Dialog, Portal } from "react-native-paper";
 import DateInputField from "../components/inputs/DateInputField";
@@ -112,11 +112,33 @@ const canFinalize = (() => {
  */
 const isReadOnly = !canFinalize && payload?.servicePeriod?.signOffDate !== null;
 
+/**
+ * ============================================================
+ * Internal wizard step state (HARD LOCKED)
+ * ============================================================
+ *
+ * RULE (ABSOLUTE):
+ * - Ship type is selected ONLY during draft creation
+ * - Wizard MUST NEVER remain in SHIP_TYPE state
+ */
+const [currentStep, setCurrentStep] = useState<WizardStep>("SECTION_OVERVIEW");
 
+/**
+ * ============================================================
+ * FOCUS RESTORE — ALWAYS RETURN TO SECTION OVERVIEW
+ * ============================================================
+ *
+ * UX RULE (CRITICAL):
+ * - When a section screen is closed (goBack),
+ *   the wizard MUST reopen on Section Overview
+ * - This ensures section status + progress refresh correctly
+ */
+useFocusEffect(
+  React.useCallback(() => {
+    setCurrentStep("SECTION_OVERVIEW");
+  }, [])
+);
 
-  /** Internal wizard step state */
-  const [currentStep, setCurrentStep] =
-    useState<WizardStep>("SHIP_TYPE");
 
   /**
    * ------------------------------------------------------------
@@ -260,24 +282,56 @@ const [signOffPort, setSignOffPort] = useState(
       return SHIP_TYPES.filter((s) => quickPickCodes.includes(s.code));
     }, [quickPickCodes]);
 
+/**
+ * ============================================================
+ * SECTION ENABLEMENT (UX-SAFE FALLBACK)
+ * ============================================================
+ *
+ * IMPORTANT:
+ * - If section configuration is missing or mismatched,
+ *   we FALL BACK to showing ALL sections.
+ * - This prevents a dead UI for cadets.
+ */
+const enabledSections = useMemo(() => {
+  if (!payload.shipType) return [];
 
-  /**
-   * ------------------------------------------------------------
-   * SECTION ENABLEMENT (BY SHIP TYPE)
-   * ------------------------------------------------------------
-   */
-  const enabledSections = useMemo(() => {
-    if (!payload.shipType) return [];
+  const shipTypeConfig = SHIP_TYPES.find(
+    (t) => t.code === payload.shipType
+  );
 
-    const shipTypeConfig = SHIP_TYPES.find(
-      (t) => t.code === payload.shipType
-    );
-    if (!shipTypeConfig) return [];
+  // Fallback: show all sections if config is missing
+  if (!shipTypeConfig || !shipTypeConfig.enabledSections?.length) {
+    return SEA_SERVICE_SECTIONS;
+  }
 
-    return SEA_SERVICE_SECTIONS.filter((section) =>
-      shipTypeConfig.enabledSections.includes(section.key)
-    );
-  }, [payload.shipType]);
+  const filtered = SEA_SERVICE_SECTIONS.filter((section) =>
+    shipTypeConfig.enabledSections.includes(section.key)
+  );
+
+  // Fallback if filter produced nothing
+  return filtered.length > 0 ? filtered : SEA_SERVICE_SECTIONS;
+}, [payload.shipType]);
+
+/**
+ * ============================================================
+ * SECTION STATUS + PROGRESS (UI helpers)
+ * ============================================================
+ *
+ * We show status on each section card so cadets can:
+ * - verify completion at a glance
+ * - continue the next section without guessing
+ */
+const completedSectionsCount = useMemo(() => {
+  const statuses: any = (payload as any)?.sectionStatus ?? {};
+  return enabledSections.filter((s) => statuses[s.key] === "COMPLETE").length;
+}, [enabledSections, payload]);
+
+const totalSectionsCount = enabledSections.length;
+
+const getSectionStatusLabel = (status?: string) => {
+  if (status === "COMPLETE") return "Completed";
+  return "Not Started";
+};
 
   /**
    * ------------------------------------------------------------
@@ -340,319 +394,6 @@ const [signOffPort, setSignOffPort] = useState(
     toast.info(`"${title}" form will be added next.`);
   };
 
-  /**
-   * ============================================================
-   * RENDER — STEP 1: SHIP TYPE (REDESIGNED UX)
-   * ============================================================
-   *
-   * Goals:
-   * - Fast selection (search + categories + quick picks)
-   * - Clear single-select behavior (radio pattern)
-   * - Draft-safe (selection persists immediately)
-   * - Theme-safe for light/dark modes
-   */
-if (currentStep === "SHIP_TYPE") {
-  return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      {/* =====================================================
-          SCROLLABLE CONTENT
-          ===================================================== */}
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.content,
-          {
-            // Space for sticky bottom bar
-            paddingBottom: 160,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text variant="headlineSmall" style={styles.title}>
-          Step 1: Select Ship Type
-        </Text>
-
-        <Text variant="bodyMedium" style={styles.subtitle}>
-          Choose the vessel type you served on. KEEL will automatically show only
-          the Sea Service sections that apply.
-        </Text>
-
-        {/* ---------------- Selected Summary ---------------- */}
-        {selectedShipType && (
-          <Card
-            style={[
-              styles.selectedSummaryCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.primary,
-              },
-            ]}
-          >
-            <Card.Content>
-              <Text style={{ fontWeight: "700" }}>Selected ship type</Text>
-              <Text style={{ marginTop: 4, opacity: 0.85 }}>
-                {selectedShipType.label}
-              </Text>
-              <Text style={{ marginTop: 6, opacity: 0.7, fontSize: 12 }}>
-                Draft saved automatically. You can change this later.
-              </Text>
-            </Card.Content>
-          </Card>
-        )}
-
-        {/* ---------------- Search ---------------- */}
-        <Searchbar
-          placeholder="Search ship types (e.g., tanker, bulk, container)"
-          value={shipTypeSearch}
-          onChangeText={setShipTypeSearch}
-          style={[
-            styles.searchBar,
-            { backgroundColor: theme.colors.surface },
-          ]}
-          inputStyle={{ fontSize: 14 }}
-        />
-
-        {/* ---------------- Category Chips ---------------- */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipRow}
-        >
-          {(
-            [
-              { key: "ALL", label: "All" },
-              { key: "CARGO", label: "Cargo" },
-              { key: "TANKER", label: "Tanker" },
-              { key: "PASSENGER", label: "Passenger" },
-              { key: "OFFSHORE", label: "Offshore" },
-              { key: "OTHER", label: "Other" },
-            ] as { key: ShipTypeCategory; label: string }[]
-          ).map((c) => {
-            const active = shipTypeCategory === c.key;
-            return (
-              <Chip
-                key={c.key}
-                selected={active}
-                mode={active ? "flat" : "outlined"}
-                onPress={() => setShipTypeCategory(c.key)}
-                style={[
-                  styles.chip,
-                  active && { backgroundColor: theme.colors.primary },
-                ]}
-                textStyle={[
-                  styles.chipText,
-                  active && { color: theme.colors.onPrimary },
-                ]}
-              >
-                {c.label}
-              </Chip>
-            );
-          })}
-        </ScrollView>
-
-        {/* ---------------- QUICK PICKS ---------------- */}
-        {shipTypeSearch.trim().length === 0 &&
-          shipTypeCategory === "ALL" &&
-          quickPicks.length > 0 && (
-            <Card
-              style={[
-                styles.quickPickCard,
-                { backgroundColor: theme.colors.surface },
-              ]}
-            >
-              <Card.Content>
-                <Text style={{ fontWeight: "700", marginBottom: 10 }}>
-                  Quick picks
-                </Text>
-
-                <View style={styles.quickPickGrid}>
-                  {quickPicks.map((ship) => {
-                    const isSelected =
-                      payload.shipType === ship.code;
-
-                    return (
-                      <Card
-                        key={ship.code}
-                        style={[
-                          styles.quickPickItem,
-                          {
-                            backgroundColor: theme.colors.surface,
-                            borderColor: isSelected
-                              ? theme.colors.primary
-                              : theme.colors.outlineVariant,
-                            borderWidth: 1,
-                          },
-                        ]}
-                        onPress={() =>
-                          handleSelectShipType(
-                            ship.code,
-                            ship.label
-                          )
-                        }
-                      >
-                        <Card.Content>
-                          <Text style={{ fontWeight: "700" }}>
-                            {ship.label}
-                          </Text>
-                          <Text
-                            style={{
-                              marginTop: 6,
-                              opacity: 0.7,
-                              fontSize: 12,
-                            }}
-                          >
-                            Tap to select
-                          </Text>
-                        </Card.Content>
-                      </Card>
-                    );
-                  })}
-                </View>
-              </Card.Content>
-            </Card>
-          )}
-
-        {/* ---------------- HELP CARD ---------------- */}
-        <Card
-          style={[
-            styles.helperCard,
-            { backgroundColor: theme.colors.surface },
-          ]}
-        >
-          <Card.Content>
-            <Text style={{ fontWeight: "700", marginBottom: 6 }}>
-              Not sure which one to choose?
-            </Text>
-            <Text style={{ opacity: 0.8, lineHeight: 18 }}>
-              Start with the closest match. If your vessel is a
-              standard cargo ship and you are unsure, “General
-              Cargo” is usually a safe default.
-            </Text>
-          </Card.Content>
-        </Card>
-
-        {/* ---------------- RADIO LIST ---------------- */}
-        <Card
-          style={[
-            styles.listCard,
-            { backgroundColor: theme.colors.surface },
-          ]}
-        >
-          <Card.Content>
-            <View style={styles.listHeaderRow}>
-              <Text style={{ fontWeight: "700" }}>
-                All ship types
-              </Text>
-              <Text style={{ opacity: 0.7, fontSize: 12 }}>
-                {filteredShipTypes.length} shown
-              </Text>
-            </View>
-
-            <Divider style={{ marginVertical: 10 }} />
-
-            <RadioButton.Group
-              value={payload.shipType ?? ""}
-              onValueChange={(value) => {
-                const match = SHIP_TYPES.find(
-                  (s) => s.code === value
-                );
-                if (match) {
-                  handleSelectShipType(
-                    match.code,
-                    match.label
-                  );
-                }
-              }}
-            >
-              <View style={{ gap: 10 }}>
-                {filteredShipTypes.map((ship) => {
-                  const isSelected =
-                    payload.shipType === ship.code;
-
-                  return (
-                    <Pressable
-                      key={ship.code}
-                      onPress={() =>
-                        handleSelectShipType(
-                          ship.code,
-                          ship.label
-                        )
-                      }
-                      style={[
-                        styles.shipRow,
-                        {
-                          borderColor: isSelected
-                            ? theme.colors.primary
-                            : theme.colors.outlineVariant,
-                          backgroundColor:
-                            theme.colors.background,
-                        },
-                      ]}
-                    >
-                      <View style={styles.shipRowLeft}>
-                        <RadioButton
-                          value={ship.code}
-                        />
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontWeight: "700" }}>
-                            {ship.label}
-                          </Text>
-                          <Text
-                            style={{
-                              opacity: 0.7,
-                              fontSize: 12,
-                              marginTop: 2,
-                            }}
-                          >
-                            Sections enabled:{" "}
-                            {ship.enabledSections.length}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {isSelected && (
-                        <Text
-                          style={{
-                            fontWeight: "700",
-                            color: theme.colors.primary,
-                          }}
-                        >
-                          Selected
-                        </Text>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </RadioButton.Group>
-          </Card.Content>
-        </Card>
-      </ScrollView>
-
-      {/* =====================================================
-          STICKY BOTTOM BAR
-          ===================================================== */}
-      <View
-        style={[
-          styles.bottomActionBar,
-          {
-            backgroundColor: theme.colors.background,
-            borderTopColor: theme.colors.outlineVariant,
-            paddingBottom: Math.max(insets.bottom, 12),
-          },
-        ]}
-      >
-        <Button
-          mode="contained"
-          disabled={!payload.shipType}
-          onPress={handleNextFromShipType}
-        >
-          Next
-        </Button>
-      </View>
-    </View>
-  );
-}
 
 /**
  * ============================================================
@@ -778,7 +519,8 @@ if (currentStep === "SERVICE_PERIOD") {
 
         <Divider />
 
-        <GeneralIdentitySection />
+        <GeneralIdentitySection onSaved={() => setCurrentStep("SECTION_OVERVIEW")} />
+
       </View>
     );
   }
@@ -823,7 +565,7 @@ if (currentStep === "SERVICE_PERIOD") {
 
         <Divider />
 
-        <DimensionsTonnageSection />
+        <DimensionsTonnageSection onSaved={() => setCurrentStep("SECTION_OVERVIEW")}/>
       </View>
     );
   }
@@ -868,7 +610,10 @@ if (currentStep === "SERVICE_PERIOD") {
 
         <Divider />
 
-        <PropulsionPerformanceSection />
+        <PropulsionPerformanceSection
+          onSaved={() => setCurrentStep("SECTION_OVERVIEW")}
+        />
+
         </View>
     );
     }
@@ -913,7 +658,10 @@ if (currentStep === "SERVICE_PERIOD") {
 
             <Divider />
 
-            <AuxMachineryElectricalSection />
+            <AuxMachineryElectricalSection
+              onSaved={() => setCurrentStep("SECTION_OVERVIEW")}
+            />
+
             </View>
         );
     }
@@ -959,7 +707,10 @@ if (currentStep === "SERVICE_PERIOD") {
 
             <Divider />
 
-            <DeckMachineryManeuveringSection />
+            <DeckMachineryManeuveringSection
+              onSaved={() => setCurrentStep("SECTION_OVERVIEW")}
+            />
+
             </View>
         );
     }
@@ -1004,7 +755,10 @@ if (currentStep === "SERVICE_PERIOD") {
 
         <Divider />
 
-        <CargoCapabilitiesSection />
+        <CargoCapabilitiesSection
+          onSaved={() => setCurrentStep("SECTION_OVERVIEW")}
+        />
+
       </View>
     );
   }
@@ -1045,7 +799,7 @@ if (currentStep === "NAVIGATION_COMMUNICATION") {
 
       <Divider />
 
-      <NavigationCommunicationSection />
+      <NavigationCommunicationSection onSaved={() => setCurrentStep("SECTION_OVERVIEW")}/>
     </View>
   );
 }
@@ -1085,7 +839,7 @@ if (currentStep === "NAVIGATION_COMMUNICATION") {
 
         <Divider />
 
-        <LifeSavingAppliancesSection />
+        <LifeSavingAppliancesSection onSaved={() => setCurrentStep("SECTION_OVERVIEW")}/>
         </View>
     );
     }
@@ -1126,7 +880,7 @@ if (currentStep === "FIRE_FIGHTING_APPLIANCES") {
 
       <Divider />
 
-      <FireFightingAppliancesSection />
+      <FireFightingAppliancesSection onSaved={() => setCurrentStep("SECTION_OVERVIEW")}/>
     </View>
   );
 }
@@ -1165,7 +919,7 @@ if (currentStep === "INERT_GAS_SYSTEM") {
         </Button>
       </View>
       <Divider />
-      <InertGasSystemSection />
+      <InertGasSystemSection onSaved={() => setCurrentStep("SECTION_OVERVIEW")}/>
     </View>
   );
 }
@@ -1204,761 +958,189 @@ if (currentStep === "POLLUTION_PREVENTION") {
         </Button>
       </View>
       <Divider />
-      <PollutionPreventionSection/>
+      <PollutionPreventionSection onSaved={() => setCurrentStep("SECTION_OVERVIEW")}/>
+    </View>
+  );
+}
+/**
+ * ============================================================
+ * RENDER — STEP 2: SECTION OVERVIEW (UX-SAFE)
+ * ============================================================
+ */
+if (currentStep === "SECTION_OVERVIEW") {
+
+/**
+ * ============================================================
+ * EMPTY STATE — SHIP TYPE MISSING ONLY
+ * ============================================================
+ *
+ * IMPORTANT:
+ * - Sections MUST render even if configuration is incomplete
+ * - We only block if ship type itself is missing
+ */
+if (!payload.shipType) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: theme.colors.background,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 24,
+      }}
+    >
+      <Text variant="titleMedium" style={{ fontWeight: "700", marginBottom: 8 }}>
+        Sea Service setup incomplete
+      </Text>
+
+      <Text
+        variant="bodyMedium"
+        style={{ opacity: 0.75, textAlign: "center", marginBottom: 12 }}
+      >
+        Vessel type is missing for this Sea Service record.
+      </Text>
+
+      <Button mode="contained" onPress={() => navigation.goBack()}>
+        Go Back
+      </Button>
     </View>
   );
 }
 
-  /**
-   * ============================================================
-   * RENDER — STEP 2: SECTION OVERVIEW
-   * ============================================================
-   */
+
+  // ---------- NORMAL SECTION OVERVIEW ----------
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-    <ScrollView
-      style={[
-        styles.container,
-        { backgroundColor: theme.colors.background },
-      ]}
-      contentContainerStyle={[
-        styles.content,
-        { paddingBottom: 160 },
-      ]}
-    >
-      <Text variant="headlineSmall" style={styles.title}>
-        Sea Service Sections
-      </Text>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 160 },
+        ]}
+      >
+        {/* Header + progress summary */}
+        <View style={styles.sectionsHeaderRow}>
+          <Text variant="headlineSmall" style={styles.title}>
+            Sea Service Sections
+          </Text>
 
-      <Text variant="bodyMedium" style={styles.subtitle}>
-        Complete the sections below. You can save and
-        return at any time.
-      </Text>
+          <Chip mode="outlined" compact style={styles.progressChip}>
+            {completedSectionsCount}/{totalSectionsCount} Completed
+          </Chip>
+        </View>
 
-      <View style={styles.cardGrid}>
-        {enabledSections.map((section) => (
-          <Card
-            key={section.key}
-            style={styles.card}
-            onPress={() =>
-              handleOpenSection(
-                section.key,
-                section.title
-              )
-            }
-          >
-            <Card.Content>
-              <Text
-                variant="titleMedium"
-                style={styles.cardTitle}
+        <View style={styles.cardGrid}>
+          {enabledSections.map((section) => {
+            const status: any = (payload as any)?.sectionStatus?.[section.key];
+            const statusLabel = getSectionStatusLabel(status);
+            const isComplete = status === "COMPLETE";
+
+            return (
+              <Card
+                key={section.key}
+                style={styles.card}
+                onPress={() => handleOpenSection(section.key, section.title)}
               >
-                {section.title}
-              </Text>
-
-              <Text
-                variant="bodySmall"
-                style={styles.sectionDescription}
-              >
-                {section.description}
-              </Text>
-
-              {/* ------------------------------------------------
-                  SECTION STATUS (DYNAMIC)
-                  ------------------------------------------------ */}
-                {(() => {
-                const sectionData =
-                    payload.sections[
-                    section.key as keyof typeof payload.sections
-                    ] || {};
-
-                let status:
-                    | "Not Started"
-                    | "In Progress"
-                    | "Completed" =
-                    "Not Started";
-
-                // ---------------- GENERAL IDENTITY ----------------
-                if (section.key === "GENERAL_IDENTITY") {
-                    const {
-                    shipName,
-                    imoNumber,
-                    flagState,
-                    portOfRegistry,
-                    } = sectionData as any;
-
-                    if (
-                    shipName &&
-                    imoNumber &&
-                    flagState &&
-                    portOfRegistry
-                    ) {
-                    status = "Completed";
-                    } else if (
-                    shipName ||
-                    imoNumber ||
-                    flagState ||
-                    portOfRegistry
-                    ) {
-                    status = "In Progress";
-                    }
-                }
-
-                // ---------------- DIMENSIONS ----------------
-                if (section.key === "DIMENSIONS_TONNAGE") {
-                    const {
-                    grossTonnage,
-                    netTonnage,
-                    deadweightTonnage,
-                    loaMeters,
-                    breadthMeters,
-                    summerDraftMeters,
-                    } = sectionData as any;
-
-                    const allFilled =
-                    grossTonnage &&
-                    netTonnage &&
-                    deadweightTonnage &&
-                    loaMeters &&
-                    breadthMeters &&
-                    summerDraftMeters;
-
-                    const anyFilled =
-                    grossTonnage ||
-                    netTonnage ||
-                    deadweightTonnage ||
-                    loaMeters ||
-                    breadthMeters ||
-                    summerDraftMeters;
-
-                    if (allFilled) {
-                    status = "Completed";
-                    } else if (anyFilled) {
-                    status = "In Progress";
-                    }
-                }
-
-                // ---------------- PROPULSION ----------------
-                if (section.key === "PROPULSION_PERFORMANCE") {
-                    const values = Object.values(sectionData);
-
-                    const allFilled =
-                    values.length > 0 &&
-                    values.every((v) => String(v).trim() !== "");
-
-                    const anyFilled =
-                    values.some((v) => String(v).trim() !== "");
-
-                    if (allFilled) {
-                    status = "Completed";
-                    } else if (anyFilled) {
-                    status = "In Progress";
-                    }
-                }
-
-                // ---------------- AUX MACHINERY ----------------
-                if (section.key === "AUX_MACHINERY_ELECTRICAL") {
-                    const {
-                    mainGeneratorsMakeModel,
-                    numberOfGenerators,
-                    generatorPowerOutput,
-                    emergencyGeneratorMakeModel,
-                    emergencyGeneratorPowerOutput,
-                    shaftGeneratorDetails,
-                    mainSupplyVoltageFrequency,
-                    lightingSupplyVoltage,
-                    boilerMakeType,
-                    boilerWorkingPressure,
-                    freshWaterGeneratorType,
-                    oilyWaterSeparatorMakeModel,
-                    sewageTreatmentPlantMakeModel,
-                    incineratorMake,
-                    purifiersMake,
-                    airCompressorsMakePressure,
-                    } = sectionData as any;
-
-                    const allFilled =
-                    mainGeneratorsMakeModel &&
-                    numberOfGenerators &&
-                    generatorPowerOutput &&
-                    emergencyGeneratorMakeModel &&
-                    emergencyGeneratorPowerOutput &&
-                    shaftGeneratorDetails &&
-                    mainSupplyVoltageFrequency &&
-                    lightingSupplyVoltage &&
-                    boilerMakeType &&
-                    boilerWorkingPressure &&
-                    freshWaterGeneratorType &&
-                    oilyWaterSeparatorMakeModel &&
-                    sewageTreatmentPlantMakeModel &&
-                    incineratorMake &&
-                    purifiersMake &&
-                    airCompressorsMakePressure;
-
-                    const anyFilled =
-                    mainGeneratorsMakeModel ||
-                    numberOfGenerators ||
-                    generatorPowerOutput ||
-                    emergencyGeneratorMakeModel ||
-                    emergencyGeneratorPowerOutput ||
-                    shaftGeneratorDetails ||
-                    mainSupplyVoltageFrequency ||
-                    lightingSupplyVoltage ||
-                    boilerMakeType ||
-                    boilerWorkingPressure ||
-                    freshWaterGeneratorType ||
-                    oilyWaterSeparatorMakeModel ||
-                    sewageTreatmentPlantMakeModel ||
-                    incineratorMake ||
-                    purifiersMake ||
-                    airCompressorsMakePressure;
-
-                    if (allFilled) {
-                    status = "Completed";
-                    } else if (anyFilled) {
-                    status = "In Progress";
-                    }
-                }
-
-                // ---------------- DECK MACHINERY & MANEUVERING ----------------
-                if (section.key === "DECK_MACHINERY_MANEUVERING") {
-                const {
-                    anchorWindlassMakeType,
-                    mooringWinchesNumberType,
-                    anchorPortTypeWeight,
-                    anchorStarboardTypeWeight,
-                    chainLengthPortShackles,
-                    chainLengthStarboardShackles,
-                    bowThrusterPowerMake,
-                    sternThrusterPowerMake,
-                    steeringGearMakeModelType,
-                } = sectionData as any;
-
-                const allFilled =
-                    anchorWindlassMakeType &&
-                    mooringWinchesNumberType &&
-                    anchorPortTypeWeight &&
-                    anchorStarboardTypeWeight &&
-                    chainLengthPortShackles &&
-                    chainLengthStarboardShackles &&
-                    bowThrusterPowerMake &&
-                    sternThrusterPowerMake &&
-                    steeringGearMakeModelType;
-
-                const anyFilled =
-                    anchorWindlassMakeType ||
-                    mooringWinchesNumberType ||
-                    anchorPortTypeWeight ||
-                    anchorStarboardTypeWeight ||
-                    chainLengthPortShackles ||
-                    chainLengthStarboardShackles ||
-                    bowThrusterPowerMake ||
-                    sternThrusterPowerMake ||
-                    steeringGearMakeModelType;
-
-                if (allFilled) {
-                    status = "Completed";
-                } else if (anyFilled) {
-                    status = "In Progress";
-                }
-                }
-
-                if (section.key === "CARGO_CAPABILITIES") {
-                  /**
-                   * Cargo Capabilities Status Logic
-                   *
-                   * RULES:
-                   * - Fields are profile-driven (by ship type)
-                   * - Wizard does NOT care about ship type here
-                   * - Completion = all required fields filled
-                   * - In Progress = any field filled
-                   * - Empty = Not Started
-                   */
-
-                  const values = Object.values(sectionData || {}).map(
-                    (v) => String(v).trim()
-                  );
-
-                  const anyFilled = values.some((v) => v !== "");
-                  const allFilled =
-                    values.length > 0 &&
-                    values.every((v) => v !== "");
-
-                  if (allFilled) {
-                    status = "Completed";
-                  } else if (anyFilled) {
-                    status = "In Progress";
-                  }
-                }
-                // ---------------- NAVIGATION & COMMUNICATION ----------------
-                if (section.key === "NAVIGATION_COMMUNICATION") {
-                    const {
-                        gyroCompass,
-                        magneticCompass,
-                        radarXBand,
-                        radarSBand,
-                        ecdis,
-                        gps,
-                        echoSounder,
-                        speedLog,
-                        ais,
-                        navtex,
-                        gmdssArea,
-                        vhf,
-                        mfHf,
-                        inmarsat,
-                        satC,
-                    } = sectionData as any;
-
-                    /**
-                     * COMPLETION RULES (MARINE-CORRECT):
-                     *
-                     * REQUIRED CORE NAV EQUIPMENT:
-                     * - Gyro or Magnetic compass
-                     * - At least one Radar
-                     * - GPS
-                     * - ECDIS
-                     * - AIS
-                     * - GMDSS (any area)
-                     * - VHF
-                     */
-
-                    const coreNavigationSatisfied =
-                        (gyroCompass || magneticCompass) &&
-                        (radarXBand || radarSBand) &&
-                        gps &&
-                        ecdis &&
-                        ais &&
-                        gmdssArea &&
-                        vhf;
-
-                    const anyFilled = [
-                        gyroCompass,
-                        magneticCompass,
-                        radarXBand,
-                        radarSBand,
-                        ecdis,
-                        gps,
-                        echoSounder,
-                        speedLog,
-                        ais,
-                        navtex,
-                        gmdssArea,
-                        vhf,
-                        mfHf,
-                        inmarsat,
-                        satC,
-                    ].some((v) => String(v ?? "").trim() !== "");
-
-                    if (coreNavigationSatisfied) {
-                        status = "Completed";
-                    } else if (anyFilled) {
-                        status = "In Progress";
-                    }
-                }
-
-                // ---------------- LIFE SAVING APPLIANCES ----------------
-                if (section.key === "LIFE_SAVING_APPLIANCES") {
-                    /**
-                     * LIFE SAVING APPLIANCES STATUS LOGIC
-                     *
-                     * RULES (MARINE-CORRECT):
-                     * - Section is large → completion is pragmatic, not perfectionist
-                     * - Completed when CORE SOLAS items are present
-                     * - In Progress when any LSA data is entered
-                     */
-
-                    const {
-                        // Lifeboats
-                        lifeboatsAvailable,
-                        lifeboatType,
-                        lifeboatCount,
-                        lifeboatCapacity,
-
-                        // Liferafts
-                        liferaftsAvailable,
-                        liferaftType,
-                        liferaftCount,
-                        liferaftCapacity,
-
-                        // Distress & alerting
-                        epirbType,
-                        sartType,
-
-                        // Distress signals
-                        rocketFlaresAvailable,
-                        handFlaresAvailable,
-                        smokeSignalsAvailable,
-                    } = sectionData as any;
-
-                    const anyFilled =
-                        lifeboatsAvailable ||
-                        liferaftsAvailable ||
-                        lifeboatType ||
-                        lifeboatCount ||
-                        lifeboatCapacity ||
-                        liferaftType ||
-                        liferaftCount ||
-                        liferaftCapacity ||
-                        epirbType ||
-                        sartType ||
-                        rocketFlaresAvailable ||
-                        handFlaresAvailable ||
-                        smokeSignalsAvailable;
-
-                    /**
-                     * CORE COMPLETION CRITERIA (AUDIT-SAFE):
-                     * - At least ONE survival craft (LB or LR)
-                     * - EPIRB present
-                     * - SART present
-                     */
-                    const hasSurvivalCraft =
-                        (lifeboatsAvailable &&
-                        lifeboatType &&
-                        lifeboatCount &&
-                        lifeboatCapacity) ||
-                        (liferaftsAvailable &&
-                        liferaftType &&
-                        liferaftCount &&
-                        liferaftCapacity);
-
-                    const distressReady = epirbType && sartType;
-
-                    if (hasSurvivalCraft && distressReady) {
-                        status = "Completed";
-                    } else if (anyFilled) {
-                        status = "In Progress";
-                    }
-                }
-
-// ---------------- FIRE FIGHTING APPLIANCES ----------------
-if (section.key === "FIRE_FIGHTING_APPLIANCES") {
-  /**
-   * FIRE FIGHTING APPLIANCES STATUS LOGIC (Wizard-only)
-   *
-   * GOALS:
-   * - Backward compatible with legacy fields
-   * - Understand new portable-extinguishers-by-type model
-   * - Understand fixed-fire-systems-by-space + multi-system per space
-   * - Keep “Completed” pragmatic and audit-defensible
-   */
-
-  const data = (sectionData ?? {}) as any;
-
-  // ---------- Portable extinguishers (NEW + legacy support) ----------
-  const portableAny =
-    !!data.portableExtinguishersAvailable || // legacy (if still exists in old drafts)
-    !!data.dcpExtinguishersAvailable ||
-    !!data.co2ExtinguishersAvailable ||
-    !!data.foamExtinguishersAvailable ||
-    !!data.waterMistExtinguishersAvailable;
-
-  // ---------- Fixed fire systems (NEW + legacy support) ----------
-  // Legacy flag (old generic model)
-  const fixedLegacyAny = !!data.fixedFireSystemAvailable;
-
-  // Space toggles (new model)
-  const fixedSpaceAny =
-    !!data.engineRoomFixedAvailable ||
-    !!data.pumpRoomFixedAvailable ||
-    !!data.cargoFixedAvailable ||
-    !!data.accommodationFixedAvailable ||
-    !!data.galleyFixedAvailable ||
-    !!data.paintLockerFixedAvailable ||
-    !!data.chemicalLockerFixedAvailable;
-
-  // Any actual fixed-system selection (new model, per-system checkboxes)
-  const fixedSelectedAny =
-    // Engine Room
-    !!data.engineRoomFixedCO2Available ||
-    !!data.engineRoomFixedWaterMistAvailable ||
-    !!data.engineRoomFixedLocalAppAvailable ||
-    !!data.engineRoomFixedFoamLowExpAvailable ||
-    // Pump Room
-    !!data.pumpRoomFixedHighExpFoamAvailable ||
-    !!data.pumpRoomFixedLowExpFoamAvailable ||
-    !!data.pumpRoomFixedWaterSprayAvailable ||
-    !!data.pumpRoomFixedCO2Available ||
-    // Cargo / Deck
-    !!data.cargoFixedLowExpFoamAvailable ||
-    !!data.cargoFixedDCPAvailable ||
-    !!data.cargoFixedWaterSprayAvailable ||
-    !!data.cargoFixedCO2Available ||
-    // Accommodation
-    !!data.accommodationFixedSprinklerAvailable ||
-    !!data.accommodationFixedWaterMistAvailable ||
-    // Galley
-    !!data.galleyFixedWetChemicalAvailable ||
-    !!data.galleyFixedWaterMistAvailable ||
-    !!data.galleyFixedCO2Available ||
-
-    // Paint Locker
-    !!data.paintLockerFixedCO2Available ||
-    !!data.paintLockerFixedWaterSprayAvailable ||
-    !!data.paintLockerFixedFoamAvailable ||
-    // Chemical / Flammable Locker
-    !!data.chemicalLockerFixedCO2Available ||
-    !!data.chemicalLockerFixedWaterSprayAvailable ||
-    !!data.chemicalLockerFixedFoamAvailable;
-
-  // We treat fixed systems as “present” if legacy says so OR any new selections exist OR a space has been marked.
-  // (Marking a space without selecting a system still counts as “in progress”.)
-  const fixedAny = fixedLegacyAny || fixedSelectedAny || fixedSpaceAny;
-
-  // ---------- Any-filled (for In Progress) ----------
-  const anyFilled =
-    !!data.fireMainAvailable ||
-    !!data.emergencyFirePumpAvailable ||
-    !!data.hydrantsAvailable ||
-    !!data.hosesAvailable ||
-    portableAny ||
-    fixedAny ||
-    !!data.fireDetectionAlarmAvailable ||
-    !!data.firemansOutfitAvailable ||
-    !!data.breathingApparatusAvailable ||
-    !!data.eebdAvailable ||
-    !! (typeof data.remarks === "string" && data.remarks.trim().length > 0)
-
-  // ---------- Core completion (pragmatic SOLAS-aligned) ----------
-  /**
-   * CORE COMPLETION CRITERIA:
-   * - Fire main OR any fixed system documented (legacy or new)
-   * - Portable extinguishers documented (any type)
-   * - Fire detection/alarm documented
-   * - Fireman’s outfit OR BA documented
-   */
-  const coreFireProtection =
-    (!!data.fireMainAvailable || fixedLegacyAny || fixedSelectedAny) &&
-    portableAny &&
-    !!data.fireDetectionAlarmAvailable &&
-    (!!data.firemansOutfitAvailable || !!data.breathingApparatusAvailable);
-
-  if (coreFireProtection) {
-    status = "Completed";
-  } else if (anyFilled) {
-    status = "In Progress";
-  }
-}
-// ---------------- INERT GAS SYSTEM ----------------
-if (section.key === "INERT_GAS_SYSTEM") {
-  const data = sectionData || {};
-  const shipType = payload?.shipType || "";
-
-  const isTanker =
-    shipType === "TANKER" ||
-    shipType === "OIL_TANKER" ||
-    shipType === "PRODUCT_TANKER" ||
-    shipType === "CHEMICAL_TANKER";
-
-  // ---- NOT FITTED PATH ----
-  if (!data.igsFitted) {
-    if (
-      !isTanker &&
-      typeof data.igsNotFittedReason === "string" &&
-      data.igsNotFittedReason.trim().length > 0
-    ) {
-      status = "Completed";
-    } else if (
-      typeof data.igsNotFittedReason === "string" &&
-      data.igsNotFittedReason.trim().length > 0
-    ) {
-      status = "In Progress";
-    }
-  }
-
-  // ---- FITTED PATH ----
-  if (data.igsFitted) {
-    const coreComponents =
-      data.scrubberAvailable ||
-      data.blowerAvailable ||
-      data.deckSealAvailable ||
-      data.nonReturnDevicesAvailable;
-
-    const monitoring =
-      data.oxygenAnalyzerAvailable ||
-      data.igPressureAlarmAvailable ||
-      data.deckSealAlarmAvailable ||
-      data.blowerTripAvailable ||
-      data.highOxygenTripAvailable;
-
-    const anyFilled =
-      coreComponents ||
-      monitoring ||
-      data.distCargoTanks ||
-      data.distSlopTanks ||
-      data.distCargoLines ||
-      data.distMastRiser ||
-      (typeof data.igsSourceType === "string" &&
-        data.igsSourceType.trim().length > 0);
-
-    if (coreComponents && monitoring) {
-      status = "Completed";
-    } else if (anyFilled) {
-      status = "In Progress";
-    }
-  }
-}
-
-
-
-                // ---------------- STATUS COLOR (VISUAL ONLY) ----------------
-                const getStatusStyle = (): {
-                color?: string;
-                fontWeight?: 400 | 500 | 600 | 700;
-                } => {
-                switch (status) {
-                    case "Completed":
-                    return {
-                        color: "#2E7D32", // Green
-                        fontWeight: 700,
-                    };
-                    case "In Progress":
-                    return {
-                        color: "#EF6C00", // Orange
-                        fontWeight: 600,
-                    };
-                    case "Not Started":
-                    return {
-                        color: "#C62828", // Red
-                        fontWeight: 600,
-                    };
-                    default:
-                    return {};
-                }
-                };
-
-
-                return (
-                    <Text
-                    variant="labelSmall"
-                    style={[
-                        styles.sectionStatus,
-                        getStatusStyle(),
-                    ]}
-                    >
-                    Status: {status}
+                <Card.Content>
+                  <View style={styles.sectionCardTopRow}>
+                    <Text variant="titleMedium" style={styles.cardTitle}>
+                      {section.title}
                     </Text>
-                );
-                })()}
 
-            </Card.Content>
-          </Card>
-        ))}
-      </View>
-    </ScrollView>
-
-    {/* =====================================================
-        STICKY BOTTOM ACTION BAR
-        ===================================================== */}
-    <View
-      style={[
-        styles.bottomActionBar,
-        {
-          backgroundColor: theme.colors.background,
-          borderTopColor: theme.colors.outlineVariant,
-          paddingBottom: Math.max(insets.bottom, 12),
-          flexDirection: "row",
-          gap: 12,
-        },
-      ]}
-    >
-      <Button
-        mode="outlined"
-        style={{ flex: 1 }}
-        onPress={() => setCurrentStep("SHIP_TYPE")}
-      >
-        Change Ship Type
-      </Button>
-
-    {canFinalize && (
-      <Button
-        mode="outlined"
-        style={{ flex: 1 }}
-        onPress={() => setShowFinalizeConfirm(true)}
-      >
-        Finalize
-      </Button>
-    )}
-
-    {!canFinalize && (
-      <Text
-        variant="bodySmall"
-        style={{ opacity: 0.6, marginTop: 8, textAlign: "center" }}
-      >
-        Complete all required sections and ensure sign-on date is entered to finalize.
-      </Text>
-    )}
+                    {/* =====================================================
+                        Section Status Capsule (Audit-grade UX)
+                      ===================================================== */}
+                    <View
+                      style={[
+                        styles.statusCapsule,
+                        status === "COMPLETE"
+                          ? styles.statusComplete
+                          : status === "IN_PROGRESS"
+                          ? styles.statusInProgress
+                          : styles.statusNotStarted,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusCapsuleText,
+                          status === "COMPLETE"
+                            ? styles.statusTextComplete
+                            : status === "IN_PROGRESS"
+                            ? styles.statusTextInProgress
+                            : styles.statusTextNotStarted,
+                        ]}
+                      >
+                        {status === "COMPLETE"
+                          ? "Completed"
+                          : status === "IN_PROGRESS"
+                          ? "In Progress"
+                          : "Not Started"}
+                      </Text>
+                    </View>
 
 
+                  </View>
 
-  <Button
-    mode="contained"
-    style={{ flex: 1 }}
-    onPress={() => {
-      if (enabledSections.length > 0) {
-        handleOpenSection(
-          enabledSections[0].key,
-          enabledSections[0].title
-        );
-      } else {
-        toast.info("No sections available for this ship type.");
-      }
+                  <Text variant="bodySmall" style={styles.sectionDescription}>
+                    {section.description}
+                  </Text>
+                </Card.Content>
+              </Card>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </View>
+  );
+
+}
+/**
+ * ============================================================
+ * FALLBACK RENDER — UX SAFETY NET (CRITICAL)
+ * ============================================================
+ *
+ * This should NEVER happen in normal flow.
+ * If it does, we show a safe recovery UI instead of a blank screen.
+ */
+return (
+  <View
+    style={{
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
     }}
   >
-    Continue
-  </Button>
-
-  {/* =====================================================
-      FINALIZE CONFIRMATION DIALOG
-     ===================================================== */}
-  <Portal>
-    <Dialog
-      visible={showFinalizeConfirm}
-      onDismiss={() => setShowFinalizeConfirm(false)}
+    <Text
+      variant="titleMedium"
+      style={{ fontWeight: "700", marginBottom: 8 }}
     >
-      <Dialog.Title>Finalize Sea Service</Dialog.Title>
+      Sea Service screen error
+    </Text>
 
-      <Dialog.Content>
-        <Text>
-          Once finalized, this Sea Service record will be locked
-          and marked as complete. You can still view it later.
-        </Text>
-      </Dialog.Content>
+    <Text
+      variant="bodyMedium"
+      style={{
+        opacity: 0.75,
+        textAlign: "center",
+        marginBottom: 16,
+      }}
+    >
+      We couldn’t determine which Sea Service step to show.
+    </Text>
 
-      <Dialog.Actions>
-        <Button onPress={() => setShowFinalizeConfirm(false)}>
-          Cancel
-        </Button>
-
-        <Button
-          onPress={() => {
-            if (!seaServiceId) {
-              toast.error("No active Sea Service draft found.");
-              return;
-            }
-
-            try {
-              finalizeSeaService(seaServiceId);
-              setShowFinalizeConfirm(false);
-              toast.success("Sea Service finalized successfully.");
-              navigation.goBack();
-            } catch (err) {
-              console.error("Finalize Sea Service failed:", err);
-              toast.error("Failed to finalize Sea Service.");
-            }
-          }}
-
-        >
-          Finalize
-        </Button>
-      </Dialog.Actions>
-    </Dialog>
-  </Portal>
-</View>
-
+    <Button
+      mode="contained"
+      onPress={() => setCurrentStep("SECTION_OVERVIEW")}
+    >
+      Go to Sections
+    </Button>
   </View>
 );
-
 }
+
+
+
 
 /**
  * ============================================================
@@ -2090,6 +1272,93 @@ const styles = StyleSheet.create({
   borderTopWidth: 1,
   paddingBottom: 64,
 },
+sectionsHeaderRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 10,
+},
+
+progressChip: {
+  borderRadius: 999,
+},
+
+sectionCardTopRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+},
+
+statusChip: {
+  borderRadius: 999,
+},
+
+statusChipComplete: {
+  // Do not force colors; Paper will adapt to theme.
+  // Kept as a hook for future accenting if desired.
+},
+
+statusRed: {
+  backgroundColor: "#D32F2F", // Red - Not Started
+},
+
+statusAmber: {
+  backgroundColor: "#F9A825", // Amber - In Progress
+},
+
+statusGreen: {
+  backgroundColor: "#2E7D32", // Green - Completed
+},
+
+/**
+ * ============================================================
+ * Section Status Capsule — Professional / Audit Grade
+ * ============================================================
+ */
+
+statusCapsule: {
+  alignSelf: "flex-start",
+  marginTop: 6,
+  paddingHorizontal: 10,
+  paddingVertical: 3,
+  borderRadius: 10,
+  borderWidth: 1,
+},
+
+statusCapsuleText: {
+  fontSize: 11,
+  fontWeight: "600",
+},
+
+/* -------- NOT STARTED (Red) -------- */
+statusNotStarted: {
+  backgroundColor: "#FDECEA", // light red tint
+  borderColor: "#D32F2F",
+},
+statusTextNotStarted: {
+  color: "#D32F2F",
+},
+
+/* -------- IN PROGRESS (Amber) -------- */
+statusInProgress: {
+  backgroundColor: "#FFF8E1", // light amber tint
+  borderColor: "#F9A825",
+},
+statusTextInProgress: {
+  color: "#F9A825",
+},
+
+/* -------- COMPLETE (Green) -------- */
+statusComplete: {
+  backgroundColor: "#E8F5E9", // light green tint
+  borderColor: "#2E7D32",
+},
+statusTextComplete: {
+  color: "#2E7D32",
+},
+
+
 
 });
 
