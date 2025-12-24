@@ -198,7 +198,7 @@ const activeSectionSummary = {
                 {/* Continue / Edit (✏️) */}
                 <MaterialCommunityIcons
                   name="pencil-outline"
-                  size={30}
+                  size={25}
                   color={theme.colors.primary}
                   onPress={handleContinueService}
                 />
@@ -206,7 +206,7 @@ const activeSectionSummary = {
                 {/* Finalize (🔒) */}
                 <MaterialCommunityIcons
                   name="lock-outline"
-                  size={30}
+                  size={25}
                   color={canFinalizeUX ? theme.colors.primary : theme.colors.outline}
                   onPress={canFinalizeUX ? handleFinalizePress : undefined}
                 />
@@ -214,7 +214,7 @@ const activeSectionSummary = {
                 {/* Discard (🗑️) */}
                 <MaterialCommunityIcons
                   name="trash-can-outline"
-                  size={30}
+                  size={25}
                   color={theme.colors.error}
                   onPress={handleDiscardDraft}
                 />
