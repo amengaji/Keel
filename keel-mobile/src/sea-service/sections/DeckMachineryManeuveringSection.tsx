@@ -26,6 +26,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import YesNoCapsule from "../../components/common/YesNoCapsule";
 
 import { useSeaService } from "../SeaServiceContext";
 import { useToast } from "../../components/toast/useToast";
@@ -58,16 +59,32 @@ export default function DeckMachineryManeuveringSection(props: { onSaved?: () =>
    * ------------------------------------------------------------
    */
   const [form, setForm] = useState({
+    // --- WINDLASS ---
+    anchorWindlassFitted: false,
     anchorWindlassMakeType: "",
+
+    // --- MOORING WINCHES ---
+    mooringWinchesFitted: false,
     mooringWinchesNumberType: "",
+
+    // --- ANCHORS & CHAINS ---
+    anchorsAndChainsFitted: false,
     anchorPortTypeWeight: "",
     anchorStarboardTypeWeight: "",
     chainLengthPortShackles: "",
     chainLengthStarboardShackles: "",
+    
+
+    // --- THRUSTERS ---
+    bowThrusterFitted: false,
+    sternThrusterFitted: false,
     bowThrusterPowerMake: "",
     sternThrusterPowerMake: "",
+
+    // --- STEERING ---
     steeringGearMakeModelType: "",
   });
+
 
   /**
    * Restore draft on mount
@@ -171,87 +188,169 @@ export default function DeckMachineryManeuveringSection(props: { onSaved?: () =>
         <Divider style={styles.divider} />
 
         {/* ---------------- WINDLASS & WINCHES ---------------- */}
-        <TextInput
-          label="Anchor Windlass Make & Type"
-          value={form.anchorWindlassMakeType}
-          onChangeText={(v) =>
-            handleChange("anchorWindlassMakeType", v)
-          }
-          mode="outlined"
-          style={styles.input}
-        />
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Anchor Windlass fitted</Text>
+          <YesNoCapsule
+            value={form.anchorWindlassFitted}
+            onChange={(v) =>
+              setForm((prev) => ({
+                ...prev,
+                anchorWindlassFitted: v,
+              }))
+            }
+          />
+        </View>
 
-        <TextInput
-          label="Mooring Winches — Number & Type"
-          value={form.mooringWinchesNumberType}
-          onChangeText={(v) =>
-            handleChange("mooringWinchesNumberType", v)
-          }
-          mode="outlined"
-          style={styles.input}
-        />
+        {form.anchorWindlassFitted && (
+          <TextInput
+            label="Anchor Windlass — Make & Type"
+            value={form.anchorWindlassMakeType}
+            onChangeText={(v) =>
+              handleChange("anchorWindlassMakeType", v)
+            }
+            mode="outlined"
+            style={styles.input}
+          />
+        )}
+
+
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Mooring Winches fitted</Text>
+          <YesNoCapsule
+            value={form.mooringWinchesFitted}
+            onChange={(v) =>
+              setForm((prev) => ({
+                ...prev,
+                mooringWinchesFitted: v,
+              }))
+            }
+          />
+        </View>
+
+        {form.mooringWinchesFitted && (
+          <TextInput
+            label="Mooring Winches — Number & Type"
+            value={form.mooringWinchesNumberType}
+            onChangeText={(v) =>
+              handleChange("mooringWinchesNumberType", v)
+            }
+            mode="outlined"
+            style={styles.input}
+          />
+        )}
+
 
         {/* ---------------- ANCHORS & CHAINS ---------------- */}
-        <TextInput
-          label="Anchor (Port) — Type & Weight"
-          value={form.anchorPortTypeWeight}
-          onChangeText={(v) =>
-            handleChange("anchorPortTypeWeight", v)
-          }
-          mode="outlined"
-          style={styles.input}
-        />
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Anchors & Chains fitted</Text>
+          <YesNoCapsule
+            value={form.anchorsAndChainsFitted}
+            onChange={(v) =>
+              setForm((prev) => ({
+                ...prev,
+                anchorsAndChainsFitted: v,
+              }))
+            }
+          />
+        </View>
 
-        <TextInput
-          label="Anchor (Starboard) — Type & Weight"
-          value={form.anchorStarboardTypeWeight}
-          onChangeText={(v) =>
-            handleChange("anchorStarboardTypeWeight", v)
-          }
-          mode="outlined"
-          style={styles.input}
-        />
+        {form.anchorsAndChainsFitted && (
+          <>
+            <TextInput
+              label="Anchor (Port) — Type & Weight"
+              value={form.anchorPortTypeWeight}
+              onChangeText={(v) =>
+                handleChange("anchorPortTypeWeight", v)
+              }
+              mode="outlined"
+              style={styles.input}
+            />
 
-        <TextInput
-          label="Chain Length (Port) — Shackles"
-          value={form.chainLengthPortShackles}
-          onChangeText={(v) =>
-            handleChange("chainLengthPortShackles", v)
-          }
-          mode="outlined"
-          style={styles.input}
-        />
+            <TextInput
+              label="Anchor (Starboard) — Type & Weight"
+              value={form.anchorStarboardTypeWeight}
+              onChangeText={(v) =>
+                handleChange("anchorStarboardTypeWeight", v)
+              }
+              mode="outlined"
+              style={styles.input}
+            />
 
-        <TextInput
-          label="Chain Length (Starboard) — Shackles"
-          value={form.chainLengthStarboardShackles}
-          onChangeText={(v) =>
-            handleChange("chainLengthStarboardShackles", v)
-          }
-          mode="outlined"
-          style={styles.input}
-        />
+            <TextInput
+              label="Chain Length (Port) — Shackles"
+              value={form.chainLengthPortShackles}
+              onChangeText={(v) =>
+                handleChange("chainLengthPortShackles", v)
+              }
+              mode="outlined"
+              style={styles.input}
+            />
+
+            <TextInput
+              label="Chain Length (Starboard) — Shackles"
+              value={form.chainLengthStarboardShackles}
+              onChangeText={(v) =>
+                handleChange("chainLengthStarboardShackles", v)
+              }
+              mode="outlined"
+              style={styles.input}
+            />
+          </>
+        )}
+
 
         {/* ---------------- THRUSTERS ---------------- */}
-        <TextInput
-          label="Bow Thruster — Power & Make"
-          value={form.bowThrusterPowerMake}
-          onChangeText={(v) =>
-            handleChange("bowThrusterPowerMake", v)
-          }
-          mode="outlined"
-          style={styles.input}
-        />
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Bow Thruster fitted</Text>
+          <YesNoCapsule
+            value={form.bowThrusterFitted}
+            onChange={(v) =>
+              setForm((prev) => ({
+                ...prev,
+                bowThrusterFitted: v,
+              }))
+            }
+          />
+        </View>
 
-        <TextInput
-          label="Stern Thruster — Power & Make"
-          value={form.sternThrusterPowerMake}
-          onChangeText={(v) =>
-            handleChange("sternThrusterPowerMake", v)
-          }
-          mode="outlined"
-          style={styles.input}
-        />
+        {form.bowThrusterFitted && (
+          <TextInput
+            label="Bow Thruster — Power & Make"
+            value={form.bowThrusterPowerMake}
+            onChangeText={(v) =>
+              handleChange("bowThrusterPowerMake", v)
+            }
+            mode="outlined"
+            style={styles.input}
+          />
+        )}
+
+
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Stern Thruster fitted</Text>
+          <YesNoCapsule
+            value={form.sternThrusterFitted}
+            onChange={(v) =>
+              setForm((prev) => ({
+                ...prev,
+                sternThrusterFitted: v,
+              }))
+            }
+          />
+        </View>
+
+        {form.sternThrusterFitted && (
+          <TextInput
+            label="Stern Thruster — Power & Make"
+            value={form.sternThrusterPowerMake}
+            onChangeText={(v) =>
+              handleChange("sternThrusterPowerMake", v)
+            }
+            mode="outlined"
+            style={styles.input}
+          />
+        )}
+
 
         {/* ---------------- STEERING GEAR ---------------- */}
         <TextInput
@@ -320,4 +419,16 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderTopWidth: 1,
   },
+  row: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 10,
+},
+rowLabel: {
+  flex: 1,
+  marginRight: 12,
+  fontWeight: "600",
+},
+
 });
