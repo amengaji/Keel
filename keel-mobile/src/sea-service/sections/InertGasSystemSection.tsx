@@ -19,6 +19,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import {
   Text,
   TextInput,
@@ -29,6 +31,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import CheckboxBox from "../../components/common/CheckboxBox";
 
 import { useSeaService } from "../SeaServiceContext";
 import { useToast } from "../../components/toast/useToast";
@@ -71,6 +74,7 @@ export default function InertGasSystemSection(props: { onSaved?: () => void }) {
   const { onSaved } = props;
   const theme = useTheme();
   const toast = useToast();
+  const insets = useSafeAreaInsets(); // iOS-safe sticky bar spacing
   const { payload, updateSection } = useSeaService();
 
   const existing =
@@ -132,6 +136,7 @@ export default function InertGasSystemSection(props: { onSaved?: () => void }) {
        * We store as individual booleans for clarity and audit-readability.
        */
       distCargoTanks: existing.distCargoTanks ?? false,
+      distBallastTanks: existing.distBallastTanks ?? false,
       distSlopTanks: existing.distSlopTanks ?? false,
       distCargoLines: existing.distCargoLines ?? false,
       distMastRiser: existing.distMastRiser ?? false,
@@ -202,8 +207,20 @@ export default function InertGasSystemSection(props: { onSaved?: () => void }) {
       contentContainerStyle={[
         styles.container,
         { backgroundColor: theme.colors.background },
+        {
+          /**
+           * IMPORTANT (iOS + Android):
+           * Reserve space so the absolute sticky bar does NOT hide fields.
+           */
+          paddingBottom: 140 + Math.max(insets.bottom, 12),
+        },
       ]}
+      enableOnAndroid
+      keyboardShouldPersistTaps="handled"
+      extraScrollHeight={80}
+      showsVerticalScrollIndicator={false}
     >
+
       <Text variant="headlineSmall" style={styles.title}>
         Inert Gas System (IGS)
       </Text>
@@ -238,17 +255,16 @@ export default function InertGasSystemSection(props: { onSaved?: () => void }) {
         Installation
       </Text>
 
-      <Checkbox.Item
-        label="IGS / inerting system fitted onboard"
-        status={form.igsFitted ? "checked" : "unchecked"}
-        onPress={() => {
-          const next = !form.igsFitted;
-          set("igsFitted", next);
+      <View style={styles.checkboxRow}>
+        <CheckboxBox
+          checked={form.igsFitted}
+          onPress={() => set("igsFitted", !form.igsFitted)}
+        />
+        <Text style={styles.checkboxLabel}>
+          IGS / inerting system fitted onboard
+        </Text>
+      </View>
 
-          // UX: if user marks fitted, clear reason (optional) but keep draft-safe (we do not force clear)
-          // We keep the reason text to avoid accidental data loss.
-        }}
-      />
 
       {!form.igsFitted && (
         <>
@@ -338,40 +354,74 @@ export default function InertGasSystemSection(props: { onSaved?: () => void }) {
             Core Components
           </Text>
 
-          <Checkbox.Item
-            label="Scrubber / gas cleaning unit fitted"
-            status={form.scrubberAvailable ? "checked" : "unchecked"}
-            onPress={() =>
-              set("scrubberAvailable", !form.scrubberAvailable)
-            }
-          />
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.scrubberAvailable}
+              onPress={() =>
+                set("scrubberAvailable", !form.scrubberAvailable)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              Scrubber available
+            </Text>
+          </View>
 
-          <Checkbox.Item
+
+          {/* <Checkbox.Item
             label="IG blowers fitted"
             status={form.blowerAvailable ? "checked" : "unchecked"}
             onPress={() =>
               set("blowerAvailable", !form.blowerAvailable)
             }
-          />
+          /> */}
 
-          {form.blowerAvailable && (
-            <TextInput
-              label="Number of blowers"
-              value={form.blowerCount}
-              onChangeText={(v) => set("blowerCount", onlyNumber(v))}
-              keyboardType="numeric"
-              mode="outlined"
-              style={styles.input}
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.blowerAvailable}
+              onPress={() =>
+                set("blowerAvailable", !form.blowerAvailable)
+              }
             />
+            <Text style={styles.checkboxLabel}>
+              Blower available
+            </Text>
+          </View>
+          {form.blowerAvailable && (
+            <>
+              <Text
+                variant="bodySmall"
+                style={{ opacity: 0.8, marginBottom: 8 }}
+              >
+                Enter number of IGS blowers fitted onboard.
+              </Text>
+
+              <TextInput
+                label="Number of IGS blowers"
+                value={String(form.blowerCount ?? "")}
+                onChangeText={(v) =>
+                  set("blowerCount", onlyNumber(v))
+                }
+                keyboardType="numeric"
+                mode="outlined"
+                style={styles.input}
+              />
+            </>
           )}
 
-          <Checkbox.Item
-            label="Deck water seal / deck seal fitted"
-            status={form.deckSealAvailable ? "checked" : "unchecked"}
-            onPress={() =>
-              set("deckSealAvailable", !form.deckSealAvailable)
-            }
-          />
+
+
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.deckSealAvailable}
+              onPress={() =>
+                set("deckSealAvailable", !form.deckSealAvailable)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              Deck seal available
+            </Text>
+          </View>
+
 
           {form.deckSealAvailable && (
             <>
@@ -403,19 +453,18 @@ export default function InertGasSystemSection(props: { onSaved?: () => void }) {
               </Menu>
             </>
           )}
-
-          <Checkbox.Item
-            label="Non-return devices fitted (e.g., NRV + deck seal arrangement)"
-            status={
-              form.nonReturnDevicesAvailable ? "checked" : "unchecked"
-            }
+        <View style={styles.checkboxRow}>
+          <CheckboxBox
+            checked={form.nonReturnDevicesAvailable}
             onPress={() =>
-              set(
-                "nonReturnDevicesAvailable",
-                !form.nonReturnDevicesAvailable
-              )
+              set("nonReturnDevicesAvailable", !form.nonReturnDevicesAvailable)
             }
           />
+          <Text style={styles.checkboxLabel}>
+            Non-return devices fitted (e.g., NRV + deck seal arrangement)
+          </Text>
+        </View>
+
 
           {/* ============================================================
              4) MONITORING, ALARMS & TRIPS
@@ -425,18 +474,18 @@ export default function InertGasSystemSection(props: { onSaved?: () => void }) {
             Monitoring, Alarms & Trips
           </Text>
 
-          <Checkbox.Item
-            label="Oxygen analyzer fitted"
-            status={
-              form.oxygenAnalyzerAvailable ? "checked" : "unchecked"
-            }
+        <View style={styles.checkboxRow}>
+          <CheckboxBox
+            checked={form.oxygenAnalyzerAvailable}
             onPress={() =>
-              set(
-                "oxygenAnalyzerAvailable",
-                !form.oxygenAnalyzerAvailable
-              )
+              set("oxygenAnalyzerAvailable", !form.oxygenAnalyzerAvailable)
             }
           />
+          <Text style={styles.checkboxLabel}>
+            Oxygen analyzer available
+          </Text>
+        </View>
+
 
           {form.oxygenAnalyzerAvailable && (
             <>
@@ -458,54 +507,57 @@ export default function InertGasSystemSection(props: { onSaved?: () => void }) {
             </>
           )}
 
-          <Checkbox.Item
-            label="IG pressure alarm available"
-            status={
-              form.igPressureAlarmAvailable ? "checked" : "unchecked"
-            }
-            onPress={() =>
-              set(
-                "igPressureAlarmAvailable",
-                !form.igPressureAlarmAvailable
-              )
-            }
-          />
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.igPressureAlarmAvailable}
+              onPress={() =>
+                set("igPressureAlarmAvailable", !form.igPressureAlarmAvailable)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              IG pressure alarm available
+            </Text>
+          </View>
 
-          <Checkbox.Item
-            label="Deck seal alarm / monitoring available"
-            status={
-              form.deckSealAlarmAvailable ? "checked" : "unchecked"
-            }
-            onPress={() =>
-              set(
-                "deckSealAlarmAvailable",
-                !form.deckSealAlarmAvailable
-              )
-            }
-          />
 
-          <Checkbox.Item
-            label="Blower trip / interlocks available"
-            status={
-              form.blowerTripAvailable ? "checked" : "unchecked"
-            }
-            onPress={() =>
-              set("blowerTripAvailable", !form.blowerTripAvailable)
-            }
-          />
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.deckSealAlarmAvailable}
+              onPress={() =>
+                set("deckSealAlarmAvailable", !form.deckSealAlarmAvailable)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              Deck seal alarm provided
+            </Text>
+          </View>
 
-          <Checkbox.Item
-            label="High O₂ trip / shutdown available"
-            status={
-              form.highOxygenTripAvailable ? "checked" : "unchecked"
-            }
-            onPress={() =>
-              set(
-                "highOxygenTripAvailable",
-                !form.highOxygenTripAvailable
-              )
-            }
-          />
+
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.blowerTripAvailable}
+              onPress={() =>
+                set("blowerTripAvailable", !form.blowerTripAvailable)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              Blower trip provided
+            </Text>
+          </View>
+
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.highOxygenTripAvailable}
+              onPress={() =>
+                set("highOxygenTripAvailable", !form.highOxygenTripAvailable)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              High O₂ trip / shutdown available
+            </Text>
+          </View>
+
+
 
           {/* ============================================================
              5) DISTRIBUTION / APPLICATION
@@ -519,26 +571,63 @@ export default function InertGasSystemSection(props: { onSaved?: () => void }) {
             Select where inert gas is distributed/used onboard.
           </Text>
 
-          <Checkbox.Item
-            label="Cargo tanks"
-            status={form.distCargoTanks ? "checked" : "unchecked"}
-            onPress={() => set("distCargoTanks", !form.distCargoTanks)}
-          />
-          <Checkbox.Item
-            label="Slop tanks"
-            status={form.distSlopTanks ? "checked" : "unchecked"}
-            onPress={() => set("distSlopTanks", !form.distSlopTanks)}
-          />
-          <Checkbox.Item
-            label="Cargo line / vapor line inerting"
-            status={form.distCargoLines ? "checked" : "unchecked"}
-            onPress={() => set("distCargoLines", !form.distCargoLines)}
-          />
-          <Checkbox.Item
-            label="Mast riser / vent riser arrangement"
-            status={form.distMastRiser ? "checked" : "unchecked"}
-            onPress={() => set("distMastRiser", !form.distMastRiser)}
-          />
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.distCargoTanks}
+              onPress={() =>
+                set("distCargoTanks", !form.distCargoTanks)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              Distribution to cargo tanks
+            </Text>
+          </View>
+
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.distBallastTanks}
+              onPress={() =>
+                set("distBallastTanks", !form.distBallastTanks)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              Ballast tanks
+            </Text>
+          </View>
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.distSlopTanks}
+              onPress={() =>
+                set("distSlopTanks", !form.distSlopTanks)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              Slop Tanks
+            </Text>
+          </View>
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.distCargoLines}
+              onPress={() =>
+                set("distCargoLines", !form.distCargoLines)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              Cargo line / vapor line inerting
+            </Text>
+          </View>
+          <View style={styles.checkboxRow}>
+            <CheckboxBox
+              checked={form.distMastRiser}
+              onPress={() =>
+                set("distMastRiser", !form.distMastRiser)
+              }
+            />
+            <Text style={styles.checkboxLabel}>
+              Mast riser / vent riser arrangement
+            </Text>
+          </View>
+
 
           {/* ============================================================
              6) OPERATING NOTES
@@ -590,18 +679,24 @@ export default function InertGasSystemSection(props: { onSaved?: () => void }) {
       />
     </KeyboardAwareScrollView>
     <View
-  style={[
-    styles.stickyBar,
-    {
-      backgroundColor: theme.colors.background,
-      borderTopColor: theme.colors.outlineVariant,
-    },
-  ]}
->
-  <Button mode="contained" onPress={save}>
-    Save Section
-  </Button>
-</View>
+      style={[
+        styles.stickyBar,
+        {
+          backgroundColor: theme.colors.background,
+          borderTopColor: theme.colors.outlineVariant,
+
+          /**
+           * IMPORTANT:
+           * Ensure sticky bar clears iOS home indicator area.
+           */
+          paddingBottom: Math.max(insets.bottom, 12),
+        },
+      ]}
+    >
+      <Button mode="contained" onPress={save}>
+        Save Section
+      </Button>
+    </View>
 </View>
   );
 }
@@ -629,17 +724,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(127,127,127,0.25)",
   },
+
+  checkboxRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: 12,
+},
+
+checkboxLabel: {
+  marginLeft: 12,
+  flex: 1,
+},
+
   noteTitle: { fontWeight: "700", marginBottom: 4 },
   noteText: { opacity: 0.85, marginBottom: 4 },
 
   save: { marginTop: 16 },
+
   stickyBar: {
   position: "absolute",
   left: 0,
   right: 0,
   bottom: 0,
-  padding: 12,
+
+  /**
+   * PaddingBottom is set dynamically using safe-area insets (above),
+   * so here we keep only base padding.
+   */
+  paddingHorizontal: 12,
+  paddingTop: 12,
   borderTopWidth: 1,
 },
+
 
 });

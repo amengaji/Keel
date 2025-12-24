@@ -296,31 +296,47 @@ const updateSection = (
       ...data,
     };
 
-    const values = Object.values(mergedSection);
-    const filledCount = values.filter(
-      (v) =>
-        v !== null &&
-        v !== undefined &&
-        String(v).trim().length > 0
-    ).length;
+    /**
+     * ============================================================
+     * STATUS AUTHORITY — SINGLE SOURCE OF TRUTH
+     * ============================================================
+     *
+     * We DO NOT compute completion here using "all fields filled".
+     * That approach breaks:
+     * - optional fields
+     * - toggle/checkbox “not applicable” logic
+     * - gated fields (required only if toggle is ON)
+     *
+     * Instead, we delegate to seaServiceStatus.ts which holds the
+     * audit-grade rules for each section.
+     */
+    const { getSeaServiceSectionStatus } = require("./seaServiceStatus");
 
-    let status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETE" =
-      "NOT_STARTED";
+    const statusFromRules:
+      | "NOT_STARTED"
+      | "IN_PROGRESS"
+      | "COMPLETED" = getSeaServiceSectionStatus(
+      sectionKey,
+      mergedSection,
+      prev.shipType
+    );
 
-    if (filledCount > 0 && filledCount < values.length) {
-      status = "IN_PROGRESS";
-    }
-
-    if (filledCount === values.length && values.length > 0) {
-      status = "COMPLETE";
-    }
+    /**
+     * Wizard expects: NOT_STARTED | IN_PROGRESS | COMPLETE
+     * Status engine returns: NOT_STARTED | IN_PROGRESS | COMPLETED
+     * We map it here.
+     */
+    const mappedStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETE" =
+      statusFromRules === "COMPLETED"
+        ? "COMPLETE"
+        : statusFromRules;
 
     return {
       ...prev,
       lastUpdatedAt: Date.now(),
       sectionStatus: {
         ...(prev as any).sectionStatus,
-        [sectionKey]: status,
+        [sectionKey]: mappedStatus,
       },
       sections: {
         ...prev.sections,
@@ -329,6 +345,7 @@ const updateSection = (
     };
   });
 };
+
 
 
   /**

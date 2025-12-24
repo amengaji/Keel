@@ -5,14 +5,16 @@
  * Sea Service — Status & Finalization Authority
  * ============================================================
  *
- * THIS FILE IS THE SINGLE SOURCE OF TRUTH FOR:
+ * SINGLE SOURCE OF TRUTH FOR:
  * - Section status calculation
  * - Dashboard summaries
- * - Finalization eligibility (SIGN-OFF REQUIRED)
+ * - Finalization eligibility
  *
- * IMPORTANT:
- * - Existing exports are preserved for backward compatibility
- * - Finalization rules are now CENTRALIZED and AUDIT-SAFE
+ * CORE PRINCIPLES (LOCKED):
+ * - Boolean fields are VALID when true OR false
+ * - Optional fields MUST NOT block completion
+ * - Conditional fields apply ONLY when their toggle is ON
+ * - Option A finalization: ALL sections must be COMPLETED
  */
 
 import {
@@ -33,19 +35,32 @@ export type SeaServiceSectionStatus =
 
 /**
  * ============================================================
- * INTERNAL HELPERS
+ * GENERIC VALUE CHECK
  * ============================================================
+ *
+ * IMPORTANT RULE:
+ * - Boolean FALSE is a VALID ANSWER
+ * - Only null / undefined count as missing
  */
 function hasValue(v: any): boolean {
   if (v === null || v === undefined) return false;
-  if (typeof v === "boolean") return v === true;
+
+  // ✅ Explicit boolean answer is valid (true OR false)
+  if (typeof v === "boolean") return true;
+
   if (typeof v === "number") return true;
   if (typeof v === "string") return v.trim().length > 0;
   if (Array.isArray(v)) return v.length > 0;
   if (typeof v === "object") return Object.keys(v).length > 0;
+
   return false;
 }
 
+/**
+ * ============================================================
+ * DATE VALIDATION (ISO SAFE)
+ * ============================================================
+ */
 function isValidDateValue(value: unknown): boolean {
   if (!value) return false;
 
@@ -62,10 +77,11 @@ function isValidDateValue(value: unknown): boolean {
 
 /**
  * ============================================================
- * SERVICE PERIOD COMPLETION (UPDATED)
+ * SERVICE PERIOD COMPLETION
  * ============================================================
  *
- * SIGN-OFF IS NOW REQUIRED (APPROVED RULE)
+ * RULE:
+ * - Sign-on AND sign-off are mandatory
  */
 export function isServicePeriodComplete(
   servicePeriod:
@@ -91,7 +107,7 @@ export function isServicePeriodComplete(
 
 /**
  * ============================================================
- * SECTION STATUS (UNCHANGED LOGIC)
+ * SECTION STATUS ENGINE
  * ============================================================
  */
 export function getSeaServiceSectionStatus(
@@ -120,83 +136,106 @@ export function getSeaServiceSectionStatus(
         ? "COMPLETED"
         : "IN_PROGRESS";
 
-case "INERT_GAS_SYSTEM": {
-  /**
-   * ============================================================
-   * NORMALIZE SHIP TYPE (DISPLAY VALUE → ENUM)
-   * ============================================================
-   */
-  const normalizedShipType = shipType
-    ? shipType
-        .toUpperCase()
-        .replace(/-/g, "_")
-        .replace(/\s+/g, "_")
-    : "";
+    /**
+     * ========================================================
+     * INERT GAS SYSTEM (IGS) — FINAL LOGIC
+     * ========================================================
+     *
+     * MANDATORY (must be answered true/false):
+     * - igsSourceType
+     * - scrubberAvailable
+     * - blowerAvailable
+     * - deckSealAvailable
+     * - oxygenAnalyzerAvailable
+     * - igPressureAlarmAvailable
+     *
+     * CONDITIONAL:
+     * - blowerCount (only if blowerAvailable === true)
+     * - deckSealType (only if deckSealAvailable === true)
+     */
+    case "INERT_GAS_SYSTEM": {
 
-  const isTanker =
-    normalizedShipType === "TANKER" ||
-    normalizedShipType === "OIL_TANKER" ||
-    normalizedShipType === "PRODUCT_TANKER" ||
-    normalizedShipType === "CHEMICAL_TANKER";
+      const normalizedShipType = shipType
+        ? shipType.toUpperCase().replace(/-/g, "_").replace(/\s+/g, "_")
+        : "";
 
+      const isTanker =
+        normalizedShipType === "TANKER" ||
+        normalizedShipType === "OIL_TANKER" ||
+        normalizedShipType === "PRODUCT_TANKER" ||
+        normalizedShipType === "CHEMICAL_TANKER";
 
-  /**
-   * ============================================================
-   * CASE 1 — IGS NOT FITTED (VALID FOR NON-TANKERS)
-   * ============================================================
-   */
-  if (
-    sectionData.igsFitted === false &&
-    !isTanker &&
-    typeof sectionData.igsNotFittedReason === "string" &&
-    sectionData.igsNotFittedReason.trim().length > 0
-  ) {
-    return "COMPLETED";
-  }
-
-  /**
-   * ============================================================
-   * CASE 2 — IGS FITTED (MANDATORY ITEMS ONLY)
-   * ============================================================
-   */
-  if (sectionData.igsFitted === true) {
-const scrubberAvailable = sectionData.scrubberAvailable === true;
-const blowerAvailable = sectionData.blowerAvailable === true;
-const deckSealAvailable = sectionData.deckSealAvailable === true;
-
-    const hasMandatoryCore =
-      hasValue(sectionData.igsSourceType) &&
-      sectionData.scrubberAvailable !== undefined &&
-      sectionData.blowerAvailable !== undefined &&
-      sectionData.deckSealAvailable !== undefined &&
-      hasValue(sectionData.oxygenAnalyzerAvailable) &&
-      hasValue(sectionData.igPressureAlarmAvailable);
-
-
-    const hasBlowerDetails =
-      !blowerAvailable || hasValue(sectionData.blowerCount);
-
-    const hasDeckSealDetails =
-      !deckSealAvailable || hasValue(sectionData.deckSealType);
-
-
-        if (hasMandatoryCore && hasBlowerDetails && hasDeckSealDetails) {
-          return "COMPLETED";
-        }
+      // CASE 1 — IGS NOT FITTED (VALID FOR NON-TANKERS)
+      if (
+        sectionData.igsFitted === false &&
+        !isTanker &&
+        typeof sectionData.igsNotFittedReason === "string" &&
+        sectionData.igsNotFittedReason.trim().length > 0
+      ) {
+        return "COMPLETED";
       }
 
-  return "IN_PROGRESS";
-}
+      // CASE 2 — IGS FITTED
+      if (sectionData.igsFitted === true) {
+        const hasCore =
+          hasValue(sectionData.igsSourceType) &&
+          sectionData.scrubberAvailable !== undefined &&
+          sectionData.blowerAvailable !== undefined &&
+          sectionData.deckSealAvailable !== undefined &&
+          sectionData.oxygenAnalyzerAvailable !== undefined &&
+          sectionData.igPressureAlarmAvailable !== undefined;
 
+        const requiresBlowerCount = sectionData.blowerAvailable === true;
+        const requiresDeckSealType = sectionData.deckSealAvailable === true;
 
-    default:
+        const hasBlowerDetails =
+          !requiresBlowerCount || hasValue(sectionData.blowerCount);
+
+        const hasDeckSealDetails =
+          !requiresDeckSealType || hasValue(sectionData.deckSealType);
+
+        if (hasCore && hasBlowerDetails && hasDeckSealDetails) {
+          return "COMPLETED";
+        }
+
+        return "IN_PROGRESS";
+      }
+
       return "IN_PROGRESS";
+    }
+
+    /**
+     * ========================================================
+     * DEFAULT SECTION RULE
+     * ========================================================
+     *
+     * RULE:
+     * - Boolean-only sections are NEVER auto-completed
+     * - Non-boolean fields must be filled
+     */
+    default: {
+      const entries = Object.entries(sectionData);
+
+      const nonBooleanEntries = entries.filter(
+        ([, v]) => typeof v !== "boolean"
+      );
+
+      if (nonBooleanEntries.length === 0) {
+        return "IN_PROGRESS";
+      }
+
+      const allNonBooleanFilled = nonBooleanEntries.every(([, v]) =>
+        hasValue(v)
+      );
+
+      return allNonBooleanFilled ? "COMPLETED" : "IN_PROGRESS";
+    }
   }
 }
 
 /**
  * ============================================================
- * DASHBOARD SUMMARY (BACKWARD COMPATIBLE)
+ * DASHBOARD SUMMARY
  * ============================================================
  */
 export function getSeaServiceSummary(
@@ -230,11 +269,8 @@ export function getSeaServiceSummary(
 
 /**
  * ============================================================
- * FINALIZATION AUTHORITY (SINGLE SOURCE OF TRUTH)
+ * FINALIZATION AUTHORITY (OPTION A)
  * ============================================================
- *
- * SIGN-OFF REQUIRED
- * OPTION A: ALL SECTIONS MUST BE COMPLETED
  */
 export function canFinalizeSeaService(
   payload: SeaServicePayload,
@@ -242,13 +278,10 @@ export function canFinalizeSeaService(
 ): boolean {
   if (!payload?.sections) return false;
 
-  // 1️⃣ Service Period must be complete
   if (!isServicePeriodComplete(payload.servicePeriod)) {
     return false;
   }
 
-  // 2️⃣ ALL sections must be COMPLETED (Option A)
   const summary = getSeaServiceSummary(payload.sections, shipType);
-
   return summary.completedSections === summary.totalSections;
 }
