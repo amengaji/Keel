@@ -11,6 +11,7 @@ import AppHeader from "../components/layout/AppHeader";
 import SeaServiceWizardScreen from "../screens/SeaServiceWizardScreen";
 import TaskDetailsScreen from "../screens/TaskDetailsScreen";
 import StartSeaServiceScreen from "../screens/StartSeaServiceScreen";
+import TaskSectionScreen from "../screens/tasks/TaskSectionScreen";
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
 
@@ -46,6 +47,13 @@ export default function MainNavigator() {
     name="SeaServiceWizard"
     component={SeaServiceWizardScreen}
   />
+
+{/* Task Section (list of tasks inside a section) */}
+<Stack.Screen
+  name="TaskSection"
+  component={TaskSectionScreen}
+/>
+
 
   {/* Task Details (drill-down, inspector-safe) */}
   <Stack.Screen

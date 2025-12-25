@@ -2,42 +2,64 @@
 
 /**
  * ============================================================
- * KeelScreen — Base Screen Wrapper (Safe-Area Correct)
+ * KeelScreen — Base Screen Wrapper (ANDROID SAFE)
  * ============================================================
  *
  * RESPONSIBILITY:
- * - Apply ONLY safe-area constraints
- * - Apply ONLY horizontal padding
+ * - Handle safe-area insets correctly across platforms
+ * - Protect content from:
+ *   • AppHeader (top)
+ *   • Bottom Tabs
+ *   • Android system navigation bar (3-button / gesture)
  *
- * MUST NOT:
- * - Add vertical padding
- * - Add bottom spacing (handled by tab navigator)
- *
- * Vertical spacing is the responsibility of
- * individual screens (Home, Wizard, etc).
+ * USAGE:
+ * - Full-bleed screens (wizards): <KeelScreen />
+ * - Standard content screens:     <KeelScreen withVerticalInsets />
  */
 
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 type KeelScreenProps = {
   children: React.ReactNode;
+
+  /**
+   * Enables top + bottom insets.
+   * REQUIRED for screens with bottom actions.
+   */
+  withVerticalInsets?: boolean;
 };
 
-export const KeelScreen: React.FC<KeelScreenProps> = ({ children }) => {
+export const KeelScreen: React.FC<KeelScreenProps> = ({
+  children,
+  withVerticalInsets = false,
+}) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <SafeAreaView
-      edges={["left", "right"]} // ❗ Prevent double top/bottom padding
+      edges={withVerticalInsets ? ["top", "left", "right"] : ["left", "right"]}
       style={[
         styles.safeArea,
         { backgroundColor: theme.colors.background },
       ]}
     >
-      <View style={styles.container}>{children}</View>
+      <View
+        style={[
+          styles.container,
+          withVerticalInsets && {
+            paddingBottom: insets.bottom + 16, // 🔑 ANDROID FIX
+          },
+        ]}
+      >
+        {children}
+      </View>
     </SafeAreaView>
   );
 };
@@ -48,6 +70,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20, // ✅ Horizontal spacing only
+    paddingHorizontal: 20, // KEEL horizontal standard
   },
 });

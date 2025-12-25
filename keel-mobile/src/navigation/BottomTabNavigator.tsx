@@ -11,12 +11,15 @@ import TaskListScreen from "../screens/TaskListScreen";
 import DailyScreen from "../screens/DailyScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import TasksHomeScreen from "../screens/tasks/TasksHomeScreen";
+
 
 const Tab = createBottomTabNavigator();
 
-function TaskListTab(props: any) {
-  return <TaskListScreen {...props} />;
+function TasksTab(props: any) {
+  return <TasksHomeScreen {...props} />;
 }
+
 
 export default function BottomTabNavigator() {
   const theme = useTheme();
@@ -59,7 +62,7 @@ export default function BottomTabNavigator() {
 
       <Tab.Screen
         name="TaskList"
-        component={TaskListTab}
+        component={TasksTab}
         options={{
           title: "Tasks",
           tabBarIcon: ({ color, size }) => (

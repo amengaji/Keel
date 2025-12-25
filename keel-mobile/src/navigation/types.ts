@@ -27,6 +27,11 @@ export type MainStackParamList = {
   MainTabs: undefined;
   StartSeaService: undefined;
 
+    TaskSection: {
+    sectionKey: string;
+    sectionTitle: string;
+    };
+
   /**
    * Full-screen Sea Service Wizard
    * - Opened from Sea Service dashboard
