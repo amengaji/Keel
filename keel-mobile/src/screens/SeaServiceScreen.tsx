@@ -26,6 +26,7 @@ import {
   Dialog,
   Portal,
   Divider,
+  TextInput,
 } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -35,6 +36,7 @@ import { MainStackParamList } from "../navigation/types";
 import { useToast } from "../components/toast/useToast";
 import { useSeaService } from "../sea-service/SeaServiceContext";
 import { getSeaServiceSummary } from "../sea-service/seaServiceStatus";
+import DateInputField from "../components/inputs/DateInputField"; 
 
 /**
  * Helper: Format date safely for UI display.
@@ -109,6 +111,21 @@ const activeSectionSummary = {
    */
   const [showFinalizeConfirm, setShowFinalizeConfirm,] = React.useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
+
+
+  /**
+ * ============================================================
+ * SIGN-OFF ENTRY MODAL STATE (SERVICE CLOSURE)
+ * ============================================================
+ */
+const [showSignOffModal, setShowSignOffModal] = React.useState(false);
+const [signOffDate, setSignOffDate] = React.useState<Date | null>(
+  payload.servicePeriod?.signOffDate ?? null
+);
+const [signOffPort, setSignOffPort] = React.useState<string>(
+  payload.servicePeriod?.signOffPort ?? ""
+);
+
 
 
   const handleContinueService = () => {
@@ -186,7 +203,12 @@ const activeSectionSummary = {
                 <Text variant="titleMedium" style={styles.cardTitle}>
                   {activeShipName}
                 </Text>
-                <Chip mode="outlined" compact>
+                <Chip 
+                  mode="flat" 
+                  compact
+                  style={{ backgroundColor: theme.colors.primary }}
+                  textStyle={{ color: theme.colors.onPrimary }}                  
+                  >
                   Active
                 </Chip>
               </View>
@@ -228,13 +250,39 @@ const activeSectionSummary = {
               </Text>
             )}
 
-            <Text variant="bodySmall" style={styles.metaText}>
-              Sign On: {formatDate(payload.servicePeriod?.signOnDate)}
-            </Text>
+            {/* ============================================================
+                SERVICE PERIOD (SIGN-ON / SIGN-OFF)
+            ============================================================ */}
+            <View style={{ marginTop: 8 }}>
+              <Text variant="bodySmall" style={styles.metaText}>
+                Sign On: {formatDate(payload.servicePeriod?.signOnDate)}
+                {payload.servicePeriod?.signOnPort
+                  ? ` · ${payload.servicePeriod.signOnPort}`
+                  : ""}
+              </Text>
 
-            <Text variant="bodySmall" style={styles.metaText}>
-              Sign Off: {formatDate(payload.servicePeriod?.signOffDate)}
-            </Text>
+              <View style={{ marginTop: 4 }}>
+                {payload.servicePeriod?.signOffDate ? (
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.metaText, { color: theme.colors.primary }]}
+                    onPress={() => setShowSignOffModal(true)}
+                  >
+                    Sign Off: {formatDate(payload.servicePeriod.signOffDate)} ·{" "}
+                    {payload.servicePeriod.signOffPort} ✏️
+                  </Text>
+                ) : (
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.metaText, { color: theme.colors.primary }]}
+                    onPress={() => setShowSignOffModal(true)}
+                  >
+                    Sign Off: Add sign-off ➕
+                  </Text>
+                )}
+              </View>
+            </View>
+
 
             {/* --------------------------------------------------------
                 SECTION COMPLETION INDICATOR (UX ONLY)
@@ -246,17 +294,33 @@ const activeSectionSummary = {
                 </Text>
 
                 <View style={styles.progressRow}>
-                  <Chip mode="outlined">
+                  <Chip mode="flat"
+                    style={{ backgroundColor: theme.colors.primary }}
+                    textStyle={{ color: theme.colors.onPrimary }}                    
+                  >
                     {activeSectionSummary.completedSections} /{" "}
                     {activeSectionSummary.totalSections} completed
                   </Chip>
 
-                  <Chip mode="outlined" compact>
-                    {activeSectionSummary.completedSections ===
-                    activeSectionSummary.totalSections
+                  <Chip
+                    mode="flat"
+                    compact
+                    style={{
+                      backgroundColor: canFinalizeUX
+                        ? "#2E7D32" // Green — Ready
+                        : allSectionsComplete
+                        ? "#ED6C02" // Orange — Sign-off required
+                        : "#ED6C02", // Amber — In progress
+                    }}
+                    textStyle={{ color: "#FFFFFF" }}
+                  >
+                    {canFinalizeUX
                       ? "Ready to Finalize"
+                      : allSectionsComplete
+                      ? "Sign-off Required"
                       : "In Progress"}
                   </Chip>
+
                 </View>
               </View>
             )}
@@ -334,7 +398,14 @@ const activeSectionSummary = {
                     <Text variant="titleMedium" style={styles.cardTitle}>
                       {shipName}
                     </Text>
-                    <Chip mode="outlined">COMPLETED</Chip>
+                    <Chip
+                      mode="flat"
+                      style={{ backgroundColor: "#2E7D32" }}
+                      textStyle={{ color: "#FFFFFF" }}
+                    >
+                      COMPLETED
+                    </Chip>
+
                   </View>
 
                   {imoNumber && (
@@ -449,6 +520,77 @@ const activeSectionSummary = {
             </Button>
           </Dialog.Actions>
         </Dialog>
+
+                {/* ========================================================
+            SIGN-OFF ENTRY DIALOG (SERVICE CLOSURE)
+           ======================================================== */}
+        <Dialog
+          visible={showSignOffModal}
+          onDismiss={() => setShowSignOffModal(false)}
+        >
+          <Dialog.Title>Sign-Off Details</Dialog.Title>
+
+          <Dialog.Content>
+            <Text variant="bodySmall" style={{ marginBottom: 8, opacity: 0.7 }}>
+              Enter sign-off details when you leave the vessel.
+            </Text>
+
+          {/* ============================================================
+              SIGN-OFF DATE (DATE PICKER – SAME AS SIGN-ON)
+          ============================================================ */}
+          <DateInputField
+            label="Sign-Off Date"
+            value={signOffDate}
+            onChange={setSignOffDate}
+          />
+
+          {/* ============================================================
+              SIGN-OFF PORT
+          ============================================================ */}
+          <TextInput
+            label="Sign-Off Port"
+            value={signOffPort}
+            onChangeText={setSignOffPort}
+            mode="outlined"
+            style={{ marginTop: 12 }}
+          />
+
+          </Dialog.Content>
+
+          <Dialog.Actions>
+            <Button onPress={() => setShowSignOffModal(false)}>
+              Cancel
+            </Button>
+
+            <Button
+              mode="contained"
+              style={{
+                borderRadius: 18,
+                height: 40,
+                justifyContent: "center",
+              }}
+              contentStyle={{ height: 40 }}
+              onPress={() => {
+                if (!signOffDate || !signOffPort.trim()) {
+                  toast.error(
+                    "Sign-Off date and port are mandatory to finalize."
+                  );
+                  return;
+                }
+
+                payload.servicePeriod.signOffDate = signOffDate;
+                payload.servicePeriod.signOffPort = signOffPort;
+
+                toast.success("Sign-Off details saved.");
+                setShowSignOffModal(false);
+              }}
+            >
+              Save
+            </Button>
+
+          </Dialog.Actions>
+        </Dialog>
+
 
       </Portal>
     </ScrollView>

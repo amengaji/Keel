@@ -375,12 +375,17 @@ const updateSection = (
     }));
   };
 
-  /**
-   * ============================================================
-   * FINALIZATION ELIGIBILITY (CENTRAL AUTHORITY)
-   * ============================================================
-   */
-  const canFinalize = canFinalizeSeaService(payload);
+
+/**
+ * ============================================================
+ * FINALIZATION ELIGIBILITY (CENTRAL AUTHORITY)
+ * ============================================================
+ *
+ * IMPORTANT:
+ * - canFinalizeSeaService needs shipType to correctly ignore
+ *   ship-type-disabled sections (e.g. IGS on non-tankers).
+ */
+const canFinalize = canFinalizeSeaService(payload, payload.shipType ?? undefined);
 
   /**
    * ============================================================
@@ -399,12 +404,32 @@ const updateSection = (
         return;
       }
 
-      if (!canFinalize) {
+      /**
+       * ============================================================
+       * FINALIZATION ELIGIBILITY — SEA SERVICE ONLY (CORRECTED)
+       * ============================================================
+       *
+       * IMPORTANT:
+       * - Daily Logs, Tasks, Familiarisation are NOT blockers
+       * - Only Sea Service lifecycle + sections matter here
+       */
+      if (
+        !payload.shipType ||
+        !payload.servicePeriod?.signOnDate ||
+        !payload.servicePeriod?.signOnPort ||
+        !payload.servicePeriod?.signOffDate ||
+        !payload.servicePeriod?.signOffPort
+      ) {
         toast.error(
-          "Sea Service is not eligible for finalization. Please complete all requirements."
+          "Sea Service cannot be finalized. Sign-On and Sign-Off details are mandatory."
         );
-        return;
       }
+
+/**
+ * Section completion is already validated separately
+ * via sectionStatus map.
+ */
+
 
       // DB: DRAFT → FINAL (authoritative lifecycle transition)
       finalizeSeaService(seaServiceId);
