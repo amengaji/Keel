@@ -106,6 +106,12 @@ function mapShipTypeToCargoProfile(shipType?: string): CargoProfileKey | null {
 }
 
 /**
+ * FIELD-LEVEL GATE KEYS (PSC-CORRECT)
+ */
+const CARGO_PUMPS_FITTED_KEY = "__cargoPumpsFitted__";
+
+
+/**
  * ------------------------------------------------------------
  * PSC-SAFE: SHIP TYPE → CONTAINMENT LABEL
  * ------------------------------------------------------------
@@ -230,6 +236,21 @@ export default function CargoCapabilitiesSection(props: { onSaved?: () => void }
       }, [cargoProfileKey]);
 
 
+/**
+ * ============================================================
+ * STRIPPING PUMP — FIELD-LEVEL GATE & KEYS (INDEPENDENT)
+ * ============================================================
+ */
+const STRIPPING_PUMP_FITTED_KEY = "__strippingPumpFitted__";
+
+const STRIPPING_PUMP_TYPE_KEYS = [
+  { key: "strippingPump_Eductor", label: "Eductor" },
+  { key: "strippingPump_Centrifugal", label: "Centrifugal" },
+  { key: "strippingPump_Reciprocating", label: "Reciprocating" },
+  { key: "strippingPump_Portable", label: "Portable" },
+  { key: "strippingPump_Integrated", label: "Integrated with Cargo Pump" },
+  { key: "strippingPump_Other", label: "Other" },
+] as const;
 
 
 
@@ -240,24 +261,36 @@ export default function CargoCapabilitiesSection(props: { onSaved?: () => void }
   /**
    * Initialise form when profile loads
    */
+/**
+   * Initialise form when profile loads
+   */
   useEffect(() => {
     if (!cargoProfile) return;
 
     const initialState: Record<string, any> = {};
 
+    // Stripping Pump — fitted gate (default false)
+initialState[STRIPPING_PUMP_FITTED_KEY] =
+  (existingData as any)[STRIPPING_PUMP_FITTED_KEY] ?? false;
+
+// Stripping Pump — independent type flags
+STRIPPING_PUMP_TYPE_KEYS.forEach(({ key }) => {
+  initialState[key] = (existingData as any)[key] ?? false;
+});
+
+
+    initialState[CARGO_PUMPS_FITTED_KEY] =
+  (existingData as any)[CARGO_PUMPS_FITTED_KEY] ?? false;
+
+
     cargoProfile.groups.forEach((group: CargoFieldGroup) => {
-      /**
-       * STEP 19:
-       * Add group gate ONLY for the FIRST group.
-       */
+      // 1. First Group Gate (Containment)
       if (firstGroupKey && group.groupKey === firstGroupKey) {
         const gKey = groupGateKey(group.groupKey);
         initialState[gKey] = (existingData as any)[gKey] ?? false;
       }
-            /**
-       * STEP 22:
-       * Add group gate for Cargo Handling Gear (SECOND group)
-       */
+
+      // 2. Cargo Handling Gear Gate
       if (
         cargoHandlingGroupKey &&
         group.groupKey === cargoHandlingGroupKey
@@ -266,10 +299,7 @@ export default function CargoCapabilitiesSection(props: { onSaved?: () => void }
         initialState[gKey] = (existingData as any)[gKey] ?? false;
       }
 
-      /**
-       * STEP 23:
-       * Add group gate for Cargo Pumps
-       */
+      // 3. Cargo Pumps Gate
       if (
         cargoPumpsGroupKey &&
         group.groupKey === cargoPumpsGroupKey
@@ -278,9 +308,7 @@ export default function CargoCapabilitiesSection(props: { onSaved?: () => void }
         initialState[gKey] = (existingData as any)[gKey] ?? false;
       }
 
-
-
-
+      // Standard Fields
       group.fields.forEach((field: CargoFieldDefinition) => {
         initialState[field.key] = (existingData as any)[field.key] ?? "";
       });
@@ -288,11 +316,11 @@ export default function CargoCapabilitiesSection(props: { onSaved?: () => void }
 
     setForm(initialState);
   }, [
-        cargoProfileKey,
-        firstGroupKey,
-        cargoHandlingGroupKey,
-        cargoPumpsGroupKey,
-      ]);
+    cargoProfileKey,
+    firstGroupKey,
+    cargoHandlingGroupKey,
+    cargoPumpsGroupKey, // Ensure this dependency exists
+  ]);
 
 
   /**
@@ -440,7 +468,6 @@ export default function CargoCapabilitiesSection(props: { onSaved?: () => void }
           const gateValue = gateKey ? Boolean(form[gateKey]) : true;
 
 
-
           return (
             <View key={group.groupKey} style={styles.groupBlock}>
               <Divider style={styles.divider} />
@@ -484,23 +511,6 @@ export default function CargoCapabilitiesSection(props: { onSaved?: () => void }
                     </View>
                   )}
 
-                  {/* =====================================================
-                      STEP 26: Cargo Pumps YES/NO GATE
-                      ===================================================== */}
-                  {isCargoPumpsGroup && (
-                    <View style={styles.row}>
-                      <Text style={styles.rowLabel}>
-                        Cargo Pumps fitted?
-                      </Text>
-                      <YesNoCapsule
-                        value={Boolean(form[groupGateKey(group.groupKey)])}
-                        onChange={(v) =>
-                          updateField(groupGateKey(group.groupKey), v)
-                        }
-                      />
-                    </View>
-                  )}
-
 
               {/* =====================================================
                   GROUP FIELDS
@@ -508,9 +518,110 @@ export default function CargoCapabilitiesSection(props: { onSaved?: () => void }
               <Divider style={styles.divider} />
 
               {/* If first-group gate is NO → hide fields */}
-              {gateValue &&
+              {(!gateKey || Boolean(form[gateKey])) &&
                 group.fields.map((field) => {
                   const value = form[field.key];
+
+                  /**
+ * =====================================================
+ * FIELD-LEVEL GATE — Cargo Pumps
+ * =====================================================
+ *
+ * Cargo Pump Type is a segmentedButtons field
+ * Gate controls ONLY this field
+ */
+if (field.key === "cargoPumpType") {
+  return (
+    <View key="cargoPumpsGateBlock">
+      <View style={styles.row}>
+        <Text style={styles.rowLabel}>
+          Cargo Pumps fitted?
+        </Text>
+        <YesNoCapsule
+          value={Boolean(form[CARGO_PUMPS_FITTED_KEY])}
+          onChange={(v) =>
+            updateField(CARGO_PUMPS_FITTED_KEY, v)
+          }
+        />
+      </View>
+
+      {Boolean(form[CARGO_PUMPS_FITTED_KEY]) && (
+        <View style={styles.segmentBlock}>
+          <Text style={styles.segmentLabel}>
+            {field.label}
+          </Text>
+
+          <SegmentedButtons
+            value={String(value ?? "")}
+            onValueChange={(v) => updateField(field.key, v)}
+            buttons={(field.options ?? []).map((opt) => {
+              const isSelected = String(value) === opt;
+
+              return {
+                value: opt,
+                label: opt,
+                style: {
+                  borderColor: "#3194A0",
+                  backgroundColor: isSelected
+                    ? "rgba(49, 148, 160, 0.15)"
+                    : "transparent",
+                },
+                labelStyle: {
+                  color: isSelected ? "#3194A0" : undefined,
+                  fontWeight: isSelected ? "700" : "500",
+                },
+              };
+            })}
+          />
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
+ * =====================================================
+ * FIELD-LEVEL OVERRIDE — Stripping Pump (Independent YES/NO)
+ * =====================================================
+ * - Replaces dropdown rendering for strippingPumpType
+ * - Multiple selections allowed (PSC-correct)
+ * - Uses YesNoCapsule throughout
+ */
+if (field.key === "strippingPumpType") {
+  return (
+    <View key="strippingPumpBlock">
+      {/* Top-level fitted gate */}
+      <View style={styles.row}>
+        <Text style={styles.rowLabel}>
+          Stripping Pump fitted?
+        </Text>
+        <YesNoCapsule
+          value={Boolean(form[STRIPPING_PUMP_FITTED_KEY])}
+          onChange={(v) =>
+            updateField(STRIPPING_PUMP_FITTED_KEY, v)
+          }
+        />
+      </View>
+
+      {/* Per-type independent YES/NO (only if fitted) */}
+      {Boolean(form[STRIPPING_PUMP_FITTED_KEY]) && (
+        <View style={{ marginTop: 8 }}>
+          {STRIPPING_PUMP_TYPE_KEYS.map(({ key, label }) => (
+            <View key={key} style={styles.row}>
+              <Text style={styles.rowLabel}>{label}</Text>
+              <YesNoCapsule
+                value={Boolean(form[key])}
+                onChange={(v) => updateField(key, v)}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+
 
                   if (field.uiType === "text" || field.uiType === "numeric") {
                     return (

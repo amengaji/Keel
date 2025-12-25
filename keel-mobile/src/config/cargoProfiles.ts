@@ -178,8 +178,7 @@ const LOAD_LINE_GROUP: CargoFieldGroup = {
 const TANK_CAPACITY_GROUP: CargoFieldGroup = {
   groupKey: "TANK_CAPACITIES",
   title: "Tank Capacities",
-  description:
-    "Fuel, ballast, fresh water, and other tank capacities.",
+  description: "Fuel, ballast, fresh water, and other tank capacities.",
   fields: [
     {
       key: "hfoCapacity",
@@ -238,15 +237,11 @@ const TANK_CAPACITY_GROUP: CargoFieldGroup = {
  * ============================================================
  */
 
-export const CARGO_PROFILES: Record<
-  CargoProfileKey,
-  CargoProfileDefinition
-> = {
+export const CARGO_PROFILES: Record<CargoProfileKey, CargoProfileDefinition> = {
   BULK: {
     profile: "BULK",
     title: "Bulk Carrier — Cargo & Capacities",
-    description:
-      "Cargo, load line, and tank particulars for bulk carriers.",
+    description: "Cargo, load line, and tank particulars for bulk carriers.",
     groups: [
       {
         groupKey: "BULK_CARGO",
@@ -313,6 +308,36 @@ export const CARGO_PROFILES: Record<
             options: ["Centrifugal", "Framo", "Screw"],
             required: true,
           },
+
+          /**
+           * ============================================================
+           * STEP 28 — NEW FIELD (Tankers + Chemical Tankers)
+           * ============================================================
+           *
+           * Stripping pump details are recorded only if fitted.
+           * The YES/NO gate will be implemented in CargoCapabilitiesSection.tsx.
+           *
+           * IMPORTANT:
+           * - required: false (so it never blocks completion when not fitted)
+           * - options are PSC-aligned and training-record friendly
+           */
+          {
+            key: "strippingPumpType",
+            label: "Stripping Pump Type",
+            helperText:
+              "Select only if stripping pump is fitted. Otherwise keep blank.",
+            uiType: "dropdown",
+            options: [
+              "Eductor",
+              "Centrifugal",
+              "Reciprocating",
+              "Portable",
+              "Integrated with Cargo Pump",
+              "Other",
+            ],
+            required: false,
+          },
+
           {
             key: "cowFitted",
             label: "Crude Oil Washing (COW) Fitted",
@@ -329,7 +354,7 @@ export const CARGO_PROFILES: Record<
             key: "cargoCoating",
             label: "Cargo Tank Coating Type",
             uiType: "dropdown",
-            options: ["Epoxy", "None", "Stainless Steel", ],
+            options: ["Epoxy", "None", "Stainless Steel"],
             required: false,
           },
         ],
@@ -342,8 +367,7 @@ export const CARGO_PROFILES: Record<
   GAS_TANKER: {
     profile: "GAS_TANKER",
     title: "Gas Carrier — Cargo & Capacities",
-    description:
-      "Cargo containment, load line, and tank capacities for gas carriers.",
+    description: "Cargo containment, load line, and tank capacities for gas carriers.",
     groups: [
       {
         groupKey: "GAS_CARGO",
@@ -378,8 +402,7 @@ export const CARGO_PROFILES: Record<
   CONTAINER: {
     profile: "CONTAINER",
     title: "Container Ship — Cargo & Capacities",
-    description:
-      "Container capacity, load line, and tank particulars.",
+    description: "Container capacity, load line, and tank particulars.",
     groups: [
       {
         groupKey: "CONTAINER_CARGO",
@@ -413,8 +436,7 @@ export const CARGO_PROFILES: Record<
   CAR_CARRIER: {
     profile: "CAR_CARRIER",
     title: "Car Carrier — Cargo & Capacities",
-    description:
-      "Vehicle cargo arrangements and capacity particulars.",
+    description: "Vehicle cargo arrangements and capacity particulars.",
     groups: [
       {
         groupKey: "VEHICLE_CARGO",
@@ -449,8 +471,7 @@ export const CARGO_PROFILES: Record<
   RO_RO: {
     profile: "RO_RO",
     title: "Ro-Ro Vessel — Cargo & Capacities",
-    description:
-      "Roll-on/roll-off cargo and capacity details.",
+    description: "Roll-on/roll-off cargo and capacity details.",
     groups: [
       {
         groupKey: "RORO_CARGO",
@@ -478,8 +499,7 @@ export const CARGO_PROFILES: Record<
   GENERAL: {
     profile: "GENERAL",
     title: "General Cargo — Cargo & Capacities",
-    description:
-      "General cargo handling and capacity particulars.",
+    description: "General cargo handling and capacity particulars.",
     groups: [
       {
         groupKey: "GENERAL_CARGO",
@@ -507,8 +527,7 @@ export const CARGO_PROFILES: Record<
   PASSENGER: {
     profile: "PASSENGER",
     title: "Passenger Vessel — Cargo & Capacities",
-    description:
-      "Passenger ship cargo, load line, and tank particulars.",
+    description: "Passenger ship cargo, load line, and tank particulars.",
     groups: [
       {
         groupKey: "PASSENGER_CARGO",
