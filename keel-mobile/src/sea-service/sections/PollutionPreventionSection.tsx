@@ -26,7 +26,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-
+import YesNoCapsule from "../../components/common/YesNoCapsule";
 import { useSeaService } from "../SeaServiceContext";
 import { useToast } from "../../components/toast/useToast";
 
@@ -39,8 +39,25 @@ const onlyNumber = (v: string) => v.replace(/[^\d]/g, "");
 const hasText = (v: any) => typeof v === "string" && v.trim().length > 0;
 
 function normalizeShipType(shipType?: string | null) {
-  return String(shipType ?? "").toUpperCase();
+  if (!shipType) return "";
+
+  /**
+   * ============================================================
+   * NORMALIZE SHIP TYPE (FINAL, PSC-SAFE)
+   * ============================================================
+   *
+   * Examples:
+   * "Oil Tanker"        → "OIL_TANKER"
+   * "Product tanker"   → "PRODUCT_TANKER"
+   * "Chemical Tanker"  → "CHEMICAL_TANKER"
+   * "Bulk Carrier"     → "BULK_CARRIER"
+   */
+  return shipType
+    .toUpperCase()
+    .trim()
+    .replace(/\s+/g, "_");
 }
+
 
 function isTankerType(shipType?: string | null) {
   const t = normalizeShipType(shipType);
@@ -124,6 +141,15 @@ export default function PollutionPreventionSection(props: { onSaved?: () => void
   const { payload, updateSection } = useSeaService();
 
   const shipType = payload?.shipType ?? null;
+/**
+ * ============================================================
+ * SHIP TYPE — TANKER DETECTION (FIXED)
+ * ============================================================
+ *
+ * IMPORTANT:
+ * - payload.shipType is the SINGLE source of truth
+ * - DO NOT use local or derived shipType variables here
+ */
   const tanker = isTankerType(shipType);
   const chemical = isChemicalTanker(shipType);
 
@@ -131,67 +157,126 @@ export default function PollutionPreventionSection(props: { onSaved?: () => void
     payload.sections?.[SECTION_KEY as keyof typeof payload.sections] || {};
 
   const [form, setForm] = useState<Record<string, any>>({});
+  
 
   useEffect(() => {
     setForm({
-      /* ---------------- Annex I — Oil ---------------- */
-      annex1_owsFitted: existing.annex1_owsFitted ?? false,
-      annex1_ppm15AlarmFitted: existing.annex1_ppm15AlarmFitted ?? false,
+      /* ---------------- Annex I — Oil (PSC GATED) ---------------- */
+      /**
+       * null  → not yet answered (BLOCK SAVE)
+       * false → NOT APPLICABLE
+       * true  → applicable (dependent fields enforced)
+       */
+      annex1_owsFitted:
+        existing.annex1_owsFitted ?? null,
+      annex1_ppm15AlarmFitted:
+        existing.annex1_ppm15AlarmFitted ?? null,
+
       annex1_bilgeSludgeTanksPresent:
-        existing.annex1_bilgeSludgeTanksPresent ?? false,
-      annex1_bilgeSludgeNotes: existing.annex1_bilgeSludgeNotes ?? "",
-      annex1_oilRecordBookPartI: existing.annex1_oilRecordBookPartI ?? false,
+        existing.annex1_bilgeSludgeTanksPresent ?? null,
+      annex1_bilgeSludgeNotes:
+        existing.annex1_bilgeSludgeNotes ?? "",
 
-      annex1_odmeFitted: existing.annex1_odmeFitted ?? false,
+      annex1_oilRecordBookPartI:
+        existing.annex1_oilRecordBookPartI ?? null,
+
+      /* Tanker add-ons */
+      annex1_odmeFitted:
+        existing.annex1_odmeFitted ?? null,
       annex1_slopTankArrangement:
-        existing.annex1_slopTankArrangement ?? false,
-      annex1_slopTankNotes: existing.annex1_slopTankNotes ?? "",
-      annex1_cowCapable: existing.annex1_cowCapable ?? false,
+        existing.annex1_slopTankArrangement ?? null,
+      annex1_slopTankNotes:
+        existing.annex1_slopTankNotes ?? "",
+      annex1_cowCapable:
+        existing.annex1_cowCapable ?? null,
       annex1_sopepSmpepOnboard:
-        existing.annex1_sopepSmpepOnboard ?? false,
+        existing.annex1_sopepSmpepOnboard ?? null,
 
-      /* ---------------- Annex II — NLS (chemical tankers) ---------------- */
-      annex2_paManualOnboard: existing.annex2_paManualOnboard ?? false,
+
+      /* ---------------- Annex II — Noxious Liquid Substances (PSC GATED) ---------------- */
+      /**
+       * Applies ONLY to Chemical Tankers
+       *
+       * null  → not yet answered (BLOCK SAVE)
+       * false → NOT APPLICABLE
+       * true  → applicable (dependent fields enforced)
+       */
+      annex2_paManualOnboard:
+        existing.annex2_paManualOnboard ?? null,
       annex2_cargoRecordBookOnboard:
-        existing.annex2_cargoRecordBookOnboard ?? false,
-      annex2_prewashSupported: existing.annex2_prewashSupported ?? false,
-      annex2_prewashNotes: existing.annex2_prewashNotes ?? "",
+        existing.annex2_cargoRecordBookOnboard ?? null,
+      annex2_prewashSupported:
+        existing.annex2_prewashSupported ?? null,
+      annex2_prewashNotes:
+        existing.annex2_prewashNotes ?? "",
       annex2_nlsDischargeAwareness:
-        existing.annex2_nlsDischargeAwareness ?? false,
+        existing.annex2_nlsDischargeAwareness ?? null,
 
-      /* ---------------- Annex III — IMDG / Packaged DG ---------------- */
-      annex3_imdgDocsOnboard: existing.annex3_imdgDocsOnboard ?? false,
+
+      /* ---------------- Annex III — IMDG (PSC GATED) ---------------- */
+      /**
+       * null  → not yet answered (BLOCK SAVE)
+       * false → NOT APPLICABLE
+       * true  → applicable (dependent fields enforced)
+       */
+      annex3_imdgDocsOnboard:
+        existing.annex3_imdgDocsOnboard ?? null,
       annex3_cargoSecuringPlanAvailable:
-        existing.annex3_cargoSecuringPlanAvailable ?? false,
+        existing.annex3_cargoSecuringPlanAvailable ?? null,
       annex3_dgManifestProcedureUsed:
-        existing.annex3_dgManifestProcedureUsed ?? false,
-      annex3_dgManifestNotes: existing.annex3_dgManifestNotes ?? "",
+        existing.annex3_dgManifestProcedureUsed ?? null,
+      annex3_dgNotes:
+        existing.annex3_dgNotes ?? "",
 
-      /* ---------------- Annex IV — Sewage ---------------- */
-      annex4_stpFitted: existing.annex4_stpFitted ?? false,
-      annex4_sewageHoldingTank: existing.annex4_sewageHoldingTank ?? false,
-      annex4_shoreDischargeConnection:
-        existing.annex4_shoreDischargeConnection ?? false,
-      annex4_sewageDischargeNotes: existing.annex4_sewageDischargeNotes ?? "",
 
-      /* ---------------- Annex V — Garbage ---------------- */
-      annex5_garbageManagementPlan:
-        existing.annex5_garbageManagementPlan ?? false,
-      annex5_garbageRecordBook: existing.annex5_garbageRecordBook ?? false,
-      annex5_placardsDisplayed: existing.annex5_placardsDisplayed ?? false,
-      annex5_segregationBinsProvided:
-        existing.annex5_segregationBinsProvided ?? false,
-      annex5_foodWasteMethod: existing.annex5_foodWasteMethod ?? "",
-      annex5_specialAreaAwareness:
-        existing.annex5_specialAreaAwareness ?? false,
+      /* ---------------- Annex IV — Sewage (PSC GATED) ---------------- */
+      /**
+       * null  → not yet answered (BLOCK SAVE)
+       * false → NOT APPLICABLE
+       * true  → applicable
+       */
+      annex4_stpFitted:
+        existing.annex4_stpFitted ?? null,
+      annex4_holdingTankAvailable:
+        existing.annex4_holdingTankAvailable ?? null,
+      annex4_dischargeProcedureKnown:
+        existing.annex4_dischargeProcedureKnown ?? null,
+      annex4_dischargeNotes:
+        existing.annex4_dischargeNotes ?? "",
+
+
+      /* ---------------- Annex V — Garbage (PSC GATED) ---------------- */
+      /**
+       * null  → not yet answered (BLOCK SAVE)
+       * false → NOT APPLICABLE
+       * true  → applicable
+       */
+      annex5_garbageManagementPlanOnboard:
+        existing.annex5_garbageManagementPlanOnboard ?? null,
+      annex5_garbageRecordBookOnboard:
+        existing.annex5_garbageRecordBookOnboard ?? null,
+      annex5_segregationProcedureFollowed:
+        existing.annex5_segregationProcedureFollowed ?? null,
+      annex5_garbageNotes:
+        existing.annex5_garbageNotes ?? "",
+
 
       /* ---------------- Annex VI — Air / Emissions ---------------- */
-      annex6_iappCertificate: existing.annex6_iappCertificate ?? false,
-      annex6_eiappNoxDocs: existing.annex6_eiappNoxDocs ?? false,
-      annex6_fuelSulfurComplianceMethod:
-        existing.annex6_fuelSulfurComplianceMethod ?? "",
-      annex6_egcsFitted: existing.annex6_egcsFitted ?? false,
-      annex6_egcsType: existing.annex6_egcsType ?? "",
+      /* ---------------- Annex VI — Air Pollution (PSC GATED) ---------------- */
+      /**
+       * null  → not yet answered (BLOCK SAVE)
+       * false → NOT APPLICABLE
+       * true  → applicable
+       */
+      annex6_iappCertificateOnboard:
+        existing.annex6_iappCertificateOnboard ?? null,
+      annex6_fuelChangeoverProcedure:
+        existing.annex6_fuelChangeoverProcedure ?? null,
+      annex6_odsRecordMaintained:
+        existing.annex6_odsRecordMaintained ?? null,
+      annex6_airPollutionNotes:
+        existing.annex6_airPollutionNotes ?? "",
+
 
       annex6_odsRecordBook: existing.annex6_odsRecordBook ?? false,
       annex6_incineratorFitted: existing.annex6_incineratorFitted ?? false,
@@ -215,14 +300,115 @@ export default function PollutionPreventionSection(props: { onSaved?: () => void
     });
   }, [form]);
 
-  const save = () => {
-    updateSection(SECTION_KEY as any, form);
-    toast.info(
-      hasAnyData
-        ? "Pollution Prevention saved."
-        : "Pollution Prevention saved (empty draft)."
+const save = () => {
+  /**
+   * ============================================================
+   * ANNEX I — MANDATORY GATE CHECK
+   * ============================================================
+   */
+  if (
+    form.annex1_owsFitted === null ||
+    form.annex1_bilgeSludgeTanksPresent === null ||
+    form.annex1_oilRecordBookPartI === null
+  ) {
+    toast.error(
+      "Please answer all mandatory Yes/No questions in Annex I (Oil Pollution)."
     );
-    
+    return;
+  }
+
+  /**
+   * ============================================================
+   * ANNEX II — MANDATORY GATE CHECK (CHEMICAL TANKERS ONLY)
+   * ============================================================
+   */
+  if (normalizeShipType(payload.shipType) === "CHEMICAL_TANKER") {
+    if (
+      form.annex2_paManualOnboard === null ||
+      form.annex2_cargoRecordBookOnboard === null ||
+      form.annex2_prewashSupported === null ||
+      form.annex2_nlsDischargeAwareness === null
+    ) {
+      toast.error(
+        "Please answer all mandatory Yes/No questions in Annex II (Chemical Tankers)."
+      );
+      return;
+    }
+  }
+
+  /**
+ * ============================================================
+ * ANNEX III — MANDATORY GATE CHECK (IMDG)
+ * ============================================================
+ */
+if (
+  form.annex3_imdgDocsOnboard === null ||
+  form.annex3_cargoSecuringPlanAvailable === null ||
+  form.annex3_dgManifestProcedureUsed === null
+) {
+  toast.error(
+    "Please answer all mandatory Yes/No questions in Annex III (IMDG / Dangerous Goods)."
+  );
+  return;
+}
+
+/**
+ * ============================================================
+ * ANNEX IV — MANDATORY GATE CHECK (SEWAGE)
+ * ============================================================
+ */
+if (
+  form.annex4_stpFitted === null ||
+  form.annex4_holdingTankAvailable === null ||
+  form.annex4_dischargeProcedureKnown === null
+) {
+  toast.error(
+    "Please answer all mandatory Yes/No questions in Annex IV (Sewage)."
+  );
+  return;
+}
+
+/**
+ * ============================================================
+ * ANNEX V — MANDATORY GATE CHECK (GARBAGE)
+ * ============================================================
+ */
+if (
+  form.annex5_garbageManagementPlanOnboard === null ||
+  form.annex5_garbageRecordBookOnboard === null ||
+  form.annex5_segregationProcedureFollowed === null
+) {
+  toast.error(
+    "Please answer all mandatory Yes/No questions in Annex V (Garbage)."
+  );
+  return;
+}
+
+
+/**
+ * ============================================================
+ * ANNEX VI — MANDATORY GATE CHECK (AIR POLLUTION)
+ * ============================================================
+ */
+if (
+  form.annex6_iappCertificateOnboard === null ||
+  form.annex6_fuelChangeoverProcedure === null ||
+  form.annex6_odsRecordMaintained === null
+) {
+  toast.error(
+    "Please answer all mandatory Yes/No questions in Annex VI (Air Pollution)."
+  );
+  return;
+}
+
+
+  updateSection(SECTION_KEY as any, form);
+  toast.info(
+    hasAnyData
+      ? "Pollution Prevention saved."
+      : "Pollution Prevention saved (empty draft)."
+  );
+   
   /**
    * ============================================================
    * UX RULE (GLOBAL – ALREADY APPROVED):
@@ -274,111 +460,169 @@ export default function PollutionPreventionSection(props: { onSaved?: () => void
         {/* ============================================================
             Annex I — Oil
            ============================================================ */}
-        <List.Accordion title="Annex I — Oil (Machinery spaces + tankers)">
-          <YesNoRow
-            label="Oily Water Separator (OWS) fitted"
-            value={!!form.annex1_owsFitted}
-            onChange={(v) => set("annex1_owsFitted", v)}
-          />
-          <YesNoRow
-            label="15 ppm bilge alarm fitted"
-            value={!!form.annex1_ppm15AlarmFitted}
-            onChange={(v) => set("annex1_ppm15AlarmFitted", v)}
-          />
-          <YesNoRow
-            label="Oily bilge / sludge tanks present"
-            value={!!form.annex1_bilgeSludgeTanksPresent}
-            onChange={(v) => set("annex1_bilgeSludgeTanksPresent", v)}
-          />
-          {form.annex1_bilgeSludgeTanksPresent && (
-            <TextInput
-              label="Bilge / sludge tanks notes (optional)"
-              value={form.annex1_bilgeSludgeNotes}
-              onChangeText={(v) => set("annex1_bilgeSludgeNotes", v)}
-              mode="outlined"
-              multiline
-              numberOfLines={3}
-              style={styles.input}
-            />
-          )}
-          <YesNoRow
-            label="Oil Record Book Part I onboard"
-            value={!!form.annex1_oilRecordBookPartI}
-            onChange={(v) => set("annex1_oilRecordBookPartI", v)}
-          />
-
-          {!tanker && (
-            <HelperText type="info" visible>
-              Tanker-only items will appear when ship type is a tanker.
-            </HelperText>
-          )}
-
-          {tanker && (
-            <>
-              <Divider style={styles.innerDivider} />
-              <Text style={styles.subHeading}>Tanker add-ons</Text>
-
-              <YesNoRow
-                label="ODME fitted"
-                value={!!form.annex1_odmeFitted}
-                onChange={(v) => set("annex1_odmeFitted", v)}
+          <List.Accordion title="Annex I — Oil (Machinery spaces + tankers)">
+            {/* OWS */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Oily Water Separator (OWS) fitted
+              </Text>
+              <YesNoCapsule
+                value={form.annex1_owsFitted === true}
+                onChange={(v) => set("annex1_owsFitted", v)}
               />
-              <YesNoRow
-                label="Slop tank arrangement"
-                value={!!form.annex1_slopTankArrangement}
-                onChange={(v) => set("annex1_slopTankArrangement", v)}
-              />
-              {form.annex1_slopTankArrangement && (
-                <TextInput
-                  label="Slop tank notes (optional)"
-                  value={form.annex1_slopTankNotes}
-                  onChangeText={(v) => set("annex1_slopTankNotes", v)}
-                  mode="outlined"
-                  multiline
-                  numberOfLines={3}
-                  style={styles.input}
+            </View>
+
+            {form.annex1_owsFitted === true && (
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>
+                  15 ppm bilge alarm fitted
+                </Text>
+                <YesNoCapsule
+                  value={form.annex1_ppm15AlarmFitted === true}
+                  onChange={(v) => set("annex1_ppm15AlarmFitted", v)}
                 />
-              )}
-              <YesNoRow
-                label="COW capability (crude)"
-                value={!!form.annex1_cowCapable}
-                onChange={(v) => set("annex1_cowCapable", v)}
+              </View>
+            )}
+
+            {/* Bilge / sludge tanks */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Oily bilge / sludge tanks present
+              </Text>
+              <YesNoCapsule
+                value={form.annex1_bilgeSludgeTanksPresent === true}
+                onChange={(v) => set("annex1_bilgeSludgeTanksPresent", v)}
               />
-              <YesNoRow
-                label="SOPEP / SMPEP onboard"
-                value={!!form.annex1_sopepSmpepOnboard}
-                onChange={(v) => set("annex1_sopepSmpepOnboard", v)}
+            </View>
+
+            {form.annex1_bilgeSludgeTanksPresent === true && (
+              <TextInput
+                label="Bilge / sludge tank notes (optional)"
+                value={form.annex1_bilgeSludgeNotes}
+                onChangeText={(v) => set("annex1_bilgeSludgeNotes", v)}
+                mode="outlined"
+                multiline
+                numberOfLines={3}
+                style={styles.input}
               />
-            </>
-          )}
-        </List.Accordion>
+            )}
+
+            {/* ORB Part I */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Oil Record Book Part I onboard
+              </Text>
+              <YesNoCapsule
+                value={form.annex1_oilRecordBookPartI === true}
+                onChange={(v) => set("annex1_oilRecordBookPartI", v)}
+              />
+            </View>
+
+            {/* Tanker-only add-ons */}
+            {!tanker && (
+              <HelperText type="info" visible>
+                Tanker-only items will appear when ship type is a tanker.
+              </HelperText>
+            )}
+
+            {tanker && (
+              <>
+                <Divider style={styles.innerDivider} />
+                <Text style={styles.subHeading}>Tanker add-ons</Text>
+
+                <View style={styles.switchRow}>
+                  <Text style={styles.switchLabel}>ODME fitted</Text>
+                  <YesNoCapsule
+                    value={form.annex1_odmeFitted === true}
+                    onChange={(v) => set("annex1_odmeFitted", v)}
+                  />
+                </View>
+
+                <View style={styles.switchRow}>
+                  <Text style={styles.switchLabel}>
+                    Slop tank arrangement
+                  </Text>
+                  <YesNoCapsule
+                    value={form.annex1_slopTankArrangement === true}
+                    onChange={(v) => set("annex1_slopTankArrangement", v)}
+                  />
+                </View>
+
+                {form.annex1_slopTankArrangement === true && (
+                  <TextInput
+                    label="Slop tank notes (optional)"
+                    value={form.annex1_slopTankNotes}
+                    onChangeText={(v) => set("annex1_slopTankNotes", v)}
+                    mode="outlined"
+                    multiline
+                    numberOfLines={3}
+                    style={styles.input}
+                  />
+                )}
+
+                <View style={styles.switchRow}>
+                  <Text style={styles.switchLabel}>
+                    COW capability (crude)
+                  </Text>
+                  <YesNoCapsule
+                    value={form.annex1_cowCapable === true}
+                    onChange={(v) => set("annex1_cowCapable", v)}
+                  />
+                </View>
+
+                <View style={styles.switchRow}>
+                  <Text style={styles.switchLabel}>
+                    SOPEP / SMPEP onboard
+                  </Text>
+                  <YesNoCapsule
+                    value={form.annex1_sopepSmpepOnboard === true}
+                    onChange={(v) => set("annex1_sopepSmpepOnboard", v)}
+                  />
+                </View>
+              </>
+            )}
+          </List.Accordion>
+
 
         {/* ============================================================
             Annex II — NLS (Chemical tankers)
            ============================================================ */}
-        <List.Accordion title="Annex II — Noxious Liquid Substances (Chemical tankers)">
-          {!chemical ? (
-            <HelperText type="info" visible>
-              Annex II items are shown for Chemical Tanker ship type.
-            </HelperText>
-          ) : (
-            <>
-              <YesNoRow
-                label="P&amp;A Manual onboard"
-                value={!!form.annex2_paManualOnboard}
-                onChange={(v) => set("annex2_paManualOnboard", v)}
-              />
-              <YesNoRow
-                label="Cargo Record Book onboard"
-                value={!!form.annex2_cargoRecordBookOnboard}
-                onChange={(v) => set("annex2_cargoRecordBookOnboard", v)}
-              />
-              <YesNoRow
-                label="Prewash required trades supported / capability"
-                value={!!form.annex2_prewashSupported}
-                onChange={(v) => set("annex2_prewashSupported", v)}
-              />
-              {form.annex2_prewashSupported && (
+          {normalizeShipType(payload.shipType) === "CHEMICAL_TANKER" && (
+            <List.Accordion title="Annex II — Noxious Liquid Substances (Chemical Tankers)">
+              {/* P&A Manual */}
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>
+                  P&amp;A Manual onboard
+                </Text>
+                <YesNoCapsule
+                  value={form.annex2_paManualOnboard === true}
+                  onChange={(v) => set("annex2_paManualOnboard", v)}
+                />
+              </View>
+
+              {/* Cargo Record Book */}
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>
+                  Cargo Record Book onboard
+                </Text>
+                <YesNoCapsule
+                  value={form.annex2_cargoRecordBookOnboard === true}
+                  onChange={(v) => set("annex2_cargoRecordBookOnboard", v)}
+                />
+              </View>
+
+              {/* Prewash */}
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>
+                  Prewash supported for applicable cargoes
+                </Text>
+                <YesNoCapsule
+                  value={form.annex2_prewashSupported === true}
+                  onChange={(v) => set("annex2_prewashSupported", v)}
+                />
+              </View>
+
+              {form.annex2_prewashSupported === true && (
                 <TextInput
                   label="Prewash notes (optional)"
                   value={form.annex2_prewashNotes}
@@ -390,199 +634,223 @@ export default function PollutionPreventionSection(props: { onSaved?: () => void
                 />
               )}
 
+              {/* Awareness */}
               <View style={styles.switchRow}>
                 <Text style={styles.switchLabel}>
-                  Acknowledgement: aware of NLS discharge restrictions
+                  Aware of NLS discharge restrictions
                 </Text>
-                <Switch
-                  value={!!form.annex2_nlsDischargeAwareness}
-                  onValueChange={(v) => set("annex2_nlsDischargeAwareness", v)}
+                <YesNoCapsule
+                  value={form.annex2_nlsDischargeAwareness === true}
+                  onChange={(v) => set("annex2_nlsDischargeAwareness", v)}
                 />
               </View>
-            </>
+            </List.Accordion>
           )}
-        </List.Accordion>
+
 
         {/* ============================================================
             Annex III — IMDG (Packaged DG)
            ============================================================ */}
-        <List.Accordion title="Annex III — Harmful substances in packaged form (IMDG)">
-          <YesNoRow
-            label="IMDG Code compliance docs onboard"
-            value={!!form.annex3_imdgDocsOnboard}
-            onChange={(v) => set("annex3_imdgDocsOnboard", v)}
-          />
-          <YesNoRow
-            label="Cargo securing / stowage plan available"
-            value={!!form.annex3_cargoSecuringPlanAvailable}
-            onChange={(v) => set("annex3_cargoSecuringPlanAvailable", v)}
-          />
-          <YesNoRow
-            label="DG manifest / DG declaration process used"
-            value={!!form.annex3_dgManifestProcedureUsed}
-            onChange={(v) => set("annex3_dgManifestProcedureUsed", v)}
-          />
-          {form.annex3_dgManifestProcedureUsed && (
-            <TextInput
-              label="DG process notes (optional)"
-              value={form.annex3_dgManifestNotes}
-              onChangeText={(v) => set("annex3_dgManifestNotes", v)}
-              mode="outlined"
-              multiline
-              numberOfLines={3}
-              style={styles.input}
-            />
-          )}
-        </List.Accordion>
+          <List.Accordion title="Annex III — IMDG (Dangerous Goods)">
+            {/* IMDG documentation */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                IMDG Code &amp; dangerous goods documentation onboard
+              </Text>
+              <YesNoCapsule
+                value={form.annex3_imdgDocsOnboard === true}
+                onChange={(v) => set("annex3_imdgDocsOnboard", v)}
+              />
+            </View>
+
+            {/* Cargo securing plan */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Cargo securing / stowage plan available
+              </Text>
+              <YesNoCapsule
+                value={form.annex3_cargoSecuringPlanAvailable === true}
+                onChange={(v) => set("annex3_cargoSecuringPlanAvailable", v)}
+              />
+            </View>
+
+            {/* DG manifest / declaration */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                DG manifest / declaration procedure followed
+              </Text>
+              <YesNoCapsule
+                value={form.annex3_dgManifestProcedureUsed === true}
+                onChange={(v) => set("annex3_dgManifestProcedureUsed", v)}
+              />
+            </View>
+
+            {form.annex3_dgManifestProcedureUsed === true && (
+              <TextInput
+                label="DG handling / manifest notes (optional)"
+                value={form.annex3_dgNotes}
+                onChangeText={(v) => set("annex3_dgNotes", v)}
+                mode="outlined"
+                multiline
+                numberOfLines={3}
+                style={styles.input}
+              />
+            )}
+          </List.Accordion>
+
 
         {/* ============================================================
             Annex IV — Sewage
            ============================================================ */}
-        <List.Accordion title="Annex IV — Sewage">
-          <YesNoRow
-            label="Sewage Treatment Plant (STP) fitted"
-            value={!!form.annex4_stpFitted}
-            onChange={(v) => set("annex4_stpFitted", v)}
-          />
-          <YesNoRow
-            label="Sewage holding tank"
-            value={!!form.annex4_sewageHoldingTank}
-            onChange={(v) => set("annex4_sewageHoldingTank", v)}
-          />
-          <YesNoRow
-            label="International shore discharge connection"
-            value={!!form.annex4_shoreDischargeConnection}
-            onChange={(v) => set("annex4_shoreDischargeConnection", v)}
-          />
-          <TextInput
-            label="Sewage discharge arrangement notes (optional)"
-            value={form.annex4_sewageDischargeNotes}
-            onChangeText={(v) => set("annex4_sewageDischargeNotes", v)}
-            mode="outlined"
-            multiline
-            numberOfLines={3}
-            style={styles.input}
-          />
-        </List.Accordion>
+          <List.Accordion title="Annex IV — Sewage">
+            {/* STP fitted */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Approved sewage treatment plant (STP) fitted
+              </Text>
+              <YesNoCapsule
+                value={form.annex4_stpFitted === true}
+                onChange={(v) => set("annex4_stpFitted", v)}
+              />
+            </View>
+
+            {/* Holding tank */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Sewage holding tank / discharge arrangement available
+              </Text>
+              <YesNoCapsule
+                value={form.annex4_holdingTankAvailable === true}
+                onChange={(v) => set("annex4_holdingTankAvailable", v)}
+              />
+            </View>
+
+            {/* Discharge procedure */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Sewage discharge procedure known &amp; followed
+              </Text>
+              <YesNoCapsule
+                value={form.annex4_dischargeProcedureKnown === true}
+                onChange={(v) => set("annex4_dischargeProcedureKnown", v)}
+              />
+            </View>
+
+            {form.annex4_dischargeProcedureKnown === true && (
+              <TextInput
+                label="Sewage discharge notes (optional)"
+                value={form.annex4_dischargeNotes}
+                onChangeText={(v) => set("annex4_dischargeNotes", v)}
+                mode="outlined"
+                multiline
+                numberOfLines={3}
+                style={styles.input}
+              />
+            )}
+          </List.Accordion>
+
 
         {/* ============================================================
             Annex V — Garbage
            ============================================================ */}
-        <List.Accordion title="Annex V — Garbage">
-          <YesNoRow
-            label="Garbage Management Plan onboard"
-            value={!!form.annex5_garbageManagementPlan}
-            onChange={(v) => set("annex5_garbageManagementPlan", v)}
-          />
-          <YesNoRow
-            label="Garbage Record Book onboard"
-            value={!!form.annex5_garbageRecordBook}
-            onChange={(v) => set("annex5_garbageRecordBook", v)}
-          />
-          <YesNoRow
-            label="Placards displayed"
-            value={!!form.annex5_placardsDisplayed}
-            onChange={(v) => set("annex5_placardsDisplayed", v)}
-          />
-          <YesNoRow
-            label="Segregation bins provided"
-            value={!!form.annex5_segregationBinsProvided}
-            onChange={(v) => set("annex5_segregationBinsProvided", v)}
-          />
+          <List.Accordion title="Annex V — Garbage">
+            {/* Garbage Management Plan */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Garbage Management Plan onboard
+              </Text>
+              <YesNoCapsule
+                value={form.annex5_garbageManagementPlanOnboard === true}
+                onChange={(v) => set("annex5_garbageManagementPlanOnboard", v)}
+              />
+            </View>
 
-          <Dropdown
-            label="Food waste handling method"
-            value={String(form.annex5_foodWasteMethod ?? "")}
-            options={["Macerator", "Landed ashore", "Other"]}
-            onPick={(v) => set("annex5_foodWasteMethod", v)}
-          />
+            {/* Garbage Record Book */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Garbage Record Book onboard
+              </Text>
+              <YesNoCapsule
+                value={form.annex5_garbageRecordBookOnboard === true}
+                onChange={(v) => set("annex5_garbageRecordBookOnboard", v)}
+              />
+            </View>
 
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>
-              Acknowledgement: aware of Special Area restrictions
-            </Text>
-            <Switch
-              value={!!form.annex5_specialAreaAwareness}
-              onValueChange={(v) => set("annex5_specialAreaAwareness", v)}
-            />
-          </View>
-        </List.Accordion>
+            {/* Segregation procedure */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Garbage segregation &amp; disposal procedure followed
+              </Text>
+              <YesNoCapsule
+                value={form.annex5_segregationProcedureFollowed === true}
+                onChange={(v) => set("annex5_segregationProcedureFollowed", v)}
+              />
+            </View>
+
+            {form.annex5_segregationProcedureFollowed === true && (
+              <TextInput
+                label="Garbage handling notes (optional)"
+                value={form.annex5_garbageNotes}
+                onChangeText={(v) => set("annex5_garbageNotes", v)}
+                mode="outlined"
+                multiline
+                numberOfLines={3}
+                style={styles.input}
+              />
+            )}
+          </List.Accordion>
+
 
         {/* ============================================================
             Annex VI — Air / Emissions
            ============================================================ */}
-        <List.Accordion title="Annex VI — Air pollution / emissions">
-          <YesNoRow
-            label="IAPP certificate onboard"
-            value={!!form.annex6_iappCertificate}
-            onChange={(v) => set("annex6_iappCertificate", v)}
-          />
-          <YesNoRow
-            label="EIAPP / engine NOx compliance docs onboard"
-            value={!!form.annex6_eiappNoxDocs}
-            onChange={(v) => set("annex6_eiappNoxDocs", v)}
-          />
+          <List.Accordion title="Annex VI — Air Pollution">
+            {/* IAPP Certificate */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                IAPP Certificate onboard / applicable
+              </Text>
+              <YesNoCapsule
+                value={form.annex6_iappCertificateOnboard === true}
+                onChange={(v) => set("annex6_iappCertificateOnboard", v)}
+              />
+            </View>
 
-          <Dropdown
-            label="Fuel sulfur compliance method"
-            value={String(form.annex6_fuelSulfurComplianceMethod ?? "")}
-            options={["Compliant fuel", "Scrubber (EGCS)", "Other"]}
-            onPick={(v) => set("annex6_fuelSulfurComplianceMethod", v)}
-          />
+            {/* Fuel changeover */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Fuel oil changeover procedure (SECA / ECA)
+              </Text>
+              <YesNoCapsule
+                value={form.annex6_fuelChangeoverProcedure === true}
+                onChange={(v) => set("annex6_fuelChangeoverProcedure", v)}
+              />
+            </View>
 
-          <YesNoRow
-            label="EGCS (scrubber) fitted"
-            value={!!form.annex6_egcsFitted}
-            onChange={(v) => set("annex6_egcsFitted", v)}
-          />
-          {form.annex6_egcsFitted && (
-            <Dropdown
-              label="EGCS type"
-              value={String(form.annex6_egcsType ?? "")}
-              options={["Open", "Closed", "Hybrid"]}
-              onPick={(v) => set("annex6_egcsType", v)}
-            />
-          )}
+            {/* ODS record */}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>
+                Ozone depleting substances (ODS) record maintained
+              </Text>
+              <YesNoCapsule
+                value={form.annex6_odsRecordMaintained === true}
+                onChange={(v) => set("annex6_odsRecordMaintained", v)}
+              />
+            </View>
 
-          <YesNoRow
-            label="ODS record book onboard"
-            value={!!form.annex6_odsRecordBook}
-            onChange={(v) => set("annex6_odsRecordBook", v)}
-          />
+            {form.annex6_odsRecordMaintained === true && (
+              <TextInput
+                label="Air pollution / ODS notes (optional)"
+                value={form.annex6_airPollutionNotes}
+                onChangeText={(v) => set("annex6_airPollutionNotes", v)}
+                mode="outlined"
+                multiline
+                numberOfLines={3}
+                style={styles.input}
+              />
+            )}
+          </List.Accordion>
 
-          <YesNoRow
-            label="Incinerator fitted"
-            value={!!form.annex6_incineratorFitted}
-            onChange={(v) => set("annex6_incineratorFitted", v)}
-          />
-          {form.annex6_incineratorFitted && (
-            <TextInput
-              label="Incinerator type / model (optional)"
-              value={form.annex6_incineratorDetails}
-              onChangeText={(v) => set("annex6_incineratorDetails", v)}
-              mode="outlined"
-              style={styles.input}
-            />
-          )}
-
-          <YesNoRow
-            label="SEEMP onboard"
-            value={!!form.annex6_seempOnboard}
-            onChange={(v) => set("annex6_seempOnboard", v)}
-          />
-          <YesNoRow
-            label="IMO DCS (fuel consumption data collection) in use"
-            value={!!form.annex6_imoDcsInUse}
-            onChange={(v) => set("annex6_imoDcsInUse", v)}
-          />
-
-          <Dropdown
-            label="CII / EEXI tracking onboard"
-            value={String(form.annex6_ciiEexiTracking ?? "Unknown")}
-            options={["Yes", "No", "Unknown"]}
-            onPick={(v) => set("annex6_ciiEexiTracking", v)}
-          />
-        </List.Accordion>
 
         <Divider style={styles.divider} />
       </KeyboardAwareScrollView>

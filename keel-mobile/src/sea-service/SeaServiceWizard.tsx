@@ -180,23 +180,23 @@ useFocusEffect(
   };
 
     // ------------------------------------------------------------
-  // Service Period (local draft state)
-  // ------------------------------------------------------------
-const [signOnDate, setSignOnDate] = useState<Date | null>(
-  payload.servicePeriod?.signOnDate ?? null
-);
+    // Service Period (local draft state)
+    // ------------------------------------------------------------
+  const [signOnDate, setSignOnDate] = useState<Date | null>(
+    payload.servicePeriod?.signOnDate ?? null
+  );
 
-const [signOffDate, setSignOffDate] = useState<Date | null>(
-  payload.servicePeriod?.signOffDate ?? null
-);
+  const [signOffDate, setSignOffDate] = useState<Date | null>(
+    payload.servicePeriod?.signOffDate ?? null
+  );
 
-const [signOnPort, setSignOnPort] = useState(
-  payload.servicePeriod?.signOnPort ?? ""
-);
+  const [signOnPort, setSignOnPort] = useState(
+    payload.servicePeriod?.signOnPort ?? ""
+  );
 
-const [signOffPort, setSignOffPort] = useState(
-  payload.servicePeriod?.signOffPort ?? ""
-);
+  const [signOffPort, setSignOffPort] = useState(
+    payload.servicePeriod?.signOffPort ?? ""
+  );
 
 
 
@@ -207,7 +207,7 @@ const [signOffPort, setSignOffPort] = useState(
      * Why:
      * - Ship type lists will grow (company fleets vary).
      * - Cadets must find their ship type quickly, even offline.
-     * - We keep config unchanged; category is derived locally.
+     * - We keep config unchanged; is derived locally.
      */
 
     type ShipTypeCategory =
@@ -300,16 +300,44 @@ const enabledSections = useMemo(() => {
   );
 
   // Fallback: show all sections if config is missing
-  if (!shipTypeConfig || !shipTypeConfig.enabledSections?.length) {
-    return SEA_SERVICE_SECTIONS;
+if (!shipTypeConfig || !shipTypeConfig.enabledSections?.length) {
+  const isTanker =
+    payload.shipType === "TANKER" ||
+    payload.shipType === "OIL_TANKER" ||
+    payload.shipType === "PRODUCT_TANKER" ||
+    payload.shipType === "CHEMICAL_TANKER";
+
+  return SEA_SERVICE_SECTIONS.filter(
+    (s) => s.key !== "INERT_GAS_SYSTEM" || isTanker
+  );
+}
+// Determine if the ship is a tanker for IGS visibility
+
+const isTanker =
+  payload.shipType === "TANKER" ||
+  payload.shipType === "OIL_TANKER" ||
+  payload.shipType === "PRODUCT_TANKER" ||
+  payload.shipType === "CHEMICAL_TANKER";
+
+/**
+ * ============================================================
+ * HARD VISIBILITY RULE — IGS
+ * ============================================================
+ *
+ * - IGS must NEVER be visible for non-tankers
+ * - No fallback is allowed for this rule
+ * - This is PSC / audit mandatory behaviour
+ */
+const filtered = SEA_SERVICE_SECTIONS.filter((section) => {
+  if (section.key === "INERT_GAS_SYSTEM" && !isTanker) {
+    return false;
   }
 
-  const filtered = SEA_SERVICE_SECTIONS.filter((section) =>
-    shipTypeConfig.enabledSections.includes(section.key)
-  );
+  return shipTypeConfig.enabledSections.includes(section.key);
+});
 
-  // Fallback if filter produced nothing
-  return filtered.length > 0 ? filtered : SEA_SERVICE_SECTIONS;
+return filtered;
+
 }, [payload.shipType]);
 
 /**
@@ -387,9 +415,21 @@ const getSectionStatusLabel = (status?: string) => {
     return;
     }
     if (sectionKey === "INERT_GAS_SYSTEM") {
-    setCurrentStep("INERT_GAS_SYSTEM");
-    return;
+      const isTanker =
+        payload.shipType === "TANKER" ||
+        payload.shipType === "OIL_TANKER" ||
+        payload.shipType === "PRODUCT_TANKER" ||
+        payload.shipType === "CHEMICAL_TANKER";
+
+      if (!isTanker) {
+        toast.info("Inert Gas System is not applicable for this vessel type.");
+        return;
+      }
+
+      setCurrentStep("INERT_GAS_SYSTEM");
+      return;
     }
+
   
     toast.info(`"${title}" form will be added next.`);
   };
@@ -890,6 +930,17 @@ if (currentStep === "FIRE_FIGHTING_APPLIANCES") {
  * ============================================================
  */
 if (currentStep === "INERT_GAS_SYSTEM") {
+  const isTanker =
+    payload.shipType === "TANKER" ||
+    payload.shipType === "OIL_TANKER" ||
+    payload.shipType === "PRODUCT_TANKER" ||
+    payload.shipType === "CHEMICAL_TANKER";
+
+  if (!isTanker) {
+    setCurrentStep("SECTION_OVERVIEW");
+    return null;
+  }
+
   return (
     <View
       style={[
@@ -910,19 +961,21 @@ if (currentStep === "INERT_GAS_SYSTEM") {
         <Button
           mode="text"
           onPress={() =>
-            toast.info(
-              "Remember to tap Save Section before leaving."
-            )
+            toast.info("Remember to tap Save Section before leaving.")
           }
         >
           Help
         </Button>
       </View>
+
       <Divider />
-      <InertGasSystemSection onSaved={() => setCurrentStep("SECTION_OVERVIEW")}/>
+      <InertGasSystemSection
+        onSaved={() => setCurrentStep("SECTION_OVERVIEW")}
+      />
     </View>
   );
 }
+
 /**
  * ============================================================
  * RENDER — STEP 13: POLLUTION PREVENTION (MARPOL)

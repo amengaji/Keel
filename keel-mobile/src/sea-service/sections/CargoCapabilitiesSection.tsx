@@ -521,105 +521,144 @@ STRIPPING_PUMP_TYPE_KEYS.forEach(({ key }) => {
               {(!gateKey || Boolean(form[gateKey])) &&
                 group.fields.map((field) => {
                   const value = form[field.key];
+                  /**
+                 * =====================================================
+                 * FIELD-LEVEL OVERRIDE — COW (PSC YES/NO CAPSULE)
+                 * =====================================================
+                 * Replaces generic switch rendering for cowFitted
+                 */
+                if (field.key === "cowFitted") {
+                  return (
+                    <View key="cowFittedGate" style={styles.row}>
+                      <Text style={styles.rowLabel}>
+                        {field.label}
+                      </Text>
+                      <YesNoCapsule
+                        value={Boolean(form.cowFitted)}
+                        onChange={(v) => updateField("cowFitted", v)}
+                      />
+                    </View>
+                  );
+                }
+                /**
+                 * =====================================================
+                 * FIELD-LEVEL OVERRIDE — INERT GAS SYSTEM (PSC YES/NO CAPSULE)
+                 * =====================================================
+                 * Replaces generic switch rendering for igsFitted
+                 */
+                if (field.key === "igsFitted") {
+                  return (
+                    <View key="igsFittedGate" style={styles.row}>
+                      <Text style={styles.rowLabel}>
+                        {field.label}
+                      </Text>
+                      <YesNoCapsule
+                        value={Boolean(form.igsFitted)}
+                        onChange={(v) => updateField("igsFitted", v)}
+                      />
+                    </View>
+                  );
+                }
+
 
                   /**
- * =====================================================
- * FIELD-LEVEL GATE — Cargo Pumps
- * =====================================================
- *
- * Cargo Pump Type is a segmentedButtons field
- * Gate controls ONLY this field
- */
-if (field.key === "cargoPumpType") {
-  return (
-    <View key="cargoPumpsGateBlock">
-      <View style={styles.row}>
-        <Text style={styles.rowLabel}>
-          Cargo Pumps fitted?
-        </Text>
-        <YesNoCapsule
-          value={Boolean(form[CARGO_PUMPS_FITTED_KEY])}
-          onChange={(v) =>
-            updateField(CARGO_PUMPS_FITTED_KEY, v)
-          }
-        />
-      </View>
+                 * =====================================================
+                 * FIELD-LEVEL GATE — Cargo Pumps
+                 * =====================================================
+                 *
+                 * Cargo Pump Type is a segmentedButtons field
+                 * Gate controls ONLY this field
+                 */
+                if (field.key === "cargoPumpType") {
+                  return (
+                    <View key="cargoPumpsGateBlock">
+                      <View style={styles.row}>
+                        <Text style={styles.rowLabel}>
+                          Cargo Pumps fitted?
+                        </Text>
+                        <YesNoCapsule
+                          value={Boolean(form[CARGO_PUMPS_FITTED_KEY])}
+                          onChange={(v) =>
+                            updateField(CARGO_PUMPS_FITTED_KEY, v)
+                          }
+                        />
+                      </View>
 
-      {Boolean(form[CARGO_PUMPS_FITTED_KEY]) && (
-        <View style={styles.segmentBlock}>
-          <Text style={styles.segmentLabel}>
-            {field.label}
-          </Text>
+                      {Boolean(form[CARGO_PUMPS_FITTED_KEY]) && (
+                        <View style={styles.segmentBlock}>
+                          <Text style={styles.segmentLabel}>
+                            {field.label}
+                          </Text>
 
-          <SegmentedButtons
-            value={String(value ?? "")}
-            onValueChange={(v) => updateField(field.key, v)}
-            buttons={(field.options ?? []).map((opt) => {
-              const isSelected = String(value) === opt;
+                          <SegmentedButtons
+                            value={String(value ?? "")}
+                            onValueChange={(v) => updateField(field.key, v)}
+                            buttons={(field.options ?? []).map((opt) => {
+                              const isSelected = String(value) === opt;
 
-              return {
-                value: opt,
-                label: opt,
-                style: {
-                  borderColor: "#3194A0",
-                  backgroundColor: isSelected
-                    ? "rgba(49, 148, 160, 0.15)"
-                    : "transparent",
-                },
-                labelStyle: {
-                  color: isSelected ? "#3194A0" : undefined,
-                  fontWeight: isSelected ? "700" : "500",
-                },
-              };
-            })}
-          />
-        </View>
-      )}
-    </View>
-  );
-}
+                              return {
+                                value: opt,
+                                label: opt,
+                                style: {
+                                  borderColor: "#3194A0",
+                                  backgroundColor: isSelected
+                                    ? "rgba(49, 148, 160, 0.15)"
+                                    : "transparent",
+                                },
+                                labelStyle: {
+                                  color: isSelected ? "#3194A0" : undefined,
+                                  fontWeight: isSelected ? "700" : "500",
+                                },
+                              };
+                            })}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  );
+                }
 
-/**
- * =====================================================
- * FIELD-LEVEL OVERRIDE — Stripping Pump (Independent YES/NO)
- * =====================================================
- * - Replaces dropdown rendering for strippingPumpType
- * - Multiple selections allowed (PSC-correct)
- * - Uses YesNoCapsule throughout
- */
-if (field.key === "strippingPumpType") {
-  return (
-    <View key="strippingPumpBlock">
-      {/* Top-level fitted gate */}
-      <View style={styles.row}>
-        <Text style={styles.rowLabel}>
-          Stripping Pump fitted?
-        </Text>
-        <YesNoCapsule
-          value={Boolean(form[STRIPPING_PUMP_FITTED_KEY])}
-          onChange={(v) =>
-            updateField(STRIPPING_PUMP_FITTED_KEY, v)
-          }
-        />
-      </View>
+                /**
+                 * =====================================================
+                 * FIELD-LEVEL OVERRIDE — Stripping Pump (Independent YES/NO)
+                 * =====================================================
+                 * - Replaces dropdown rendering for strippingPumpType
+                 * - Multiple selections allowed (PSC-correct)
+                 * - Uses YesNoCapsule throughout
+                 */
+                if (field.key === "strippingPumpType") {
+                  return (
+                    <View key="strippingPumpBlock">
+                      {/* Top-level fitted gate */}
+                      <View style={styles.row}>
+                        <Text style={styles.rowLabel}>
+                          Stripping Pump fitted?
+                        </Text>
+                        <YesNoCapsule
+                          value={Boolean(form[STRIPPING_PUMP_FITTED_KEY])}
+                          onChange={(v) =>
+                            updateField(STRIPPING_PUMP_FITTED_KEY, v)
+                          }
+                        />
+                      </View>
 
-      {/* Per-type independent YES/NO (only if fitted) */}
-      {Boolean(form[STRIPPING_PUMP_FITTED_KEY]) && (
-        <View style={{ marginTop: 8 }}>
-          {STRIPPING_PUMP_TYPE_KEYS.map(({ key, label }) => (
-            <View key={key} style={styles.row}>
-              <Text style={styles.rowLabel}>{label}</Text>
-              <YesNoCapsule
-                value={Boolean(form[key])}
-                onChange={(v) => updateField(key, v)}
-              />
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
+                      {/* Per-type independent YES/NO (only if fitted) */}
+                      {Boolean(form[STRIPPING_PUMP_FITTED_KEY]) && (
+                        <View style={{ marginTop: 8 }}>
+                          {STRIPPING_PUMP_TYPE_KEYS.map(({ key, label }) => (
+                            <View key={key} style={styles.row}>
+                              <Text style={styles.rowLabel}>{label}</Text>
+                              <YesNoCapsule
+                                value={Boolean(form[key])}
+                                onChange={(v) => updateField(key, v)}
+                              />
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                }
 
 
 

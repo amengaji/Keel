@@ -1,21 +1,22 @@
-//keel-mobile/src/components/toast/ToastProvider.tsx
+// keel-mobile/src/components/toast/ToastProvider.tsx
 
 /**
  * ============================================================
- * Global Toast Provider (react-native-toast-message)
+ * Global Toast Provider (MULTI-LINE SAFE)
  * ============================================================
  *
- * - Header-safe (always visible)
- * - Navigation-safe
- * - Severity-based styling
- * - Left border color indicator (enterprise UX)
- * - Keeps existing useToast() API intact
+ * FIXES:
+ * - Enables true multi-line wrapping
+ * - Prevents text truncation
+ * - Tablet + phone responsive
+ * - Keeps useToast() API unchanged
  */
 
 import React, { createContext, ReactNode } from "react";
-import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
+import Toast from "react-native-toast-message";
+import { View, Text, StyleSheet, Dimensions, Appearance } from "react-native";
 import { useTheme } from "react-native-paper";
-import { keelLightTheme, keelDarkTheme, } from "../../theme/keelTheme";
+import { keelLightTheme, keelDarkTheme } from "../../theme/keelTheme";
 
 /**
  * Toast severity types.
@@ -39,82 +40,92 @@ export const ToastContext = createContext<ToastContextType | undefined>(
   undefined
 );
 
+const { width } = Dimensions.get("window");
+const isTablet = width >= 768;
+
+/**
+ * ============================================================
+ * Custom Toast Layout (MULTI-LINE SAFE)
+ * ============================================================
+ */
+function ToastCard({
+  title,
+  message,
+  borderColor,
+}: {
+  title: string;
+  message: string;
+  borderColor: string;
+}) {
+  const theme =
+    Appearance.getColorScheme() === "dark"
+      ? keelDarkTheme
+      : keelLightTheme;
+
+  return (
+    <View
+      style={[
+        styles.toast,
+        {
+          borderLeftColor: borderColor,
+          backgroundColor: theme.colors.surface,
+        },
+      ]}
+    >
+      <Text style={[styles.title, { color: theme.colors.onSurface }]}>
+        {title}
+      </Text>
+
+      <Text
+        style={[
+          styles.message,
+          { color: theme.colors.onSurfaceVariant },
+        ]}
+      >
+        {message}
+      </Text>
+    </View>
+  );
+}
+
 /**
  * ============================================================
  * Toast Configuration
  * ============================================================
  */
-import { Dimensions, Appearance } from "react-native";
-
-const { width } = Dimensions.get("window");
-const isTablet = width >= 768;
-
 export const toastConfig = {
-  success: (props: any) => {
-    const theme =
-      Appearance.getColorScheme() === "dark"
-        ? keelDarkTheme
-        : keelLightTheme;
+  success: ({ text2 }: any) => (
+    <ToastCard
+      title="Success"
+      message={text2}
+      borderColor={keelLightTheme.colors.primary}
+    />
+  ),
 
-    return (
-      <BaseToast
-        {...props}
-        style={{
-          borderLeftColor: theme.colors.primary,
-          backgroundColor: theme.colors.surface,
-          width: isTablet ? "90%" : "95%",
-          minHeight: isTablet ? 80 : 60,
-        }}
-        contentContainerStyle={{
-          paddingHorizontal: isTablet ? 20 : 12,
-        }}
-        text1Style={{
-          fontSize: isTablet ? 18 : 14,
-          fontWeight: "600",
-          color: theme.colors.onSurface,
-        }}
-        text2Style={{
-          fontSize: isTablet ? 16 : 13,
-          color: theme.colors.onSurfaceVariant,
-        }}
-      />
-    );
-  },
+  error: ({ text2 }: any) => (
+    <ToastCard
+      title="Error"
+      message={text2}
+      borderColor={keelLightTheme.colors.error}
+    />
+  ),
 
-  error: (props: any) => {
-    const theme =
-      Appearance.getColorScheme() === "dark"
-        ? keelDarkTheme
-        : keelLightTheme;
+  warning: ({ text2 }: any) => (
+    <ToastCard
+      title="Warning"
+      message={text2}
+      borderColor="#f59e0b"
+    />
+  ),
 
-    return (
-      <ErrorToast
-        {...props}
-        style={{
-          borderLeftColor: theme.colors.error,
-          backgroundColor: theme.colors.surface,
-          width: isTablet ? "90%" : "95%",
-          minHeight: isTablet ? 80 : 60,
-        }}
-        contentContainerStyle={{
-          paddingHorizontal: isTablet ? 20 : 12,
-        }}
-        text1Style={{
-          fontSize: isTablet ? 18 : 14,
-          fontWeight: "600",
-          color: theme.colors.onSurface,
-        }}
-        text2Style={{
-          fontSize: isTablet ? 16 : 13,
-          color: theme.colors.onSurfaceVariant,
-        }}
-      />
-    );
-  },
+  info: ({ text2 }: any) => (
+    <ToastCard
+      title="Info"
+      message={text2}
+      borderColor="#3b82f6"
+    />
+  ),
 };
-
-
-
 
 /**
  * ============================================================
@@ -122,13 +133,10 @@ export const toastConfig = {
  * ============================================================
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const theme = useTheme();
-
   const contextValue: ToastContextType = {
     success: (msg) =>
       Toast.show({
         type: "success",
-        text1: "Success",
         text2: msg,
         position: "top",
       }),
@@ -136,7 +144,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     error: (msg) =>
       Toast.show({
         type: "error",
-        text1: "Error",
         text2: msg,
         position: "top",
       }),
@@ -144,7 +151,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     warning: (msg) =>
       Toast.show({
         type: "warning",
-        text1: "Warning",
         text2: msg,
         position: "top",
       }),
@@ -152,7 +158,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     info: (msg) =>
       Toast.show({
         type: "info",
-        text1: "Info",
         text2: msg,
         position: "top",
       }),
@@ -161,9 +166,36 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
-
-      {/* Toast renderer config */}
       <Toast config={toastConfig} />
     </ToastContext.Provider>
   );
 }
+
+/**
+ * ============================================================
+ * Styles
+ * ============================================================
+ */
+const styles = StyleSheet.create({
+  toast: {
+    width: isTablet ? "90%" : "95%",
+    paddingHorizontal: isTablet ? 20 : 14,
+    paddingVertical: 14,
+    borderLeftWidth: 6,
+    borderRadius: 12,
+    marginTop: 10,
+  },
+
+  title: {
+    fontSize: isTablet ? 18 : 14,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+
+  message: {
+    fontSize: isTablet ? 16 : 13,
+    lineHeight: 20,
+    flexShrink: 1,
+    flexWrap: "wrap",
+  },
+});

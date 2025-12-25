@@ -13,7 +13,8 @@
  * CORE PRINCIPLES (LOCKED):
  * - Boolean fields are VALID when true OR false
  * - Optional fields MUST NOT block completion
- * - Conditional fields apply ONLY when their toggle is ON
+ * - Conditional fields apply ONLY when their gate is ON
+ * - Group-level NO = NOT APPLICABLE (PSC rule)
  * - Option A finalization: ALL sections must be COMPLETED
  */
 
@@ -77,6 +78,35 @@ function isValidDateValue(value: unknown): boolean {
 
 /**
  * ============================================================
+ * HELPER — CHECK IF SECTION IS ENABLED FOR SHIP TYPE
+ * ============================================================
+ *
+ * RULE:
+ * - Only INERT_GAS_SYSTEM is ship-type dependent
+ * - All other sections are always enabled
+ */
+function isSectionEnabled(
+  sectionKey: SeaServiceSectionKey,
+  shipType?: string
+): boolean {
+  if (sectionKey !== "INERT_GAS_SYSTEM") return true;
+
+  const normalizedShipType = String(shipType ?? "")
+    .toUpperCase()
+    .replace(/-/g, "_")
+    .replace(/\s+/g, "_");
+
+  return (
+    normalizedShipType === "TANKER" ||
+    normalizedShipType === "OIL_TANKER" ||
+    normalizedShipType === "PRODUCT_TANKER" ||
+    normalizedShipType === "CHEMICAL_TANKER"
+  );
+}
+
+
+/**
+ * ============================================================
  * SERVICE PERIOD COMPLETION
  * ============================================================
  *
@@ -107,7 +137,33 @@ export function isServicePeriodComplete(
 
 /**
  * ============================================================
- * SECTION STATUS ENGINE
+ * HELPER — DETECT DISABLED GROUPS (GATE = NO)
+ * ============================================================
+ *
+ * Any key of the form:
+ *   __groupEnabled__<GROUP_KEY> === false
+ * means the entire group is NOT APPLICABLE
+ * and its fields MUST be ignored for completion.
+ */
+function getDisabledGroupKeys(sectionData: Record<string, any>): Set<string> {
+  const disabled = new Set<string>();
+
+  Object.entries(sectionData).forEach(([key, value]) => {
+    if (
+      key.startsWith("__groupEnabled__") &&
+      value === false
+    ) {
+      const groupKey = key.replace("__groupEnabled__", "");
+      disabled.add(groupKey);
+    }
+  });
+
+  return disabled;
+}
+
+/**
+ * ============================================================
+ * SECTION STATUS ENGINE (GATE-AWARE)
  * ============================================================
  */
 export function getSeaServiceSectionStatus(
@@ -119,8 +175,22 @@ export function getSeaServiceSectionStatus(
     return "NOT_STARTED";
   }
 
+/**
+ * ========================================================
+ * STARTED / NOT STARTED RULE
+ * ========================================================
+ *
+ * Gate-driven sections (e.g. Cargo Capabilities)
+ * are considered STARTED as soon as the section exists.
+ */
+if (sectionKey !== "CARGO_CAPABILITIES") {
   const hasAnyData = Object.values(sectionData).some(hasValue);
-  if (!hasAnyData) return "NOT_STARTED";
+  if (!hasAnyData) {
+    return "NOT_STARTED";
+  }
+}
+
+
 
   switch (sectionKey) {
     case "LIFE_SAVING_APPLIANCES":
@@ -136,25 +206,34 @@ export function getSeaServiceSectionStatus(
         ? "COMPLETED"
         : "IN_PROGRESS";
 
+        /**
+ * ========================================================
+ * POLLUTION PREVENTION (MARPOL I–VI) — FINAL LOGIC
+ * ========================================================
+ *
+ * RULE:
+ * - All mandatory gates are enforced at SAVE time
+ * - If the section has ANY data, it is COMPLETED
+ * - Optional notes NEVER affect completion
+ */
+case "POLLUTION_PREVENTION": {
+  // If nothing saved at all → not started
+  const hasAnyData = Object.values(sectionData).some(hasValue);
+  if (!hasAnyData) {
+    return "NOT_STARTED";
+  }
+
+  // Save-time validation guarantees correctness
+  return "COMPLETED";
+}
+
+
     /**
      * ========================================================
-     * INERT GAS SYSTEM (IGS) — FINAL LOGIC
+     * INERT GAS SYSTEM (IGS) — FINAL LOGIC (UNCHANGED)
      * ========================================================
-     *
-     * MANDATORY (must be answered true/false):
-     * - igsSourceType
-     * - scrubberAvailable
-     * - blowerAvailable
-     * - deckSealAvailable
-     * - oxygenAnalyzerAvailable
-     * - igPressureAlarmAvailable
-     *
-     * CONDITIONAL:
-     * - blowerCount (only if blowerAvailable === true)
-     * - deckSealType (only if deckSealAvailable === true)
      */
     case "INERT_GAS_SYSTEM": {
-
       const normalizedShipType = shipType
         ? shipType.toUpperCase().replace(/-/g, "_").replace(/\s+/g, "_")
         : "";
@@ -205,30 +284,120 @@ export function getSeaServiceSectionStatus(
     }
 
     /**
+ * ========================================================
+ * CARGO CAPABILITIES — FITTED YES REQUIRES ≥1 SUBTYPE YES
+ * ========================================================
+ */
+case "CARGO_CAPABILITIES": {
+  if (!sectionData || typeof sectionData !== "object") {
+    return "COMPLETED";
+  }
+
+  /**
+   * Helper: check if at least one boolean field is true
+   */
+  const hasAnyYes = (keys: string[]) =>
+    keys.some((k) => sectionData[k] === true);
+
+  /**
+   * ---------------- STRIPPING PUMPS ----------------
+   */
+  if (sectionData.strippingPumpFitted === true) {
+    const strippingSubtypes = [
+      "strippingPumpEductor",
+      "strippingPumpCentrifugal",
+      "strippingPumpReciprocating",
+      "strippingPumpPortable",
+      "strippingPumpIntegrated",
+      "strippingPumpOther",
+    ];
+
+    if (!hasAnyYes(strippingSubtypes)) {
+      return "IN_PROGRESS";
+    }
+  }
+
+  /**
+   * ---------------- CARGO PUMPS ----------------
+   */
+  if (sectionData.cargoPumpsFitted === true) {
+    const cargoPumpSubtypes = [
+      "cargoPumpCentrifugal",
+      "cargoPumpReciprocating",
+      "cargoPumpEductor",
+      "cargoPumpOther",
+    ];
+
+    if (!hasAnyYes(cargoPumpSubtypes)) {
+      return "IN_PROGRESS";
+    }
+  }
+
+
+
+return "COMPLETED";
+
+}
+
+
+    /**
      * ========================================================
-     * DEFAULT SECTION RULE
+     * DEFAULT SECTION RULE (GATE-AWARE)
      * ========================================================
-     *
-     * RULE:
-     * - Boolean-only sections are NEVER auto-completed
-     * - Non-boolean fields must be filled
      */
     default: {
-      const entries = Object.entries(sectionData);
+      const disabledGroups = getDisabledGroupKeys(sectionData);
 
-      const nonBooleanEntries = entries.filter(
-        ([, v]) => typeof v !== "boolean"
-      );
+      /**
+       * Filter out:
+       * - Boolean values (handled separately)
+       * - Any fields belonging to disabled groups
+       */
+const relevantEntries = Object.entries(sectionData).filter(
+  ([key, value]) => {
+    // Booleans are always valid answers
+    if (typeof value === "boolean") return false;
 
-      if (nonBooleanEntries.length === 0) {
-        return "IN_PROGRESS";
+    // Ignore all gate keys
+    if (key.startsWith("__groupEnabled__")) return false;
+    if (key.startsWith("__") && key.endsWith("__")) return false;
+
+    // Ignore fields belonging to disabled groups
+    for (const groupKey of disabledGroups) {
+      if (key.startsWith(groupKey)) {
+        return false;
+      }
+    }
+
+    /**
+     * FEATURE-LEVEL GATES (PSC RULE)
+     * If a fitted gate is NO, all dependent fields are NOT APPLICABLE
+     */
+    if (
+      sectionData.__strippingPumpFitted__ === false &&
+      key.startsWith("strippingPump")
+    ) {
+      return false;
+    }
+
+    if (
+      sectionData.__cargoPumpsFitted__ === false &&
+      key.startsWith("cargoPump")
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+);
+
+
+      if (relevantEntries.length === 0) {
+        return "COMPLETED";
       }
 
-      const allNonBooleanFilled = nonBooleanEntries.every(([, v]) =>
-        hasValue(v)
-      );
-
-      return allNonBooleanFilled ? "COMPLETED" : "IN_PROGRESS";
+      const allFilled = relevantEntries.every(([, v]) => hasValue(v));
+      return allFilled ? "COMPLETED" : "IN_PROGRESS";
     }
   }
 }
@@ -282,6 +451,37 @@ export function canFinalizeSeaService(
     return false;
   }
 
-  const summary = getSeaServiceSummary(payload.sections, shipType);
-  return summary.completedSections === summary.totalSections;
+  /**
+   * ============================================================
+   * FINALIZATION RULE (PATCHED – PSC SAFE)
+   * ============================================================
+   *
+   * - Only sections that are:
+   *   a) finalizeRequired === true
+   *   b) enabled for the ship type
+   *   MUST be COMPLETED
+   *
+   * - Disabled sections (e.g. IGS on non-tankers)
+   *   NEVER block finalization
+   */
+  for (const section of SEA_SERVICE_SECTIONS) {
+    if (!section.finalizeRequired) continue;
+
+    const enabled = isSectionEnabled(section.key, shipType);
+    if (!enabled) continue;
+
+    const data = payload.sections[section.key];
+    const status = getSeaServiceSectionStatus(
+      section.key,
+      data,
+      shipType
+    );
+
+    if (status !== "COMPLETED") {
+      return false;
+    }
+  }
+
+  return true;
+
 }
