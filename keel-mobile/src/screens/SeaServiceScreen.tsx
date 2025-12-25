@@ -81,17 +81,44 @@ export default function SeaServiceScreen() {
 
 /**
  * ============================================================
- * Progress summary (SOURCE OF TRUTH = sectionStatus)
+ * SECTION PROGRESS (SHIP-TYPE AWARE)
  * ============================================================
+ *
+ * RULE:
+ * - Count ONLY sections applicable to the selected ship type
+ * - INERT_GAS_SYSTEM is excluded for non-tankers
+ * - Progress must reflect real PSC / TRB applicability
  */
 const sectionStatus = payload?.sectionStatus ?? {};
+const shipType = payload?.shipType ?? "";
 
+/**
+ * Determine if IGS applies for this ship type
+ */
+const isTanker =
+  shipType === "OIL_TANKER" || shipType === "CHEMICAL_TANKER";
+
+/**
+ * Build the list of enabled section keys (TYPE-SAFE)
+ */
+const enabledSectionKeys = (
+  Object.keys(sectionStatus) as Array<keyof typeof sectionStatus>
+).filter((key) => {
+  if (key === "INERT_GAS_SYSTEM" && !isTanker) return false;
+  return true;
+});
+
+/**
+ * Calculate progress using ONLY enabled sections
+ */
 const activeSectionSummary = {
-  completedSections: Object.values(sectionStatus).filter(
-    (s) => s === "COMPLETE"
+  completedSections: enabledSectionKeys.filter(
+    (key) => sectionStatus[key] === "COMPLETE"
   ).length,
-  totalSections: Object.keys(sectionStatus).length,
+  totalSections: enabledSectionKeys.length,
 };
+
+
 
 
   /**
@@ -250,38 +277,91 @@ const [signOffPort, setSignOffPort] = React.useState<string>(
               </Text>
             )}
 
-            {/* ============================================================
-                SERVICE PERIOD (SIGN-ON / SIGN-OFF)
-            ============================================================ */}
-            <View style={{ marginTop: 8 }}>
+          {/* ============================================================
+              SERVICE PERIOD (SIGN-ON / SIGN-OFF)
+              UX RULES:
+              - Pencil icon only if NOT finalized
+              - Add Sign-Off only when ALL sections complete
+              - Icons ALWAYS on the LEFT
+              ============================================================ */}
+          <View style={{ marginTop: 8 }}>
+
+            {/* ---------------- SIGN-ON ---------------- */}
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+              {!canFinalize && (
+                <MaterialCommunityIcons
+                  name="pencil-outline"
+                  size={22}
+                  color={theme.colors.primary}
+                  style={{ marginRight: 6 }}
+                  onPress={() => navigation.navigate("StartSeaService")}/>
+              )}
+
               <Text variant="bodySmall" style={styles.metaText}>
                 Sign On: {formatDate(payload.servicePeriod?.signOnDate)}
                 {payload.servicePeriod?.signOnPort
                   ? ` · ${payload.servicePeriod.signOnPort}`
                   : ""}
               </Text>
+            </View>
 
-              <View style={{ marginTop: 4 }}>
+              {/* ---------------- SIGN-OFF ---------------- */}
+              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
                 {payload.servicePeriod?.signOffDate ? (
-                  <Text
-                    variant="bodySmall"
-                    style={[styles.metaText, { color: theme.colors.primary }]}
-                    onPress={() => setShowSignOffModal(true)}
-                  >
-                    Sign Off: {formatDate(payload.servicePeriod.signOffDate)} ·{" "}
-                    {payload.servicePeriod.signOffPort} ✏️
-                  </Text>
+                  <>
+                    {!canFinalize && (
+                      <MaterialCommunityIcons
+                        name="pencil-outline"
+                        size={22}
+                        color={theme.colors.primary}
+                        style={{ marginRight: 6 }}
+                        onPress={() => setShowSignOffModal(true)}
+                      />
+                    )}
+
+                    <Text
+                      variant="bodySmall"
+                      style={styles.metaText}
+                      onPress={!canFinalize ? () => setShowSignOffModal(true) : undefined}
+                    >
+                      Sign Off: {formatDate(payload.servicePeriod.signOffDate)} ·{" "}
+                      {payload.servicePeriod.signOffPort}
+                    </Text>
+                  </>
                 ) : (
-                  <Text
-                    variant="bodySmall"
-                    style={[styles.metaText, { color: theme.colors.primary }]}
-                    onPress={() => setShowSignOffModal(true)}
-                  >
-                    Sign Off: Add sign-off ➕
-                  </Text>
+                  <>
+                    {/* Plus icon is ALWAYS visible, enabled only when sections complete */}
+                    <MaterialCommunityIcons
+                      name="plus-circle-outline"
+                      size={22}
+                      color={
+                        allSectionsComplete
+                          ? theme.colors.primary
+                          : theme.colors.onSurfaceDisabled
+                      }
+                      style={{ marginRight: 6 }}
+                      onPress={allSectionsComplete ? () => setShowSignOffModal(true) : undefined}
+                    />
+
+                    <Text
+                      variant="bodySmall"
+                      style={[
+                        styles.metaText,
+                        {
+                          color: allSectionsComplete
+                            ? theme.colors.primary
+                            : theme.colors.onSurfaceDisabled,
+                        },
+                      ]}
+                    >
+                      Sign Off: {allSectionsComplete ? "Add sign-off" : "Complete sections first"}
+                    </Text>
+                  </>
                 )}
+
               </View>
             </View>
+
 
 
             {/* --------------------------------------------------------
@@ -521,7 +601,7 @@ const [signOffPort, setSignOffPort] = React.useState<string>(
           </Dialog.Actions>
         </Dialog>
 
-                {/* ========================================================
+       {/* ========================================================
             SIGN-OFF ENTRY DIALOG (SERVICE CLOSURE)
            ======================================================== */}
         <Dialog
