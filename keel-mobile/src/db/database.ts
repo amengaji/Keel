@@ -228,4 +228,42 @@ export function initDatabase(): void {
       updated_at TEXT NOT NULL
     );
   `);
+
+    /* ==========================================================
+   * TASK GUIDANCE (NEW — READ-ONLY TEMPLATES)
+   * ==========================================================
+   *
+   * PURPOSE:
+   * - Store training guidance for each task
+   * - NOT cadet data
+   * - NOT voyage-specific
+   * - Inspector / PSC safe
+   *
+   * IMPORTANT:
+   * - Cadets cannot modify this data
+   * - Seeded once, extendable later via admin tools
+   */
+  database.execSync(`
+    CREATE TABLE IF NOT EXISTS task_guidance (
+      id TEXT PRIMARY KEY NOT NULL,
+
+      -- Stable link to task catalog
+      task_key TEXT NOT NULL UNIQUE,
+
+      -- Classification (for future filtering / analytics)
+      stream TEXT NOT NULL,        -- deck | engine | rating
+      section TEXT NOT NULL,       -- navigation, bridge, machinery, safety, etc.
+
+      -- Guidance content (READ-ONLY)
+      purpose TEXT NOT NULL,
+      steps TEXT NOT NULL,
+      common_mistakes TEXT,
+      evidence_expected TEXT,
+      officer_expectation TEXT,
+
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
 }

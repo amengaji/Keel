@@ -2,81 +2,165 @@
 
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import {
+  createNativeStackNavigator,
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack";
 import { MainStackParamList } from "./types";
 
 import BottomTabNavigator from "./BottomTabNavigator";
 import AppHeader from "../components/layout/AppHeader";
 
+/**
+ * Screens that MUST be full-screen (NO AppHeader, NO Tabs)
+ */
 import SeaServiceWizardScreen from "../screens/SeaServiceWizardScreen";
-import TaskDetailsScreen from "../screens/TaskDetailsScreen";
 import StartSeaServiceScreen from "../screens/StartSeaServiceScreen";
-import TaskSectionScreen from "../screens/tasks/TaskSectionScreen";
 
-const Stack = createNativeStackNavigator<MainStackParamList>();
+/**
+ * Task-related screens
+ * These MUST appear under AppHeader and above Bottom Tabs
+ */
+import TaskSectionScreen from "../screens/tasks/TaskSectionScreen";
+import TaskDetailsScreen from "../screens/TaskDetailsScreen";
+
+const RootStack = createNativeStackNavigator<MainStackParamList>();
+const InnerStack = createNativeStackNavigator<MainStackParamList>();
 
 /**
  * ============================================================
- * MainNavigator
+ * MainNavigator (ROOT)
  * ============================================================
  *
- * This stack sits above Bottom Tabs.
+ * ARCHITECTURAL RULES (LOCKED):
+ * ------------------------------------------------------------
+ * 1. AppHeader is part of the MAIN SHELL
+ * 2. Bottom Tabs are always visible for task navigation
+ * 3. SeaServiceWizard is immersive (no header, no tabs)
  *
- * Screen Structure:
- * - MainTabs (contains AppHeader + bottom tabs)
- * - SeaServiceWizard (full-screen wizard, no AppHeader)
+ * This file intentionally separates:
+ * - ROOT stack (modal / immersive flows)
+ * - INNER stack (normal app navigation)
+ *
+ * This prevents:
+ * ❌ Header duplication
+ * ❌ Safe-area hacks
+ * ❌ Layout regressions
  */
 export default function MainNavigator() {
   return (
-<Stack.Navigator screenOptions={{ headerShown: false }}>
-  {/* Normal app layout with AppHeader + Tabs */}
-  <Stack.Screen name="MainTabs" component={MainLayout} />
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      {/* ======================================================
+          MAIN APPLICATION SHELL
+          ------------------------------------------------------
+          Includes:
+          - AppHeader (persistent)
+          - Bottom Tabs
+          - Task drill-down screens
+         ====================================================== */}
+      <RootStack.Screen name="MainTabs" component={MainLayout} />
 
-  <Stack.Screen
-  name="StartSeaService"
-  component={StartSeaServiceScreen}
-  options={{
-    title: "Start Sea Service",
-    presentation: "modal",
-  }}
-/>
+      {/* ======================================================
+          FULL-SCREEN MODALS / WIZARDS
+          ------------------------------------------------------
+          These intentionally DO NOT show AppHeader or Tabs
+         ====================================================== */}
+      <RootStack.Screen
+        name="StartSeaService"
+        component={StartSeaServiceScreen}
+        options={{ presentation: "modal" }}
+      />
 
-
-  {/* Full-screen Sea Service wizard */}
-  <Stack.Screen
-    name="SeaServiceWizard"
-    component={SeaServiceWizardScreen}
-  />
-
-{/* Task Section (list of tasks inside a section) */}
-<Stack.Screen
-  name="TaskSection"
-  component={TaskSectionScreen}
-/>
-
-
-  {/* Task Details (drill-down, inspector-safe) */}
-  <Stack.Screen
-    name="TaskDetails"
-    component={TaskDetailsScreen}
-  />
-</Stack.Navigator>
-
+      <RootStack.Screen
+        name="SeaServiceWizard"
+        component={SeaServiceWizardScreen}
+      />
+    </RootStack.Navigator>
   );
 }
 
+/**
+ * ============================================================
+ * MainLayout
+ * ============================================================
+ *
+ * This component defines the persistent app shell:
+ * - AppHeader (always visible)
+ * - InnerStack rendered below header
+ *
+ * IMPORTANT:
+ * - TaskSection & TaskDetails live here
+ * - This guarantees:
+ *   ✓ Header visibility
+ *   ✓ Tab visibility
+ *   ✓ Correct stacking
+ */
 function MainLayout() {
   return (
     <View style={styles.container}>
+      {/* ======================================================
+          GLOBAL APP HEADER
+          ------------------------------------------------------
+          - Always visible
+          - Contextual ⓘ icon injected per screen
+         ====================================================== */}
       <AppHeader />
+
+      {/* ======================================================
+          INNER STACK
+          ------------------------------------------------------
+          - Bottom Tabs (default)
+          - TaskSection
+          - TaskDetails
+         ====================================================== */}
       <View style={styles.content}>
-        <BottomTabNavigator />
+        <InnerStack.Navigator screenOptions={{ headerShown: false }}>
+          {/* Bottom Tabs */}
+          <InnerStack.Screen
+            name="MainTabs"
+            component={BottomTabNavigator}
+          />
+
+          {/* Task Section (list of tasks inside a section) */}
+          <InnerStack.Screen
+            name="TaskSection"
+            component={TaskSectionScreen}
+          />
+
+          {/* ==================================================
+              Task Details (ⓘ ENABLED)
+              --------------------------------------------------
+              - Header already visible
+              - We only INJECT the ⓘ action here
+             ================================================== */}
+          <InnerStack.Screen
+            name="TaskDetails"
+            component={TaskDetailsScreen}
+            options={({ navigation }) => ({
+              /**
+               * We do NOT render a header here.
+               * Instead, we signal AppHeader via navigation event.
+               */
+              animation: "slide_from_right",
+           
+            })}
+          />
+        </InnerStack.Navigator>
       </View>
     </View>
   );
 }
 
+/**
+ * ============================================================
+ * Styles
+ * ============================================================
+ */
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { flex: 1 },
+  container: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+  },
 });

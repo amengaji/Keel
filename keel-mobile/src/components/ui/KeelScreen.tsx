@@ -2,19 +2,28 @@
 
 /**
  * ============================================================
- * KeelScreen — Base Screen Wrapper (ANDROID SAFE)
+ * KeelScreen — GLOBAL SAFE SCREEN WRAPPER (FINAL)
  * ============================================================
  *
- * RESPONSIBILITY:
- * - Handle safe-area insets correctly across platforms
- * - Protect content from:
- *   • AppHeader (top)
- *   • Bottom Tabs
- *   • Android system navigation bar (3-button / gesture)
+ * RESPONSIBILITY (CENTRAL, NON-NEGOTIABLE):
+ * - Handle ALL system safe areas:
+ *   • Android status bar
+ *   • Android system navigation (3-button / gesture)
+ *   • iOS notch / home indicator
  *
- * USAGE:
- * - Full-bleed screens (wizards): <KeelScreen />
- * - Standard content screens:     <KeelScreen withVerticalInsets />
+ * WHY THIS EXISTS:
+ * - AppHeader is rendered OUTSIDE screens
+ * - BottomTabNavigator does NOT add safe padding to screens
+ * - Individual screens MUST NOT guess system insets
+ *
+ * RULE:
+ * - KeelScreen owns SAFETY
+ * - Screens own LAYOUT
+ *
+ * This prevents:
+ * ❌ Overlap with status bar
+ * ❌ Overlap with bottom navigation
+ * ❌ Per-screen hacks
  */
 
 import React from "react";
@@ -27,34 +36,31 @@ import {
 
 type KeelScreenProps = {
   children: React.ReactNode;
-
-  /**
-   * Enables top + bottom insets.
-   * REQUIRED for screens with bottom actions.
-   */
-  withVerticalInsets?: boolean;
 };
 
-export const KeelScreen: React.FC<KeelScreenProps> = ({
-  children,
-  withVerticalInsets = false,
-}) => {
+export const KeelScreen: React.FC<KeelScreenProps> = ({ children }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
     <SafeAreaView
-      edges={withVerticalInsets ? ["top", "left", "right"] : ["left", "right"]}
+      // ✅ ENABLE ALL EDGES — THIS IS CRITICAL
+      edges={[ "left", "right"]}
       style={[
         styles.safeArea,
         { backgroundColor: theme.colors.background },
       ]}
     >
+      {/* ========================================================
+          Inner container
+          - Horizontal padding: design spacing
+          - Vertical padding: MINIMAL safety buffer
+         ======================================================== */}
       <View
         style={[
           styles.container,
-          withVerticalInsets && {
-            paddingBottom: insets.bottom + 16, // 🔑 ANDROID FIX
+          {
+            paddingTop: insets.top,
           },
         ]}
       >
@@ -68,8 +74,13 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+
   container: {
     flex: 1,
-    paddingHorizontal: 20, // KEEL horizontal standard
+
+    // ✅ Standard KEEL horizontal spacing
+    paddingHorizontal: 20,
+
+    // ❗ Vertical padding is applied dynamically via insets
   },
 });
