@@ -1,26 +1,62 @@
-//keel-mobile/src/navigation/BottomTabNavigator.tsx
+// keel-mobile/src/navigation/BottomTabNavigator.tsx
 
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTheme } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import HomeScreen from "../screens/HomeScreen";
 import SeaServiceScreen from "../screens/SeaServiceScreen";
-import TaskListScreen from "../screens/TaskListScreen";
 import DailyScreen from "../screens/DailyScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
-import TasksHomeScreen from "../screens/tasks/TasksHomeScreen";
 
+import TasksHomeScreen from "../screens/tasks/TasksHomeScreen";
+import TaskSectionScreen from "../screens/tasks/TaskSectionScreen";
+import TaskDetailsScreen from "../screens/TaskDetailsScreen";
+
+import { MainStackParamList } from "./types";
 
 const Tab = createBottomTabNavigator();
+type TasksStackParamList = {
+  TasksHome: undefined;
+  TaskSection: {
+    sectionKey: string;
+    sectionTitle: string;
+  };
+  TaskDetails: {
+    id: number;
+  };
+};
 
-function TasksTab(props: any) {
-  return <TasksHomeScreen {...props} />;
+const TasksStack = createNativeStackNavigator<TasksStackParamList>();
+
+function TasksStackNavigator() {
+  return (
+    <TasksStack.Navigator screenOptions={{ headerShown: false }}>
+      <TasksStack.Screen
+        name="TasksHome"
+        component={TasksHomeScreen}
+      />
+      <TasksStack.Screen
+        name="TaskSection"
+        component={TaskSectionScreen}
+      />
+      <TasksStack.Screen
+        name="TaskDetails"
+        component={TaskDetailsScreen}
+      />
+    </TasksStack.Navigator>
+  );
 }
 
 
+/**
+ * ============================================================
+ * Bottom Tab Navigator
+ * ============================================================
+ */
 export default function BottomTabNavigator() {
   const theme = useTheme();
 
@@ -60,11 +96,11 @@ export default function BottomTabNavigator() {
         }}
       />
 
+      {/* ✅ TASKS IS NOW A STACK */}
       <Tab.Screen
-        name="TaskList"
-        component={TasksTab}
+        name="Tasks"
+        component={TasksStackNavigator}
         options={{
-          title: "Tasks",
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons
               name="clipboard-text"

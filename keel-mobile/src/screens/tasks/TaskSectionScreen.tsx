@@ -120,7 +120,7 @@ export default function TaskSectionScreen() {
   }
 
   return (
-    <KeelScreen withVerticalInsets>
+    <KeelScreen>
       {/* ========================================================
           Header
          ======================================================== */}
