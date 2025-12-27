@@ -105,7 +105,6 @@
 ¦   ¦   ¦   ¦   +-- TaskStatusBadge.tsx
 ¦   ¦   ¦   ¦   +-- TaskStatusChip.tsx
 ¦   ¦   ¦   +-- toast
-¦   ¦   ¦   ¦   +-- GlobalToast.tsx
 ¦   ¦   ¦   ¦   +-- ToastProvider.tsx
 ¦   ¦   ¦   ¦   +-- useToast.ts
 ¦   ¦   ¦   +-- ui
@@ -128,6 +127,7 @@
 ¦   ¦   ¦   +-- dailyLogs.ts
 ¦   ¦   ¦   +-- database.ts
 ¦   ¦   ¦   +-- seaService.ts
+¦   ¦   ¦   +-- taskGuidance.ts
 ¦   ¦   ¦   +-- tasks.ts
 ¦   ¦   ¦   +-- watchkeeping.ts
 ¦   ¦   +-- navigation
@@ -177,6 +177,18 @@
 ¦   ¦   ¦   +-- SeaServiceWizard.tsx
 ¦   ¦   +-- services
 ¦   ¦   ¦   +-- api.ts
+¦   ¦   +-- tasks
+¦   ¦   ¦   +-- guidance
+¦   ¦   ¦   ¦   +-- data
+¦   ¦   ¦   ¦   ¦   +-- tasks.deck.cadet.json
+¦   ¦   ¦   ¦   ¦   +-- tasks.deck.rating.json
+¦   ¦   ¦   ¦   ¦   +-- tasks.engine.cadet.json
+¦   ¦   ¦   ¦   ¦   +-- tasks.engine.rating.json
+¦   ¦   ¦   ¦   +-- guidance.loader.ts
+¦   ¦   ¦   ¦   +-- guidance.types.ts
+¦   ¦   ¦   ¦   +-- index.ts
+¦   ¦   ¦   ¦   +-- __README__.md
+¦   ¦   ¦   +-- taskCatalog.ts
 ¦   ¦   +-- theme
 ¦   ¦   ¦   +-- keelTheme.ts
 ¦   ¦   +-- types
@@ -196,7 +208,6 @@
 ¦   +-- index.ts
 ¦   +-- package.json
 ¦   +-- tsconfig.json
-+-- keel-web
 +-- .gitignore
 +-- package.json
 +-- project_structure.txt

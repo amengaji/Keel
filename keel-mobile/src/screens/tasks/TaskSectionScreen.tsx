@@ -46,6 +46,7 @@ type RouteParams = {
  * - For now, we keep it explicit and readable
  */
 type TaskItem = {
+  taskKey: string;
   id: number;
   title: string;
   mandatory: boolean;
@@ -65,24 +66,28 @@ const MOCK_TASKS_BY_SECTION: Record<string, TaskItem[]> = {
   NAV: [
     {
       id: 1,
+      taskKey: "DC.NAV.001",
       title: "Identify and explain use of nautical charts",
       mandatory: true,
       status: "NOT_STARTED",
     },
     {
       id: 2,
+      taskKey: "DC.NAV.002",
       title: "Assist in preparation of passage plan",
       mandatory: true,
       status: "NOT_STARTED",
     },
     {
       id: 3,
+      taskKey: "DC.NAV.003",
       title: "Observe position fixing methods",
       mandatory: false,
       status: "NOT_STARTED",
     },
   ],
 };
+
 
 /**
  * ============================================================
@@ -147,7 +152,7 @@ export default function TaskSectionScreen() {
               <KeelButton
                 mode="secondary"
                 onPress={() =>
-                  navigation.navigate("TaskDetails", { id: item.id })
+                  navigation.navigate("TaskDetails", { taskKey: item.taskKey, })
                 }
               >
                 Open

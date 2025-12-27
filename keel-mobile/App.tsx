@@ -8,6 +8,7 @@ import AppNavigator from "./src/navigation/AppNavigator";
 import { keelLightTheme, keelDarkTheme } from "./src/theme/keelTheme";
 import { initDatabase } from "./src/db/database";
 import { ToastProvider } from "./src/components/toast/ToastProvider";
+import { ensureSeedTasksExist } from "./src/db/tasks";
 
 /**
  * ============================================================
@@ -33,6 +34,7 @@ function ThemedApp() {
   useEffect(() => {
     try {
       initDatabase();
+      ensureSeedTasksExist(); // ✅ THIS IS MISSING
       console.log("SQLite database initialized");
     } catch (err) {
       console.error("SQLite init error", err);

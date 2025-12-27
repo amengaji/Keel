@@ -73,6 +73,8 @@ import { useToast } from "../../components/toast/useToast";
 
 import { MainStackParamList } from "../../navigation/types";
 import { getTaskByKey, upsertTaskStatus } from "../../db/tasks";
+import { getStaticTaskByKey } from "../../tasks/taskCatalog.static";
+
 
 // ✅ NEW: Guidance DB adapter (SQLite-backed)
 import {
@@ -132,19 +134,7 @@ const GUIDANCE_SECTIONS: {
   { key: "OFFICER", title: "Officer Expectation", icon: "account-check-outline" },
 ];
 
-/**
- * ============================================================
- * TEMPORARY TASK KEY MAPPING
- * ============================================================
- *
- * NOTE:
- * - Current tasks are addressed as "D.<id>"
- * - Later we will migrate to stream/section aware keys:
- *   e.g. "DECK.NAV.001", "ENG.PUMP.014", etc.
- */
-function mapTaskIdToTaskKey(id: number): string {
-  return `D.${id}`;
-}
+
 
 /**
  * ============================================================
@@ -164,15 +154,15 @@ export default function TaskDetailsScreen({ route }: Props) {
   // ------------------------------------------------------------
   // Route Params
   // ------------------------------------------------------------
-  const { id } = route.params;
+  const { taskKey } = route.params;
 
   // Stable taskKey for DB access
-  const taskKey = useMemo(() => mapTaskIdToTaskKey(id), [id]);
 
   // ------------------------------------------------------------
   // Local State: Task data
   // ------------------------------------------------------------
   const [taskTitle, setTaskTitle] = useState<string>("Loading task...");
+  const [taskDescription, setTaskDescription] = useState<string>("");
   const [taskStatus, setTaskStatus] =
     useState<"NOT_STARTED" | "IN_PROGRESS" | "COMPLETED">("NOT_STARTED");
 
@@ -213,22 +203,45 @@ export default function TaskDetailsScreen({ route }: Props) {
    */
   useEffect(() => {
     try {
-      const task = getTaskByKey(taskKey);
+      /**
+       * 1) Load STATIC task content (catalog)
+       * --------------------------------------------------------
+       * This is inspector-safe, offline-first, Excel-aligned
+       */
+      const staticTask = getStaticTaskByKey(taskKey);
 
-      if (task) {
-        setTaskTitle(task.taskTitle);
-        setTaskStatus(task.status);
+      if (staticTask) {
+        setTaskTitle(staticTask.title);
+        setTaskDescription(staticTask.description);
       } else {
-        // If not found, still keep the screen usable.
-        // This can happen if seed data isn't present yet.
-        setTaskTitle(`Task ${id}`);
+        // Defensive fallback (should not happen in production)
+        setTaskTitle(taskKey);
+        setTaskDescription(
+          "Task description is not available. Please contact the training administrator."
+        );
+
+        toast.error("Task details not found in catalog.");
+      }
+
+      /**
+       * 2) Load TASK STATUS from SQLite
+       * --------------------------------------------------------
+       * Status may or may not exist yet
+       */
+      const taskStatusRecord = getTaskByKey(taskKey);
+
+      if (taskStatusRecord) {
+        setTaskStatus(taskStatusRecord.status);
+      } else {
         setTaskStatus("NOT_STARTED");
       }
     } catch (err) {
       console.error("Failed to load task details:", err);
       toast.error("Failed to load task details.");
     }
-  }, [id, taskKey, toast]);
+  }, [taskKey, toast]);
+
+
 
   /**
    * ============================================================
@@ -623,9 +636,7 @@ export default function TaskDetailsScreen({ route }: Props) {
           </Text>
 
           <Text variant="bodyMedium" style={styles.paragraph}>
-            This task requires you to demonstrate understanding and practical
-            competence as per Training Record Book expectations. Complete the
-            activity onboard, record evidence, and submit for officer review.
+            {taskDescription}
           </Text>
         </View>
 

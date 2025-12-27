@@ -1,5 +1,6 @@
 //keel-mobile/src/db/tasks.ts
 import { getDatabase } from "./database";
+import { TASK_SEED } from "./tasks/taskSeed"; 
 
 /**
  * ============================================================
@@ -97,12 +98,10 @@ export function ensureSeedTasksExist(): void {
   const count = rows?.[0]?.count ?? 0;
   if (count > 0) return;
 
-  const nowIso = new Date().toISOString();
+  const now = new Date().toISOString();
 
-  for (const t of SEED_TASKS) {
-    // For Option A, we make the primary key deterministic from taskKey.
-    // This prevents creating multiple rows for the same task.
-    const id = `TASK_${t.taskKey}`;
+  for (const task of TASK_SEED) {
+    const id = `TASK_${task.taskKey}`;
 
     db.runSync(
       `
@@ -119,18 +118,12 @@ export function ensureSeedTasksExist(): void {
         sync_state,
         created_at,
         updated_at
-      ) VALUES (
-        ?, ?, ?,
-        ?, ?,
-        ?, ?, ?,
-        ?, ?,
-        ?, ?
-      )
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         id,
-        t.taskKey,
-        t.taskTitle,
+        task.taskKey,
+        task.taskTitle,
         "NOT_STARTED",
         null,
         null,
@@ -138,8 +131,8 @@ export function ensureSeedTasksExist(): void {
         null,
         null,
         "LOCAL_ONLY",
-        nowIso,
-        nowIso,
+        now,
+        now,
       ]
     );
   }

@@ -117,7 +117,7 @@ function MainLayout() {
         <InnerStack.Navigator screenOptions={{ headerShown: false }}>
           {/* Bottom Tabs */}
           <InnerStack.Screen
-            name="MainTabs"
+            name="TabsRoot"
             component={BottomTabNavigator}
           />
 

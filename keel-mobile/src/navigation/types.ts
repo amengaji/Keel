@@ -25,6 +25,7 @@ export type AuthStackParamList = {
  * ------------------------------------------------------------ */
 export type MainStackParamList = {
   MainTabs: undefined;
+  TabsRoot: undefined;
   StartSeaService: undefined;
 
     TaskSection: {
@@ -43,7 +44,7 @@ export type MainStackParamList = {
    * - Opened from Tasks tab list
    * - Inspector-safe: explicit id
    */
-  TaskDetails: { id: number };
+  TaskDetails: { taskKey: string; };
 };
 
 /* ------------------------------------------------------------

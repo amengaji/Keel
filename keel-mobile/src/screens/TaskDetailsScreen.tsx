@@ -47,8 +47,7 @@ export default function TaskDetailsScreen({ route }: Props) {
   const [showStartConfirm, setShowStartConfirm] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
-  const { id } = route.params;
-  const taskKey = mapTaskIdToTaskKey(id);
+  const { taskKey } = route.params;
 
   // ------------------------------------------------------------
   // Check if task needs START confirmation
@@ -71,7 +70,7 @@ export default function TaskDetailsScreen({ route }: Props) {
           Header
          ============================================================ */}
       <Text variant="titleLarge" style={{ fontWeight: "700" }}>
-        Task {id}
+        Task {taskKey}
       </Text>
 
       <Text variant="bodyMedium" style={styles.desc}>
