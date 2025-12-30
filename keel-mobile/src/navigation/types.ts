@@ -25,13 +25,9 @@ export type AuthStackParamList = {
  * ------------------------------------------------------------ */
 export type MainStackParamList = {
   MainTabs: undefined;
-  TabsRoot: undefined;
   StartSeaService: undefined;
 
-    TaskSection: {
-    sectionKey: string;
-    sectionTitle: string;
-    };
+
 
   /**
    * Full-screen Sea Service Wizard
@@ -44,7 +40,6 @@ export type MainStackParamList = {
    * - Opened from Tasks tab list
    * - Inspector-safe: explicit id
    */
-  TaskDetails: { taskKey: string; };
 };
 
 /* ------------------------------------------------------------
@@ -56,4 +51,24 @@ export type BottomTabParamList = {
   Daily: undefined;
   Tasks: undefined;
   Profile: undefined;
+  Settings: undefined;
 };
+
+/**
+ * ============================================================
+ * Tasks Stack (inside Tasks Tab)
+ * ============================================================
+ */
+export type TasksStackParamList = {
+  TasksHome: undefined;
+
+  TaskSection: {
+    sectionKey: string;
+    sectionTitle: string;
+  };
+
+  TaskDetails: {
+    taskKey: string;
+  };
+};
+

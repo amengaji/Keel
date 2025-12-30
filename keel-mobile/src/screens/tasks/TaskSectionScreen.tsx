@@ -2,19 +2,23 @@
 
 /**
  * ============================================================
- * TaskSectionScreen
+ * TaskSectionScreen — TASK LIST (REFINED UI)
  * ============================================================
  *
  * PURPOSE:
- * - Display all tasks within a selected section
- * - Separate Mandatory and Optional tasks
- * - Allow navigation to TaskDetailsScreen
+ * - Display tasks within a section
+ * - Clearly distinguish Mandatory vs Optional
+ * - Show task status at a glance
  *
- * IMPORTANT:
- * - READ-ONLY screen
- * - NO status mutation here
- * - NO attachments here
- * - Inspector-safe listing
+ * DESIGN GOALS:
+ * - Maritime logbook density
+ * - Inspector-safe clarity
+ * - Subtle actions, strong information
+ *
+ * NOTE:
+ * - No status mutation here
+ * - No DB assumptions
+ * - Navigation unchanged
  */
 
 import React from "react";
@@ -28,7 +32,7 @@ import { KeelButton } from "../../components/ui/KeelButton";
 
 /**
  * ============================================================
- * Route Params (DEFENSIVE)
+ * Route Params
  * ============================================================
  */
 type RouteParams = {
@@ -38,12 +42,8 @@ type RouteParams = {
 
 /**
  * ============================================================
- * TEMPORARY TASK MODEL (SAFE PLACEHOLDER)
+ * TEMP TASK MODEL (PLACEHOLDER)
  * ============================================================
- *
- * NOTE:
- * - This will later come from SQLite
- * - For now, we keep it explicit and readable
  */
 type TaskItem = {
   taskKey: string;
@@ -55,12 +55,8 @@ type TaskItem = {
 
 /**
  * ============================================================
- * TEMPORARY TASK DATA (PER SECTION)
+ * TEMP TASK DATA (PER SECTION)
  * ============================================================
- *
- * NOTE:
- * - This is ONLY to enable UX flow
- * - Will be replaced with DB-driven data
  */
 const MOCK_TASKS_BY_SECTION: Record<string, TaskItem[]> = {
   NAV: [
@@ -76,7 +72,7 @@ const MOCK_TASKS_BY_SECTION: Record<string, TaskItem[]> = {
       taskKey: "DC.NAV.002",
       title: "Assist in preparation of passage plan",
       mandatory: true,
-      status: "NOT_STARTED",
+      status: "IN_PROGRESS",
     },
     {
       id: 3,
@@ -88,12 +84,6 @@ const MOCK_TASKS_BY_SECTION: Record<string, TaskItem[]> = {
   ],
 };
 
-
-/**
- * ============================================================
- * TaskSectionScreen Component
- * ============================================================
- */
 export default function TaskSectionScreen() {
   const theme = useTheme();
   const route = useRoute<any>();
@@ -108,34 +98,101 @@ export default function TaskSectionScreen() {
 
   /**
    * ------------------------------------------------------------
-   * Helper: Status label
+   * Status label (maritime-correct wording)
    * ------------------------------------------------------------
    */
   function renderStatus(status: TaskItem["status"]) {
     switch (status) {
       case "SIGNED_OFF":
-        return "Signed Off";
+        return { label: "Signed Off", color: theme.colors.primary };
       case "COMPLETED_BY_CADET":
-        return "Submitted";
+        return { label: "Submitted", color: theme.colors.secondary };
       case "IN_PROGRESS":
-        return "In Progress";
+        return { label: "In Progress", color: theme.colors.tertiary };
       default:
-        return "Not Started";
+        return { label: "Not Started", color: theme.colors.onSurfaceVariant };
     }
+  }
+
+  /**
+   * ------------------------------------------------------------
+   * Task Card Renderer (reusable)
+   * ------------------------------------------------------------
+   */
+  function renderTaskCard(item: TaskItem) {
+    const status = renderStatus(item.status);
+
+    return (
+      <KeelCard>
+        <View style={styles.cardContent}>
+          {/* Badge */}
+          <View
+            style={[
+              styles.badge,
+              {
+                borderColor: item.mandatory
+                  ? theme.colors.error
+                  : theme.colors.outline,
+              },
+            ]}
+          >
+            <Text
+              variant="labelSmall"
+              style={{
+                color: item.mandatory
+                  ? theme.colors.error
+                  : theme.colors.onSurfaceVariant,
+                fontWeight: "600",
+              }}
+            >
+              {item.mandatory ? "MANDATORY" : "OPTIONAL"}
+            </Text>
+          </View>
+
+          {/* Title */}
+          <Text
+            variant="bodyLarge"
+            style={styles.taskTitle}
+            numberOfLines={2}
+          >
+            {item.title}
+          </Text>
+
+          {/* Status + Action Row */}
+          <View style={styles.footerRow}>
+            <Text
+              variant="labelMedium"
+              style={{ color: status.color }}
+            >
+              {status.label}
+            </Text>
+
+            <View style={styles.openButtonWrap}>
+              <KeelButton
+                mode="secondary"
+                onPress={() =>
+                  navigation.navigate("TaskDetails", {
+                    taskKey: item.taskKey,
+                  })
+                }
+              >
+                Open
+              </KeelButton>
+            </View>
+          </View>
+        </View>
+      </KeelCard>
+    );
   }
 
   return (
     <KeelScreen>
-      {/* ========================================================
-          Header
-         ======================================================== */}
+      {/* ======================================================== */}
       <Text variant="titleLarge" style={styles.title}>
         {sectionTitle}
       </Text>
 
-      {/* ========================================================
-          Mandatory Tasks
-         ======================================================== */}
+      {/* ======================================================== */}
       <Text
         variant="titleMedium"
         style={[styles.groupTitle, { color: theme.colors.primary }]}
@@ -146,28 +203,13 @@ export default function TaskSectionScreen() {
       <FlatList
         data={mandatoryTasks}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <KeelCard title={item.title} subtitle={renderStatus(item.status)}>
-            <View style={styles.cardFooter}>
-              <KeelButton
-                mode="secondary"
-                onPress={() =>
-                  navigation.navigate("TaskDetails", { taskKey: item.taskKey, })
-                }
-              >
-                Open
-              </KeelButton>
-            </View>
-          </KeelCard>
-        )}
+        renderItem={({ item }) => renderTaskCard(item)}
         ListEmptyComponent={
           <Text style={styles.emptyText}>No mandatory tasks.</Text>
         }
       />
 
-      {/* ========================================================
-          Optional Tasks
-         ======================================================== */}
+      {/* ======================================================== */}
       <Text
         variant="titleMedium"
         style={[
@@ -181,20 +223,7 @@ export default function TaskSectionScreen() {
       <FlatList
         data={optionalTasks}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <KeelCard title={item.title} subtitle={renderStatus(item.status)}>
-            <View style={styles.cardFooter}>
-              <KeelButton
-                mode="secondary"
-                onPress={() =>
-                  navigation.navigate("TaskDetails", { taskKey: item.taskKey, })
-                }
-              >
-                Open
-              </KeelButton>
-            </View>
-          </KeelCard>
-        )}
+        renderItem={({ item }) => renderTaskCard(item)}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
             No optional tasks in this section.
@@ -207,25 +236,45 @@ export default function TaskSectionScreen() {
 
 /**
  * ============================================================
- * Styles
+ * Styles — Dense, Professional
  * ============================================================
  */
 const styles = StyleSheet.create({
   title: {
     fontWeight: "700",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   groupTitle: {
     marginTop: 12,
     marginBottom: 8,
     fontWeight: "600",
   },
-  cardFooter: {
-    marginTop: 12,
-    alignItems: "flex-end",
-  },
   emptyText: {
     marginVertical: 8,
     color: "#6B7280",
+  },
+
+  cardContent: {
+    paddingVertical: 8,
+  },
+  badge: {
+    alignSelf: "flex-end",
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginBottom: 6,
+  },
+  taskTitle: {
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  openButtonWrap: {
+    marginLeft: 8,
   },
 });

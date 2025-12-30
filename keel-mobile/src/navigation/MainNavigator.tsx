@@ -17,12 +17,6 @@ import AppHeader from "../components/layout/AppHeader";
 import SeaServiceWizardScreen from "../screens/SeaServiceWizardScreen";
 import StartSeaServiceScreen from "../screens/StartSeaServiceScreen";
 
-/**
- * Task-related screens
- * These MUST appear under AppHeader and above Bottom Tabs
- */
-import TaskSectionScreen from "../screens/tasks/TaskSectionScreen";
-import TaskDetailsScreen from "../screens/TaskDetailsScreen";
 
 const RootStack = createNativeStackNavigator<MainStackParamList>();
 const InnerStack = createNativeStackNavigator<MainStackParamList>();
@@ -117,34 +111,11 @@ function MainLayout() {
         <InnerStack.Navigator screenOptions={{ headerShown: false }}>
           {/* Bottom Tabs */}
           <InnerStack.Screen
-            name="TabsRoot"
+            name="MainTabs"
             component={BottomTabNavigator}
           />
 
-          {/* Task Section (list of tasks inside a section) */}
-          <InnerStack.Screen
-            name="TaskSection"
-            component={TaskSectionScreen}
-          />
 
-          {/* ==================================================
-              Task Details (ⓘ ENABLED)
-              --------------------------------------------------
-              - Header already visible
-              - We only INJECT the ⓘ action here
-             ================================================== */}
-          <InnerStack.Screen
-            name="TaskDetails"
-            component={TaskDetailsScreen}
-            options={({ navigation }) => ({
-              /**
-               * We do NOT render a header here.
-               * Instead, we signal AppHeader via navigation event.
-               */
-              animation: "slide_from_right",
-           
-            })}
-          />
         </InnerStack.Navigator>
       </View>
     </View>

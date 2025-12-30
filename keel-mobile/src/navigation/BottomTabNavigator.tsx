@@ -12,13 +12,71 @@ import DailyScreen from "../screens/DailyScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import TasksHomeScreen from "../screens/tasks/TasksHomeScreen";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+
+import TaskSectionScreen from "../screens/tasks/TaskSectionScreen";
+import TaskDetailsScreen from "../screens/TaskDetailsScreen";
 
 
 const Tab = createBottomTabNavigator();
 
-function TasksTab(props: any) {
-  return <TasksHomeScreen {...props} />;
+/**
+ * ============================================================
+ * Tasks Tab Stack Types (LOCAL)
+ * ============================================================
+ *
+ * WHY LOCAL TYPES:
+ * - These screens live INSIDE the Tasks tab
+ * - They must still accept the same route params
+ * - Keeps TS happy without rewriting the global navigation types yet
+ */
+type TasksStackParamList = {
+  TasksHome: undefined;
+  TaskSection: {
+    sectionKey: string;
+    sectionTitle: string;
+  };
+  TaskDetails: {
+    taskKey: string;
+  };
+};
+
+
+/**
+ * ============================================================
+ * Tasks Stack Navigator
+ * ============================================================
+ *
+ * PURPOSE:
+ * - Keep bottom tabs visible during task drill-down
+ * - Provide clean task-specific navigation
+ * - Avoid footer / safe-area hacks
+ */
+const TasksStack = createNativeStackNavigator<TasksStackParamList>();
+
+function TasksStackNavigator() {
+  return (
+    <TasksStack.Navigator screenOptions={{ headerShown: false }}>
+      <TasksStack.Screen
+        name="TasksHome"
+        component={TasksHomeScreen}
+      />
+
+      <TasksStack.Screen
+        name="TaskSection"
+        component={TaskSectionScreen}
+      />
+
+      <TasksStack.Screen
+        name="TaskDetails"
+        component={TaskDetailsScreen}
+      />
+    </TasksStack.Navigator>
+  );
 }
+
+
+
 
 
 export default function BottomTabNavigator() {
@@ -61,8 +119,8 @@ export default function BottomTabNavigator() {
       />
 
       <Tab.Screen
-        name="TaskList"
-        component={TasksTab}
+        name="Tasks"
+        component={TasksStackNavigator}
         options={{
           title: "Tasks",
           tabBarIcon: ({ color, size }) => (
@@ -74,6 +132,7 @@ export default function BottomTabNavigator() {
           ),
         }}
       />
+
 
       <Tab.Screen
         name="Daily"

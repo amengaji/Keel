@@ -35,11 +35,13 @@ import { KeelScreen } from "../components/ui/KeelScreen";
 import { KeelButton } from "../components/ui/KeelButton";
 import { useToast } from "../components/toast/useToast";
 
-import { MainStackParamList } from "../navigation/types";
 import { getTaskByKey, upsertTaskStatus } from "../db/tasks";
 import { getStaticTaskByKey } from "../tasks/taskCatalog.static";
 
-type Props = NativeStackScreenProps<MainStackParamList, "TaskDetails">;
+import { TasksStackParamList } from "../navigation/types";
+
+type Props = NativeStackScreenProps<TasksStackParamList, "TaskDetails">;
+
 
 /**
  * Extra breathing space above Android system nav
@@ -61,6 +63,7 @@ export default function TaskDetailsScreen({ route }: Props) {
   // ------------------------------------------------------------
   const [title, setTitle] = useState("Loading task…");
   const [description, setDescription] = useState("");
+  const [hasCatalogData, setHasCatalogData] = useState(true);
   const [status, setStatus] =
     useState<"NOT_STARTED" | "IN_PROGRESS" | "COMPLETED">("NOT_STARTED");
 
@@ -83,11 +86,13 @@ export default function TaskDetailsScreen({ route }: Props) {
       if (staticTask) {
         setTitle(staticTask.title);
         setDescription(staticTask.description);
+        setHasCatalogData(true);
       } else {
         setTitle(taskKey);
-        setDescription("Task description not available.");
-        toast.error("Task not found in catalog.");
+        setDescription("");
+        setHasCatalogData(false);
       }
+
 
       const record = getTaskByKey(taskKey);
       if (record) setStatus(record.status);
@@ -125,7 +130,7 @@ export default function TaskDetailsScreen({ route }: Props) {
   }
 
   const footerPadding =
-    insets.bottom + FOOTER_BREATHING_SPACE;
+    insets.bottom ;
 
   return (
     <KeelScreen>
@@ -163,6 +168,29 @@ export default function TaskDetailsScreen({ route }: Props) {
         </Text>
 
         <Divider style={styles.divider} />
+        {!hasCatalogData && (
+          <View
+            style={[
+              styles.noticeBox,
+              { backgroundColor: theme.colors.surfaceVariant },
+            ]}
+          >
+            <IconButton
+              icon="information-outline"
+              size={18}
+              style={styles.noticeIcon}
+            />
+
+            <Text
+              variant="bodySmall"
+              style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}
+            >
+              Guidance for this task is not available in the catalog. You may still
+              complete the task based on onboard instructions and officer guidance.
+            </Text>
+          </View>
+        )}
+
 
         <Text variant="titleSmall" style={styles.sectionTitle}>
           What you need to do
@@ -308,6 +336,19 @@ const styles = StyleSheet.create({
   paragraph: {
     marginBottom: 12,
   },
+  noticeBox: {
+  flexDirection: "row",
+  alignItems: "flex-start",
+  padding: 12,
+  borderRadius: 8,
+  marginBottom: 16,
+},
+
+noticeIcon: {
+  margin: 0,
+  marginRight: 6,
+},
+
   footer: {
     position: "absolute",
     left: 0,
