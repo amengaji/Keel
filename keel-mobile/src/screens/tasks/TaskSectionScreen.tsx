@@ -96,6 +96,9 @@ export default function TaskSectionScreen() {
   const mandatoryTasks = tasks.filter((t) => t.mandatory);
   const optionalTasks = tasks.filter((t) => !t.mandatory);
 
+  const mandatoryProgress = getSectionProgress(mandatoryTasks);
+  const optionalProgress = getSectionProgress(optionalTasks);
+
   /**
    * ------------------------------------------------------------
    * Status label (maritime-correct wording)
@@ -113,6 +116,25 @@ export default function TaskSectionScreen() {
         return { label: "Not Started", color: theme.colors.onSurfaceVariant };
     }
   }
+
+  /**
+ * ------------------------------------------------------------
+ * Section Progress Calculator (Inspector-safe)
+ * ------------------------------------------------------------
+ */
+function getSectionProgress(tasks: TaskItem[]) {
+  const total = tasks.length;
+  const completed = tasks.filter(
+    (t) => t.status === "SIGNED_OFF" || t.status === "COMPLETED_BY_CADET"
+  ).length;
+
+  return {
+    total,
+    completed,
+    percent: total === 0 ? 0 : Math.round((completed / total) * 100),
+  };
+}
+
 
   /**
    * ------------------------------------------------------------
@@ -204,12 +226,34 @@ export default function TaskSectionScreen() {
       </Text>
 
       {/* ======================================================== */}
-      <Text
-        variant="titleMedium"
-        style={[styles.groupTitle, { color: theme.colors.primary }]}
-      >
-        Mandatory Tasks
-      </Text>
+      <View style={styles.sectionHeader}>
+        <Text
+          variant="titleMedium"
+          style={[styles.groupTitle, { color: theme.colors.primary }]}
+        >
+          Mandatory Tasks
+        </Text>
+
+        <Text
+          variant="labelMedium"
+          style={{ color: theme.colors.onSurfaceVariant }}
+        >
+          {mandatoryProgress.completed} / {mandatoryProgress.total} completed
+        </Text>
+      </View>
+
+      <View style={styles.progressBar}>
+        <View
+          style={[
+            styles.progressFill,
+            {
+              width: `${mandatoryProgress.percent}%`,
+              backgroundColor: theme.colors.primary,
+            },
+          ]}
+        />
+      </View>
+
 
       <FlatList
         data={mandatoryTasks}
@@ -221,15 +265,37 @@ export default function TaskSectionScreen() {
       />
 
       {/* ======================================================== */}
-      <Text
-        variant="titleMedium"
-        style={[
-          styles.groupTitle,
-          { color: theme.colors.onSurfaceVariant },
-        ]}
-      >
-        Optional Tasks
-      </Text>
+      <View style={styles.sectionHeader}>
+        <Text
+          variant="titleMedium"
+          style={[
+            styles.groupTitle,
+            { color: theme.colors.onSurfaceVariant },
+          ]}
+        >
+          Optional Tasks
+        </Text>
+
+        <Text
+          variant="labelMedium"
+          style={{ color: theme.colors.onSurfaceVariant }}
+        >
+          {optionalProgress.completed} / {optionalProgress.total} completed
+        </Text>
+      </View>
+
+      <View style={styles.progressBar}>
+        <View
+          style={[
+            styles.progressFill,
+            {
+              width: `${optionalProgress.percent}%`,
+              backgroundColor: theme.colors.onSurfaceVariant,
+            },
+          ]}
+        />
+      </View>
+
 
       <FlatList
         data={optionalTasks}
@@ -301,4 +367,25 @@ footerRow: {
   openButtonWrap: {
     marginLeft: 8,
   },
+
+  sectionHeader: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginTop: 12,
+  marginBottom: 4,
+},
+
+progressBar: {
+  height: 4,
+  backgroundColor: "#E5E7EB",
+  borderRadius: 2,
+  overflow: "hidden",
+  marginBottom: 8,
+},
+
+progressFill: {
+  height: "100%",
+},
+
 });
