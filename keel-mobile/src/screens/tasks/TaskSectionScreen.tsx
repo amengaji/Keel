@@ -8,7 +8,7 @@
  * PURPOSE:
  * - Display all tasks within a selected section
  * - Separate Mandatory and Optional tasks
- * - Allow navigation to TaskDetailScreen
+ * - Allow navigation to TaskDetailsScreen
  *
  * IMPORTANT:
  * - READ-ONLY screen
@@ -187,7 +187,7 @@ export default function TaskSectionScreen() {
               <KeelButton
                 mode="secondary"
                 onPress={() =>
-                  navigation.navigate("TaskDetails", { id: item.id })
+                  navigation.navigate("TaskDetails", { taskKey: item.taskKey, })
                 }
               >
                 Open

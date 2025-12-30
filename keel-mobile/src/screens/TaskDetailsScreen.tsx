@@ -2,174 +2,279 @@
 
 /**
  * ============================================================
- * Task Details Screen
+ * Task Details Screen — ADVANCED (PSC / TRB SAFE)
  * ============================================================
  *
- * RESPONSIBILITIES:
+ * PURPOSE:
  * - Display task details
- * - Ask confirmation before:
- *   - Starting a task (NOT_STARTED → IN_PROGRESS)
- *   - Completing a task (IN_PROGRESS → COMPLETED)
+ * - Provide structured guidance (ⓘ) for cadets
+ * - Enforce explicit confirmations (audit-safe)
+ * - Remain fully usable on Android tablets (3-button / gesture)
  *
  * IMPORTANT:
- * - Inspector-safe (explicit intent confirmations)
  * - Offline-first (SQLite)
- * - No UI redesign
+ * - No backend assumptions
+ * - Bottom tabs remain visible
  */
 
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet } from "react-native";
-import { Text, Button, Dialog, Portal } from "react-native-paper";
+import { View, StyleSheet, ScrollView } from "react-native";
+import {
+  Text,
+  Button,
+  Dialog,
+  Portal,
+  IconButton,
+  Divider,
+  useTheme,
+} from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+
 import { KeelScreen } from "../components/ui/KeelScreen";
 import { KeelButton } from "../components/ui/KeelButton";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useToast } from "../components/toast/useToast";
+
 import { MainStackParamList } from "../navigation/types";
 import { getTaskByKey, upsertTaskStatus } from "../db/tasks";
-import { useToast } from "../components/toast/useToast";
+import { getStaticTaskByKey } from "../tasks/taskCatalog.static";
 
 type Props = NativeStackScreenProps<MainStackParamList, "TaskDetails">;
 
 /**
- * ------------------------------------------------------------
- * Helper: map numeric id → taskKey
- * ------------------------------------------------------------
+ * Extra breathing space above Android system nav
+ * Important for onboard tablet usability
  */
-function mapTaskIdToTaskKey(id: number): string {
-  return `D.${id}`;
-}
+const FOOTER_BREATHING_SPACE = 16;
 
 export default function TaskDetailsScreen({ route }: Props) {
+  const theme = useTheme();
   const toast = useToast();
+
+  // System safety
+  const insets = useSafeAreaInsets();
+
+  const { taskKey } = route.params;
+
+  // ------------------------------------------------------------
+  // Task state
+  // ------------------------------------------------------------
+  const [title, setTitle] = useState("Loading task…");
+  const [description, setDescription] = useState("");
+  const [status, setStatus] =
+    useState<"NOT_STARTED" | "IN_PROGRESS" | "COMPLETED">("NOT_STARTED");
 
   // ------------------------------------------------------------
   // Dialog state
   // ------------------------------------------------------------
   const [showStartConfirm, setShowStartConfirm] = useState(false);
-  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showInfoDialog, setShowInfoDialog] = useState(false);
 
-  const { taskKey } = route.params;
-
-  // ------------------------------------------------------------
-  // Check if task needs START confirmation
-  // ------------------------------------------------------------
+  /**
+   * ============================================================
+   * LOAD TASK (SAFE, OFFLINE-FIRST)
+   * ============================================================
+   */
   useEffect(() => {
     try {
-      const task = getTaskByKey(taskKey);
-      if (task && task.status === "NOT_STARTED") {
-        setShowStartConfirm(true);
+      const staticTask = getStaticTaskByKey(taskKey);
+
+      if (staticTask) {
+        setTitle(staticTask.title);
+        setDescription(staticTask.description);
+      } else {
+        setTitle(taskKey);
+        setDescription("Task description not available.");
+        toast.error("Task not found in catalog.");
       }
+
+      const record = getTaskByKey(taskKey);
+      if (record) setStatus(record.status);
     } catch (err) {
-      console.error("Failed to load task:", err);
+      console.error(err);
       toast.error("Failed to load task.");
     }
   }, [taskKey, toast]);
 
+  /**
+   * ============================================================
+   * ACTION HANDLERS (AUDIT SAFE)
+   * ============================================================
+   */
+  function handleStartTask() {
+    try {
+      upsertTaskStatus({ taskKey, status: "IN_PROGRESS" });
+      setStatus("IN_PROGRESS");
+      setShowStartConfirm(false);
+      toast.success("Task marked as In Progress.");
+    } catch {
+      toast.error("Failed to start task.");
+    }
+  }
+
+  function handleSubmitTask() {
+    try {
+      upsertTaskStatus({ taskKey, status: "COMPLETED" });
+      setStatus("COMPLETED");
+      setShowSubmitConfirm(false);
+      toast.success("Task submitted for officer review.");
+    } catch {
+      toast.error("Failed to submit task.");
+    }
+  }
+
+  const footerPadding =
+    insets.bottom + FOOTER_BREATHING_SPACE;
+
   return (
     <KeelScreen>
-      {/* ============================================================
-          Header
-         ============================================================ */}
-      <Text variant="titleLarge" style={{ fontWeight: "700" }}>
-        Task {taskKey}
-      </Text>
+      {/* ========================================================
+          SCROLLABLE CONTENT
+         ======================================================== */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
+        {/* Header row */}
+        <View style={styles.headerRow}>
+          <Text variant="titleLarge" style={styles.title}>
+            {title}
+          </Text>
 
-      <Text variant="bodyMedium" style={styles.desc}>
-        Task description will be shown here.
-      </Text>
+          <IconButton
+            icon="information-outline"
+            size={22}
+            onPress={() => setShowInfoDialog(true)}
+            accessibilityLabel="Task Guidance"
+          />
+        </View>
 
-      {/* ============================================================
-          Action Area
-         ============================================================ */}
-      <View style={styles.bottom}>
-        <KeelButton
-          mode="primary"
-          onPress={() => setShowCompleteConfirm(true)}
+        <Text
+          variant="labelMedium"
+          style={{ color: theme.colors.onSurfaceVariant }}
         >
-          Submit for CTO Review
+          Status:{" "}
+          {status === "COMPLETED"
+            ? "Submitted"
+            : status === "IN_PROGRESS"
+            ? "In Progress"
+            : "Not Started"}
+        </Text>
+
+        <Divider style={styles.divider} />
+
+        <Text variant="titleSmall" style={styles.sectionTitle}>
+          What you need to do
+        </Text>
+
+        <Text variant="bodyMedium" style={styles.paragraph}>
+          {description}
+        </Text>
+
+        <Text variant="titleSmall" style={styles.sectionTitle}>
+          Evidence
+        </Text>
+
+        <Text
+          variant="bodySmall"
+          style={{ color: theme.colors.onSurfaceVariant }}
+        >
+          Attachments will be required for officer verification.
+        </Text>
+
+        <KeelButton mode="secondary" disabled onPress={() => {}}>
+          Add Attachment (Coming Soon)
         </KeelButton>
+      </ScrollView>
+
+      {/* ========================================================
+          FIXED FOOTER (ANDROID SAFE)
+         ======================================================== */}
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingBottom: footerPadding,
+            backgroundColor: theme.colors.background,
+          },
+        ]}
+      >
+        {status === "NOT_STARTED" && (
+          <KeelButton
+            mode="primary"
+            onPress={() => setShowStartConfirm(true)}
+          >
+            Start Task
+          </KeelButton>
+        )}
+
+        {status === "IN_PROGRESS" && (
+          <KeelButton
+            mode="primary"
+            onPress={() => setShowSubmitConfirm(true)}
+          >
+            Submit for Officer Review
+          </KeelButton>
+        )}
       </View>
 
-      {/* ============================================================
-          START TASK CONFIRMATION
-         ============================================================ */}
+      {/* ========================================================
+          CONFIRMATIONS (PSC SAFE)
+         ======================================================== */}
       <Portal>
         <Dialog
           visible={showStartConfirm}
           onDismiss={() => setShowStartConfirm(false)}
         >
           <Dialog.Title>Start Task</Dialog.Title>
-
           <Dialog.Content>
-            <Text>
-              Do you want to start working on this task now?
-            </Text>
+            <Text>Mark this task as In Progress?</Text>
           </Dialog.Content>
-
           <Dialog.Actions>
             <Button onPress={() => setShowStartConfirm(false)}>
-              No
+              Cancel
             </Button>
-
-            <Button
-              onPress={() => {
-                try {
-                  upsertTaskStatus({
-                    taskKey,
-                    status: "IN_PROGRESS",
-                  });
-
-                  setShowStartConfirm(false);
-                  toast.success("Task marked as In Progress.");
-                } catch (err) {
-                  console.error("Failed to start task:", err);
-                  toast.error("Failed to start task.");
-                }
-              }}
-            >
-              Yes
-            </Button>
+            <Button onPress={handleStartTask}>Yes</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
 
-      {/* ============================================================
-          COMPLETE TASK CONFIRMATION
-         ============================================================ */}
       <Portal>
         <Dialog
-          visible={showCompleteConfirm}
-          onDismiss={() => setShowCompleteConfirm(false)}
+          visible={showSubmitConfirm}
+          onDismiss={() => setShowSubmitConfirm(false)}
         >
           <Dialog.Title>Submit Task</Dialog.Title>
-
           <Dialog.Content>
-            <Text>
-              Are you sure you want to submit this task as completed?
-            </Text>
+            <Text>Submit this task for officer review?</Text>
           </Dialog.Content>
-
           <Dialog.Actions>
-            <Button onPress={() => setShowCompleteConfirm(false)}>
+            <Button onPress={() => setShowSubmitConfirm(false)}>
               Cancel
             </Button>
+            <Button onPress={handleSubmitTask}>Yes</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
-            <Button
-              onPress={() => {
-                try {
-                  upsertTaskStatus({
-                    taskKey,
-                    status: "COMPLETED",
-                  });
-
-                  setShowCompleteConfirm(false);
-                  toast.success("Task marked as Completed.");
-                } catch (err) {
-                  console.error("Failed to complete task:", err);
-                  toast.error("Failed to complete task.");
-                }
-              }}
-            >
-              Yes, Submit
+      {/* ========================================================
+          TASK GUIDANCE (ⓘ)
+         ======================================================== */}
+      <Portal>
+        <Dialog
+          visible={showInfoDialog}
+          onDismiss={() => setShowInfoDialog(false)}
+        >
+          <Dialog.Title>Task Guidance</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodySmall">
+              Guidance content will appear here in structured format.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowInfoDialog(false)}>
+              Close
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -179,11 +284,37 @@ export default function TaskDetailsScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  desc: {
-    marginTop: 12,
-    color: "#6B7280",
+  scroll: {
+    paddingTop: 12,
+    paddingBottom: 200,
   },
-  bottom: {
-    marginTop: "auto",
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  title: {
+    fontWeight: "700",
+    flex: 1,
+  },
+  divider: {
+    marginVertical: 12,
+  },
+  sectionTitle: {
+    fontWeight: "700",
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  paragraph: {
+    marginBottom: 12,
+  },
+  footer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#E5E7EB",
+    paddingTop: 12,
   },
 });

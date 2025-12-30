@@ -450,7 +450,7 @@ Ship-type-specific
 
 Mandatory
 
-TaskDetailScreen
+TaskDetailsScreen
 
 Task title + description
 

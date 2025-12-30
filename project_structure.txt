@@ -105,6 +105,7 @@
 ¦   ¦   ¦   ¦   +-- TaskStatusBadge.tsx
 ¦   ¦   ¦   ¦   +-- TaskStatusChip.tsx
 ¦   ¦   ¦   +-- toast
+¦   ¦   ¦   ¦   +-- GlobalToast.tsx
 ¦   ¦   ¦   ¦   +-- ToastProvider.tsx
 ¦   ¦   ¦   ¦   +-- useToast.ts
 ¦   ¦   ¦   +-- ui
@@ -188,6 +189,7 @@
 ¦   ¦   ¦   ¦   +-- guidance.types.ts
 ¦   ¦   ¦   ¦   +-- index.ts
 ¦   ¦   ¦   ¦   +-- __README__.md
+¦   ¦   ¦   +-- taskCatalog.static.ts
 ¦   ¦   ¦   +-- taskCatalog.ts
 ¦   ¦   +-- theme
 ¦   ¦   ¦   +-- keelTheme.ts
@@ -208,6 +210,7 @@
 ¦   +-- index.ts
 ¦   +-- package.json
 ¦   +-- tsconfig.json
++-- keel-web
 +-- .gitignore
 +-- package.json
 +-- project_structure.txt
