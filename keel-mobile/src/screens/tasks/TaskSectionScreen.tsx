@@ -23,7 +23,7 @@
 
 import React from "react";
 import { View, StyleSheet, FlatList } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { IconButton, Text, useTheme } from "react-native-paper";
 import { useRoute, useNavigation } from "@react-navigation/native";
 
 import { KeelScreen } from "../../components/ui/KeelScreen";
@@ -133,6 +133,9 @@ export default function TaskSectionScreen() {
                 borderColor: item.mandatory
                   ? theme.colors.error
                   : theme.colors.outline,
+                backgroundColor: item.mandatory
+                  ? theme.colors.error + "11"
+                  : "transparent",
               },
             ]}
           >
@@ -160,26 +163,34 @@ export default function TaskSectionScreen() {
 
           {/* Status + Action Row */}
           <View style={styles.footerRow}>
-            <Text
-              variant="labelMedium"
-              style={{ color: status.color }}
+            {/* Status Pill */}
+            <View
+              style={[
+                styles.statusPill,
+                { backgroundColor: status.color + "22" },
+              ]}
             >
-              {status.label}
-            </Text>
-
-            <View style={styles.openButtonWrap}>
-              <KeelButton
-                mode="secondary"
-                onPress={() =>
-                  navigation.navigate("TaskDetails", {
-                    taskKey: item.taskKey,
-                  })
-                }
+              <Text
+                variant="labelSmall"
+                style={[styles.statusText, { color: status.color }]}
               >
-                Open
-              </KeelButton>
+                {status.label}
+              </Text>
             </View>
+
+            {/* Subtle Drill-down */}
+            <IconButton
+              icon="chevron-right"
+              size={22}
+              onPress={() =>
+                navigation.navigate("TaskDetails", {
+                  taskKey: item.taskKey,
+                })
+              }
+              accessibilityLabel="Open task"
+            />
           </View>
+
         </View>
       </KeelCard>
     );
@@ -254,6 +265,23 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 
+  statusPill: {
+  paddingHorizontal: 10,
+  paddingVertical: 3,
+  borderRadius: 12,
+},
+
+statusText: {
+  fontWeight: "600",
+},
+
+footerRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginTop: 6,
+},
+
   cardContent: {
     paddingVertical: 8,
   },
@@ -269,11 +297,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 6,
   },
-  footerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+
   openButtonWrap: {
     marginLeft: 8,
   },

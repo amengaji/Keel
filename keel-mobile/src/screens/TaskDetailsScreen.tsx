@@ -296,9 +296,26 @@ export default function TaskDetailsScreen({ route }: Props) {
         >
           <Dialog.Title>Task Guidance</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodySmall">
-              Guidance content will appear here in structured format.
-            </Text>
+            {hasCatalogData ? (
+              <Text variant="bodySmall">
+                This task must be completed in accordance with onboard
+                procedures, Master's standing orders, and officer guidance.
+                Ensure you understand the objective before submitting.
+              </Text>
+            ) : (
+              <Text
+                variant="bodySmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
+                Formal guidance for this task is not available in the digital
+                catalog. This is not an error.
+
+                {"\n\n"}
+                Complete the task as instructed by the supervising officer
+                and in accordance with onboard procedures. Evidence and
+                officer verification may still be required.
+              </Text>
+            )}
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setShowInfoDialog(false)}>
