@@ -66,6 +66,11 @@ export default function TaskDetailsScreen({ route }: Props) {
   const [status, setStatus] =
     useState<"NOT_STARTED" | "IN_PROGRESS" | "COMPLETED">("NOT_STARTED");
 
+  // ------------------------------------------------------------
+  // Cadet Notes state
+  // ------------------------------------------------------------
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+
   /**
    * Cadet-entered long-form notes (stored locally)
    */
@@ -114,6 +119,7 @@ export default function TaskDetailsScreen({ route }: Props) {
       const record = getTaskByKey(taskKey);
       if (record) {
         setStatus(record.status);
+        setLastSavedAt(record.updatedAt ?? null);
         setCadetNotes(record.remarks ?? "");
       }
     } catch {
@@ -180,49 +186,79 @@ export default function TaskDetailsScreen({ route }: Props) {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
-      {/* Header */}
-      <View style={styles.headerRow}>
-        {/* Back + Title + Status */}
-        <View style={styles.headerLeft}>
-          <View style={styles.backButtonWrap}>
-            <IconButton
-              icon="chevron-left"
-              size={22}
-              iconColor="#3194A0"
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-            />
+      {/* ========================================================
+          Header
+          ======================================================== */}
+        <View style={styles.headerRow}>
+          {/* Left side: Back + Title stack */}
+          <View style={styles.headerLeft}>
+            {/* Back button */}
+            <View style={styles.backButtonWrap}>
+              <IconButton
+                icon="chevron-left"
+                size={22}
+                iconColor="#3194A0"
+                onPress={() => navigation.goBack()}
+                style={styles.backButton}
+              />
+            </View>
+
+            {/* Title + Meta + Status */}
+            <View style={styles.titleBlock}>
+              {/* Title */}
+              <Text
+                variant="titleLarge"
+                style={styles.title}
+                numberOfLines={2}
+              >
+                {title}
+              </Text>
+
+              {/* Draft + Last saved */}
+              <View style={styles.metaRow}>
+                <Text
+                  variant="labelSmall"
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
+                  {status === "COMPLETED" ? "Submitted" : "Draft"}
+                </Text>
+
+                {lastSavedAt && (
+                  <Text
+                    variant="labelSmall"
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                  >
+                    · Last saved {new Date(lastSavedAt).toLocaleString()}
+                  </Text>
+                )}
+              </View>
+
+              {/* Status */}
+              <Text variant="labelMedium" style={styles.statusText}>
+                Status:{" "}
+                {status === "COMPLETED"
+                  ? "Submitted"
+                  : status === "IN_PROGRESS"
+                  ? "In Progress"
+                  : "Not Started"}
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.titleBlock}>
-            <Text variant="titleLarge" style={styles.title} numberOfLines={2}>
-              {title}
-            </Text>
-
-            <Text variant="labelMedium" style={styles.statusText}>
-              Status:{" "}
-              {status === "COMPLETED"
-                ? "Submitted"
-                : status === "IN_PROGRESS"
-                ? "In Progress"
-                : "Not Started"}
-            </Text>
-          </View>
+          {/* Right side: Info */}
+          <IconButton
+            icon="information-outline"
+            size={22}
+            onPress={() => setShowInfoDialog(true)}
+            accessibilityLabel="Task Guidance"
+          />
         </View>
-
-        {/* Info */}
-        <IconButton
-          icon="information-outline"
-          size={22}
-          onPress={() => setShowInfoDialog(true)}
-        />
-      </View>
 
 
         <Divider style={styles.divider} />
 
         {!hasCatalogData && (
-          <View style={styles.noticeBox}>
+          <View style={[styles.noticeBox, { backgroundColor: theme.colors.surfaceVariant }]}>
             <IconButton icon="information-outline" size={18} />
             <Text variant="bodySmall" style={styles.noticeText}>
               Formal guidance is not available for this task. Complete it based on
@@ -235,9 +271,24 @@ export default function TaskDetailsScreen({ route }: Props) {
           Task Requirements
         </Text>
 
-        <View style={styles.requirementsBox}>
-          <Text variant="bodyMedium">{description}</Text>
+        <View
+          style={[
+            styles.cardSurface,
+            styles.cardPadded,
+            {backgroundColor: theme.colors.surfaceVariant}
+          ]}
+        >
+          <Text
+            variant="bodyMedium"
+            style={[styles.textPrimary,
+              {color: theme.colors.onSurface },
+            ]}
+          >
+            {description}
+          </Text>
         </View>
+
+
 
         <View style={styles.notesHeader}>
           <View style={styles.notesHeader}>
@@ -313,14 +364,19 @@ export default function TaskDetailsScreen({ route }: Props) {
     </View>
   </>
 ) : (
-  <View style={styles.notesPreview}>
-    <View style={styles.notesPreview}>
+
+      <View
+      style={[
+        styles.cardSurface,
+        styles.cardPadded,
+      ]}
+    >
       {cadetNotes ? (
         cadetNotes.split("\n").map((line, idx) => (
           <Text
             key={idx}
             variant="bodyMedium"
-            style={styles.notesLine}
+            style={styles.textPrimary}
           >
             {line.startsWith("- ")
               ? "• " + line.replace("- ", "")
@@ -330,13 +386,14 @@ export default function TaskDetailsScreen({ route }: Props) {
       ) : (
         <Text
           variant="bodyMedium"
-          style={styles.notesPlaceholder}
+          style={[styles.textMuted, { color: theme.colors.onSurfaceVariant }]}
         >
           No details entered yet.
         </Text>
       )}
     </View>
-  </View>
+
+
 )}
 
 
@@ -390,7 +447,6 @@ export default function TaskDetailsScreen({ route }: Props) {
     </KeelScreen>
   );
 }
-
 const styles = StyleSheet.create({
 scroll: {
   paddingTop: 4,
@@ -405,10 +461,6 @@ headerRow: {
 },
   headerLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
   title: { fontWeight: "700", flex: 1 },
-statusText: {
-  marginTop: 2,
-  color: "#6B7280",
-},
   divider: { marginVertical: 12 },
   sectionTitle: { fontWeight: "700", marginBottom: 6 },
   noticeBox: {
@@ -416,16 +468,14 @@ statusText: {
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#00000010",
   },
   noticeText: { flex: 1 },
   requirementsBox: {
     padding: 12,
     borderRadius: 8,
-    backgroundColor: "#F9FAFB",
     marginBottom: 12,
   },
-
   toolbar: { flexDirection: "row", gap: 4 },
   notesInput: { minHeight: 160, marginBottom: 12 },
   footer: {
@@ -464,7 +514,6 @@ notesPreview: {
   padding: 12,
   paddingVertical: 6,
   borderRadius: 8,
-  backgroundColor: "#F9FAFB",
   marginBottom: 12,
 },
 
@@ -486,6 +535,37 @@ notesLine: {
 notesPlaceholder: {
   fontStyle: "italic",
   color: "#6B7280",
+},
+headerContainer: {
+  marginBottom: 8,
+},
+
+metaRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginTop: 2,
+},
+
+statusText: {
+  marginTop: 2,
+  color: "#6B7280",
+},
+cardSurface: {
+  backgroundColor: undefined, // injected via theme
+  borderRadius: 12,
+  borderWidth: StyleSheet.hairlineWidth,
+  borderColor: "#00000020", // auto-works in dark/light
+},
+
+cardPadded: {
+  padding: 14,
+  marginBottom: 14,
+},
+textPrimary: {
+  },
+
+textMuted: {
+
 },
 
 });

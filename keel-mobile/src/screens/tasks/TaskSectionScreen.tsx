@@ -96,6 +96,13 @@ export default function TaskSectionScreen() {
   const mandatoryTasks = tasks.filter((t) => t.mandatory);
   const optionalTasks = tasks.filter((t) => !t.mandatory);
 
+  type TaskTab = "MANDATORY" | "OPTIONAL";
+  const [activeTab, setActiveTab] = React.useState<TaskTab>("MANDATORY");
+
+  const visibleTasks =
+    activeTab === "MANDATORY" ? mandatoryTasks : optionalTasks;
+
+
   const mandatoryProgress = getSectionProgress(mandatoryTasks);
   const optionalProgress = getSectionProgress(optionalTasks);
 
@@ -225,88 +232,73 @@ function getSectionProgress(tasks: TaskItem[]) {
         {sectionTitle}
       </Text>
 
-      {/* ======================================================== */}
-      <View style={styles.sectionHeader}>
-        <Text
-          variant="titleMedium"
-          style={[styles.groupTitle, { color: theme.colors.primary }]}
-        >
-          Mandatory Tasks
-        </Text>
+    {/* ========================================================
+        Horizontal Tabs — Mandatory / Optional
+      ======================================================== */}
+    <View style={styles.tabBar}>
+      {(["MANDATORY", "OPTIONAL"] as const).map((tab) => {
+        const isActive = activeTab === tab;
 
-        <Text
-          variant="labelMedium"
-          style={{ color: theme.colors.onSurfaceVariant }}
-        >
-          {mandatoryProgress.completed} / {mandatoryProgress.total} completed
-        </Text>
-      </View>
-
-      <View style={styles.progressBar}>
-        <View
-          style={[
-            styles.progressFill,
-            {
-              width: `${mandatoryProgress.percent}%`,
-              backgroundColor: theme.colors.primary,
-            },
-          ]}
-        />
-      </View>
-
-
-      <FlatList
-        data={mandatoryTasks}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => renderTaskCard(item)}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No mandatory tasks.</Text>
-        }
-      />
-
-      {/* ======================================================== */}
-      <View style={styles.sectionHeader}>
-        <Text
-          variant="titleMedium"
-          style={[
-            styles.groupTitle,
-            { color: theme.colors.onSurfaceVariant },
-          ]}
-        >
-          Optional Tasks
-        </Text>
-
-        <Text
-          variant="labelMedium"
-          style={{ color: theme.colors.onSurfaceVariant }}
-        >
-          {optionalProgress.completed} / {optionalProgress.total} completed
-        </Text>
-      </View>
-
-      <View style={styles.progressBar}>
-        <View
-          style={[
-            styles.progressFill,
-            {
-              width: `${optionalProgress.percent}%`,
-              backgroundColor: theme.colors.onSurfaceVariant,
-            },
-          ]}
-        />
-      </View>
-
-
-      <FlatList
-        data={optionalTasks}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => renderTaskCard(item)}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            No optional tasks in this section.
+        return (
+          <Text
+            key={tab}
+            onPress={() => setActiveTab(tab)}
+            style={[
+              styles.tabItem,
+              {
+                color: isActive
+                  ? theme.colors.primary
+                  : theme.colors.onSurfaceVariant,
+                borderBottomColor: isActive
+                  ? theme.colors.primary
+                  : "transparent",
+              },
+            ]}
+          >
+            {tab === "MANDATORY"
+              ? `Mandatory (${mandatoryProgress.completed}/${mandatoryProgress.total})`
+              : `Optional (${optionalProgress.completed}/${optionalProgress.total})`}
           </Text>
-        }
+        );
+      })}
+    </View>
+
+    {/* ========================================================
+        Unified Progress Bar
+      ======================================================== */}
+    <View style={styles.progressBar}>
+      <View
+        style={[
+          styles.progressFill,
+          {
+            width: `${
+              activeTab === "MANDATORY"
+                ? mandatoryProgress.percent
+                : optionalProgress.percent
+            }%`,
+            backgroundColor:
+              activeTab === "MANDATORY"
+                ? theme.colors.primary
+                : theme.colors.onSurfaceVariant,
+          },
+        ]}
       />
+    </View>
+
+    {/* ========================================================
+        Task List (Tab-Driven)
+      ======================================================== */}
+    <FlatList
+      data={visibleTasks}
+      keyExtractor={(item) => String(item.id)}
+      renderItem={({ item }) => renderTaskCard(item)}
+      ListEmptyComponent={
+        <Text style={styles.emptyText}>
+          No {activeTab.toLowerCase()} tasks in this section.
+        </Text>
+      }
+    />
+
     </KeelScreen>
   );
 }
@@ -386,6 +378,20 @@ progressBar: {
 
 progressFill: {
   height: "100%",
+},
+tabBar: {
+  flexDirection: "row",
+  borderBottomWidth: 1,
+  borderBottomColor: "#E5E7EB",
+  marginBottom: 8,
+},
+
+tabItem: {
+  flex: 1,
+  textAlign: "center",
+  paddingVertical: 10,
+  fontWeight: "600",
+  borderBottomWidth: 2,
 },
 
 });
