@@ -84,7 +84,7 @@ export default function LoginScreen() {
         {/* Header */}
         <View style={styles.headerWrapper}>
           <Image
-            source={require("../../assets/icon.png")}
+            source={require("../../assets/keel-logo.png")}
             style={styles.logo}
             resizeMode="contain"
           />

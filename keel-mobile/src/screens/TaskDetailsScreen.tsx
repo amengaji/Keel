@@ -36,10 +36,23 @@ import { useNavigation } from "@react-navigation/native";
 import { KeelScreen } from "../components/ui/KeelScreen";
 import { KeelButton } from "../components/ui/KeelButton";
 import { useToast } from "../components/toast/useToast";
+import TaskAttachments from "../components/tasks/TaskAttachments";
 
 import { getTaskByKey, upsertTaskStatus } from "../db/tasks";
 import { getStaticTaskByKey } from "../tasks/taskCatalog.static";
 import { TasksStackParamList } from "../navigation/types";
+import {
+  ensureTaskAttachmentsTable,
+  getAttachmentsForTask,
+  insertTaskAttachment,
+  softDeleteTaskAttachment,
+} from "../db/taskAttachments";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
+import { Linking } from "react-native";
+
+
 
 type Props = NativeStackScreenProps<TasksStackParamList, "TaskDetails">;
 
@@ -65,6 +78,15 @@ export default function TaskDetailsScreen({ route }: Props) {
   const [description, setDescription] = useState("");
   const [status, setStatus] =
     useState<"NOT_STARTED" | "IN_PROGRESS" | "COMPLETED">("NOT_STARTED");
+
+  /**
+   * ============================================================
+   * Task Attachments (Offline-first)
+   * ============================================================
+   */
+  const [attachments, setAttachments] = useState<any[]>([]);
+
+
 
   // ------------------------------------------------------------
   // Cadet Notes state
@@ -129,6 +151,57 @@ export default function TaskDetailsScreen({ route }: Props) {
 
   /**
    * ============================================================
+   * ATTACHMENT FILE HELPERS (Offline-safe)
+   * ============================================================
+   */
+
+/**
+ * ============================================================
+ * ATTACHMENT STORAGE PATH (TS-SAFE)
+ * ============================================================
+ *
+ * We intentionally DO NOT reference:
+ * - FileSystem.documentDirectory
+ * - FileSystem.cacheDirectory
+ *
+ * Reason:
+ * - In strict Expo + TS setups, these are missing from typings
+ * - Even though they exist at runtime
+ *
+ * Strategy:
+ * - Use a relative app-scoped directory
+ * - Expo resolves this safely at runtime
+ */
+const TASK_EVIDENCE_DIR = "task-evidence/";
+
+  /**
+   * Ensure evidence directory exists.
+   */
+async function ensureEvidenceDirExists() {
+  try {
+    await FileSystem.makeDirectoryAsync(TASK_EVIDENCE_DIR, {
+      intermediates: true,
+    });
+  } catch {
+    // Directory already exists — safe to ignore
+  }
+}
+
+  /**
+   * Build a PSC/audit-friendly filename.
+   */
+  function buildEvidenceFileName(
+    taskKey: string,
+    originalName: string | null | undefined
+  ) {
+    const safeOriginal =
+      originalName?.replace(/\s+/g, "_") ?? "evidence";
+    return `TASK_${taskKey}_${Date.now()}_${safeOriginal}`;
+  }
+
+
+  /**
+   * ============================================================
    * ACTION HANDLERS
    * ============================================================
    */
@@ -153,6 +226,181 @@ export default function TaskDetailsScreen({ route }: Props) {
       toast.error("Failed to submit task.");
     }
   }
+/**
+ * ============================================================
+ * ATTACHMENT HANDLERS (REAL PICKERS + OFFLINE STORAGE)
+ * ============================================================
+ */
+
+/**
+ * Reload attachments from DB
+ */
+function reloadAttachments() {
+  const rows = getAttachmentsForTask(taskKey);
+  setAttachments(rows);
+}
+
+/**
+ * Add photo using CAMERA
+ */
+async function handleAddPhoto(taskKey: string) {
+  try {
+    await ensureEvidenceDirExists();
+
+    const permission =
+      await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      toast.error("Camera permission is required.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    await saveImageAsset(taskKey, asset);
+  } catch {
+    toast.error("Failed to open camera.");
+  }
+}
+
+/**
+ * Add photo using GALLERY
+ */
+async function handleAddGallery(taskKey: string) {
+  try {
+    await ensureEvidenceDirExists();
+
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      toast.error("Gallery permission is required.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    await saveImageAsset(taskKey, asset);
+  } catch {
+    toast.error("Failed to open gallery.");
+  }
+}
+
+/**
+ * Shared image save logic
+ */
+async function saveImageAsset(taskKey: string, asset: any) {
+  const fileName = buildEvidenceFileName(taskKey, asset.fileName);
+  const destUri = TASK_EVIDENCE_DIR + fileName;
+
+  await FileSystem.copyAsync({
+    from: asset.uri,
+    to: destUri,
+  });
+
+  insertTaskAttachment({
+    id: `ATT_${Date.now()}`,
+    taskKey,
+    kind: "PHOTO",
+    fileName,
+    localUri: destUri,
+    mimeType: asset.type ?? "image/jpeg",
+    sizeBytes: asset.fileSize ?? null,
+  });
+
+  reloadAttachments();
+  toast.success("Photo attached.");
+}
+
+
+/**
+ * Add PDF / Document
+ */
+async function handleAddDocument(taskKey: string) {
+  try {
+    await ensureEvidenceDirExists();
+
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ["application/pdf"],
+      copyToCacheDirectory: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    const fileName = buildEvidenceFileName(
+      taskKey,
+      asset.name
+    );
+
+    const destUri = TASK_EVIDENCE_DIR + fileName;
+
+    await FileSystem.copyAsync({
+      from: asset.uri,
+      to: destUri,
+    });
+
+    insertTaskAttachment({
+      id: `ATT_${Date.now()}`,
+      taskKey,
+      kind: "DOCUMENT",
+      fileName,
+      localUri: destUri,
+      mimeType: asset.mimeType ?? "application/pdf",
+      sizeBytes: asset.size ?? null,
+    });
+
+    reloadAttachments();
+    toast.success("Document attached.");
+  } catch {
+    toast.error("Failed to attach document.");
+  }
+}
+
+/**
+ * Open attachment using system viewer.
+ *
+ * FileSystem does NOT open files.
+ * We must delegate to the OS (Android/iOS).
+ */
+async function handleOpenAttachment(item: any) {
+  try {
+    const info = await FileSystem.getInfoAsync(item.localUri);
+    if (!info.exists) {
+      toast.error("File not found on device.");
+      return;
+    }
+
+    await Linking.openURL(item.localUri);
+  } catch {
+    toast.error("Unable to open attachment.");
+  }
+}
+
+
+/**
+ * Soft delete attachment (DB only)
+ */
+async function handleDeleteAttachment(item: any) {
+  try {
+    softDeleteTaskAttachment(item.id);
+    reloadAttachments();
+    toast.success("Attachment removed.");
+  } catch {
+    toast.error("Failed to remove attachment.");
+  }
+}
+
 
   /**
    * ============================================================
@@ -288,113 +536,111 @@ export default function TaskDetailsScreen({ route }: Props) {
           </Text>
         </View>
 
-
-
         <View style={styles.notesHeader}>
-          <View style={styles.notesHeader}>
-            <View>
-              <Text variant="titleSmall" style={styles.sectionTitle}>
-                Cadet Work Details
-              </Text>
-
-              {!isEditingNotes && (
-                <Text
-                  variant="labelSmall"
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  Tap the pen icon to add or edit your entry
-                </Text>
-              )}
-            </View>
+          <View>
+            <Text variant="titleSmall" style={styles.sectionTitle}>
+              Cadet Work Details
+            </Text>
 
             {!isEditingNotes && (
-              <IconButton
-                icon="pencil"
-                size={20}
-                onPress={() => setIsEditingNotes(true)}
-                accessibilityLabel="Edit cadet entry"
-              />
+              <Text
+                variant="labelSmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
+                Tap the pen icon to add or edit your entry
+              </Text>
             )}
           </View>
+
+          {!isEditingNotes && (
+            <IconButton
+              icon="pencil"
+              size={20}
+              onPress={() => setIsEditingNotes(true)}
+              accessibilityLabel="Edit cadet entry"
+            />
+          )}
         </View>
 
-{/* ========================================================
-    Cadet Notes — Preview / Edit (STRICT)
-   ======================================================== */}
-{isEditingNotes ? (
-  <>
-    {/* Formatting toolbar — EDIT MODE ONLY */}
-    <View style={styles.toolbar}>
-      <Button onPress={() => appendMarkdown("**")}>B</Button>
-      <Button onPress={() => appendMarkdown("*")}>I</Button>
-      <Button onPress={appendBullet}>•</Button>
-    </View>
 
-    <TextInput
-      mode="outlined"
-      multiline
-      value={cadetNotes}
-      onChangeText={setCadetNotes}
-      placeholder="Describe what you did, observed, and learned…"
-      style={styles.notes}
-      autoFocus
-    />
+      {/* ========================================================
+          Cadet Notes — Preview / Edit (STRICT)
+        ======================================================== */}
+      {isEditingNotes ? (
+        <View style={[styles.cardSurface, styles.cardPadded]}>
+          {/* Formatting toolbar — EDIT MODE ONLY */}
+          <View style={styles.toolbar}>
+            <Button onPress={() => appendMarkdown("**")}>B</Button>
+            <Button onPress={() => appendMarkdown("*")}>I</Button>
+            <Button onPress={appendBullet}>•</Button>
+          </View>
 
+          <TextInput
+            mode="outlined"
+            multiline
+            value={cadetNotes}
+            onChangeText={setCadetNotes}
+            placeholder="Describe what you did, observed, and learned…"
+            style={styles.notes}
+            autoFocus
+          />
 
-    <View style={styles.notesActions}>
-      <KeelButton
-        mode="secondary"
-        onPress={() => {
-          setIsEditingNotes(false);
-        }}
-      >
-        Cancel
-      </KeelButton>
+          <View style={styles.notesActions}>
+            <KeelButton
+              mode="secondary"
+              onPress={() => {
+                setIsEditingNotes(false);
+              }}
+            >
+              Cancel
+            </KeelButton>
 
-      <KeelButton
-        mode="primary"
-        onPress={() => {
-          upsertTaskStatus({ taskKey, status, remarks: cadetNotes });
-          setIsEditingNotes(false);
-          toast.success("Draft saved.");
-        }}
-      >
-        Save
-      </KeelButton>
-    </View>
-  </>
-) : (
-
-      <View
-      style={[
-        styles.cardSurface,
-        styles.cardPadded,
-      ]}
-    >
-      {cadetNotes ? (
-        cadetNotes.split("\n").map((line, idx) => (
-          <Text
-            key={idx}
-            variant="bodyMedium"
-            style={styles.textPrimary}
-          >
-            {line.startsWith("- ")
-              ? "• " + line.replace("- ", "")
-              : line}
-          </Text>
-        ))
+            <KeelButton
+              mode="primary"
+              onPress={() => {
+                upsertTaskStatus({ taskKey, status, remarks: cadetNotes });
+                setIsEditingNotes(false);
+                toast.success("Draft saved.");
+              }}
+            >
+              Save
+            </KeelButton>
+          </View>
+        </View>
       ) : (
-        <Text
-          variant="bodyMedium"
-          style={[styles.textMuted, { color: theme.colors.onSurfaceVariant }]}
-        >
-          No details entered yet.
-        </Text>
+        <View style={[styles.cardSurface, styles.cardPadded]}>
+          {cadetNotes ? (
+            cadetNotes.split("\n").map((line, idx) => (
+              <Text key={idx} variant="bodyMedium" style={styles.textPrimary}>
+                {line.startsWith("- ") ? "• " + line.replace("- ", "") : line}
+              </Text>
+            ))
+          ) : (
+            <Text
+              variant="bodyMedium"
+              style={[styles.textMuted, { color: theme.colors.onSurfaceVariant }]}
+            >
+              No details entered yet.
+            </Text>
+          )}
+        </View>
       )}
-    </View>
 
+      {/* ========================================================
+          Task Evidence (Attachments) — PHASE 2A
+          ======================================================== */}
+      <TaskAttachments
+        taskInstanceId={taskKey}
+        taskStatus={status}
+        attachments={attachments}
+        onRefresh={reloadAttachments}
+        onAddPhoto={handleAddPhoto}
+        onAddGallery={handleAddGallery}
+        onAddDocument={handleAddDocument}
+        onOpen={handleOpenAttachment}
+        onDelete={handleDeleteAttachment}
+      />
 
-)}
 
 
       </ScrollView>

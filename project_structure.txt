@@ -73,9 +73,10 @@
 ¦   +-- assets
 ¦   ¦   +-- adaptive-icon.png
 ¦   ¦   +-- favicon.png
-¦   ¦   +-- icon.png
+¦   ¦   +-- keel-logo.png
 ¦   ¦   +-- splash-icon.png
 ¦   +-- src
+¦   ¦   +-- assets
 ¦   ¦   +-- auth
 ¦   ¦   ¦   +-- AuthContext.tsx
 ¦   ¦   +-- components
@@ -128,6 +129,7 @@
 ¦   ¦   ¦   +-- dailyLogs.ts
 ¦   ¦   ¦   +-- database.ts
 ¦   ¦   ¦   +-- seaService.ts
+¦   ¦   ¦   +-- taskAttachments.ts
 ¦   ¦   ¦   +-- taskGuidance.ts
 ¦   ¦   ¦   +-- tasks.ts
 ¦   ¦   ¦   +-- watchkeeping.ts
@@ -142,7 +144,6 @@
 ¦   ¦   +-- screens
 ¦   ¦   ¦   +-- tasks
 ¦   ¦   ¦   ¦   +-- index.ts
-¦   ¦   ¦   ¦   +-- TaskDetailScreen.tsx
 ¦   ¦   ¦   ¦   +-- TaskSectionScreen.tsx
 ¦   ¦   ¦   ¦   +-- TasksHomeScreen.tsx
 ¦   ¦   ¦   +-- DailyScreen.tsx

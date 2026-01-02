@@ -27,7 +27,15 @@ export type MainStackParamList = {
   MainTabs: undefined;
   StartSeaService: undefined;
 
-
+  /**
+   * Inner shell content
+   * - BottomTabNavigator
+   * - Task / Daily / Profile flows
+   *
+   * NOTE:
+   * Must be distinct from MainTabs to avoid nested-name warning.
+   */
+  MainShell: undefined;
 
   /**
    * Full-screen Sea Service Wizard
