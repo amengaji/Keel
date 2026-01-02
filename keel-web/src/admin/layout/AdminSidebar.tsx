@@ -1,11 +1,36 @@
 ﻿// keel-web/src/admin/layout/AdminSidebar.tsx
-// Shore Admin â€” Sidebar Navigation
-// Notes:
-// - Collapsible for density
-// - Uses brand primary color via CSS tokens
-// - Keep labels maritime-friendly and audit-friendly
+//
+// Keel Shore Admin — Sidebar Navigation (FINAL IA)
+// ----------------------------------------------------
+// PURPOSE:
+// - Maritime-correct information architecture
+// - Audit-first navigation
+// - Scales for Fleet / DPA / MMD usage
+//
+// UX PRINCIPLES:
+// - Domain-based grouping (not feature-based)
+// - Shallow navigation (max 2 levels)
+// - Clear authority separation
+// - Icons mandatory for scannability
 
 import { NavLink } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Ship,
+  Users,
+  BookCheck,
+  ListChecks,
+  FileCheck,
+  XCircle,
+  ShieldCheck,
+  Lock,
+  Archive,
+  BarChart3,
+  Settings,
+  Upload,
+  UserCog,
+  Layers,
+} from "lucide-react";
 
 type AdminSidebarProps = {
   collapsed: boolean;
@@ -14,21 +39,125 @@ type AdminSidebarProps = {
 type NavItem = {
   to: string;
   label: string;
-  shortLabel: string; // used when collapsed
+  icon: React.ReactNode;
 };
 
-const navItems: NavItem[] = [
-  { to: "/admin/dashboard", label: "Dashboard", shortLabel: "Dash" },
-  { to: "/admin/vessel-types", label: "Vessel Types", shortLabel: "Types" },
-  { to: "/admin/trb-task-matrix", label: "TRB Task Matrix", shortLabel: "TRB" },
-  { to: "/admin/imports", label: "Template Imports", shortLabel: "Import" },
-  { to: "/admin/vessels", label: "Vessels", shortLabel: "Vsl" },
-  { to: "/admin/assignments", label: "Assignments", shortLabel: "Asgn" },
-  { to: "/admin/trainees", label: "Trainees", shortLabel: "Trn" },
-  { to: "/admin/issuance", label: "Issuance", shortLabel: "PDF" },
-  { to: "/admin/users", label: "Users & Roles", shortLabel: "Users" },
-  { to: "/admin/audit", label: "Audit Logs", shortLabel: "Audit" },
-  { to: "/admin/settings", label: "Settings", shortLabel: "Set" },
+type NavSection = {
+  title: string;
+  items: NavItem[];
+};
+
+const sections: NavSection[] = [
+  {
+    title: "Command",
+    items: [
+      {
+        to: "/admin/dashboard",
+        label: "Dashboard",
+        icon: <LayoutDashboard size={18} />,
+      },
+    ],
+  },
+  {
+    title: "Fleet",
+    items: [
+      {
+        to: "/admin/vessels",
+        label: "Vessels",
+        icon: <Ship size={18} />,
+      },
+    ],
+  },
+  {
+    title: "Training",
+    items: [
+      {
+        to: "/admin/cadets",
+        label: "Cadets",
+        icon: <Users size={18} />,
+      },
+      {
+        to: "/admin/training-progress",
+        label: "Training Progress",
+        icon: <ListChecks size={18} />,
+      },
+      {
+        to: "/admin/trb-task-matrix",
+        label: "TRB Task Library",
+        icon: <BookCheck size={18} />,
+      },
+    ],
+  },
+  {
+    title: "Approvals",
+    items: [
+      {
+        to: "/admin/pending-signatures",
+        label: "Pending Signatures",
+        icon: <FileCheck size={18} />,
+      },
+      {
+        to: "/admin/rejected",
+        label: "Rejected / Returned",
+        icon: <XCircle size={18} />,
+      },
+    ],
+  },
+  {
+    title: "Audit & Compliance",
+    items: [
+      {
+        to: "/admin/audit",
+        label: "Audit Mode",
+        icon: <ShieldCheck size={18} />,
+      },
+      {
+        to: "/admin/locked-trbs",
+        label: "Locked TRBs",
+        icon: <Lock size={18} />,
+      },
+      {
+        to: "/admin/evidence",
+        label: "Evidence Repository",
+        icon: <Archive size={18} />,
+      },
+    ],
+  },
+  {
+    title: "Reports",
+    items: [
+      {
+        to: "/admin/reports",
+        label: "Reports",
+        icon: <BarChart3 size={18} />,
+      },
+    ],
+  },
+  {
+    title: "Administration",
+    items: [
+      {
+        to: "/admin/users",
+        label: "Users & Roles",
+        icon: <UserCog size={18} />,
+      },
+      {
+        to: "/admin/vessel-types",
+        label: "Vessel Types",
+        icon: <Layers size={18} />,
+      },
+      {
+        to: "/admin/imports",
+        label: "Imports",
+        icon: <Upload size={18} />,
+      },
+      {
+        to: "/admin/settings",
+        label: "Settings",
+        icon: <Settings size={18} />,
+      },
+    ],
+  },
 ];
 
 export function AdminSidebar({ collapsed }: AdminSidebarProps) {
@@ -40,18 +169,14 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
         collapsed ? "w-[72px]" : "w-[260px]",
       ].join(" ")}
     >
-      {/* Brand strip */}
+      {/* Brand */}
       <div className="h-14 flex items-center px-3 border-b border-[hsl(var(--border))]">
-        <div
-          className="h-9 w-9 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] flex items-center justify-center font-bold"
-          aria-label="Keel logo placeholder"
-          title="Keel"
-        >
+        <div className="h-9 w-9 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] flex items-center justify-center font-bold">
           K
         </div>
 
         {!collapsed && (
-          <div className="ml-3 leading-tight">
+          <div className="ml-3">
             <div className="font-semibold">Keel</div>
             <div className="text-xs text-[hsl(var(--muted-foreground))]">
               Shore Admin
@@ -60,40 +185,71 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="p-2 space-y-1">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              [
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm",
-                "transition-colors",
-                isActive
-                  ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-                  : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
-              ].join(" ")
-            }
-            aria-label={item.label}
-            title={item.label}
-          >
-            {/* Minimal â€œiconâ€ placeholder: we will replace with lucide icons later */}
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-[hsl(var(--border))] text-xs">
-              â€¢
-            </span>
-
-            <span className={collapsed ? "sr-only" : ""}>
-              {collapsed ? item.shortLabel : item.label}
-            </span>
-
-            {/* When collapsed, show short label as tooltip-like small text under dot (optional) */}
-            {collapsed && (
-              <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
-                {item.shortLabel}
-              </span>
+      {/* Navigation */}
+      <nav className="p-3 space-y-6">
+        {sections.map((section) => (
+          <div key={section.title}>
+            {!collapsed && (
+              <div className="px-3 mb-2 text-xs uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                {section.title}
+              </div>
             )}
-          </NavLink>
+
+            <div className="space-y-1">
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    [
+                      "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm",
+                      "transition-colors",
+                      isActive
+                        ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
+                        : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
+                    ].join(" ")
+                  }
+                  aria-label={item.label}
+                >
+                  {item.icon}
+
+                  {/* Expanded label */}
+                  {!collapsed && <span>{item.label}</span>}
+
+                  {/* Collapsed tooltip */}
+                  {collapsed && (
+                    <div
+                      className="
+                        pointer-events-none
+                        absolute left-full top-1/2 z-50
+                        ml-3 -translate-y-1/2
+                        whitespace-nowrap
+
+                        rounded-md
+                        bg-[hsl(var(--card))]
+                        px-3 py-1.5
+                        text-xs
+                        text-[hsl(var(--foreground))]
+
+                        shadow-lg
+                        ring-1 ring-black/10 dark:ring-white/10
+
+                        opacity-0
+                        translate-x-1
+                        transition-all duration-150
+
+                        group-hover:opacity-100
+                        group-hover:translate-x-0
+                      "
+                    >
+                      {item.label}
+                    </div>
+                  )}
+                </NavLink>
+
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
     </aside>

@@ -216,13 +216,23 @@
 ¦   ¦   +-- vite.svg
 ¦   +-- src
 ¦   ¦   +-- admin
+¦   ¦   ¦   +-- audit
+¦   ¦   ¦   ¦   +-- AuditLandingPage.tsx
+¦   ¦   ¦   ¦   +-- AuditLayout.tsx
+¦   ¦   ¦   ¦   +-- AuditTRBPage.tsx
+¦   ¦   ¦   +-- components
+¦   ¦   ¦   ¦   +-- ui
+¦   ¦   ¦   ¦       +-- Card.tsx
 ¦   ¦   ¦   +-- layout
 ¦   ¦   ¦   ¦   +-- AdminLayout.tsx
 ¦   ¦   ¦   ¦   +-- AdminSidebar.tsx
 ¦   ¦   ¦   ¦   +-- AdminTopbar.tsx
 ¦   ¦   ¦   +-- pages
-¦   ¦   ¦       +-- AdminDashboardPage.tsx
-¦   ¦   ¦       +-- AdminPlaceholderPage.tsx
+¦   ¦   ¦   ¦   +-- AdminDashboardPage.tsx
+¦   ¦   ¦   ¦   +-- AdminPlaceholderPage.tsx
+¦   ¦   ¦   +-- security
+¦   ¦   ¦       +-- SignatureVaultContext.tsx
+¦   ¦   ¦       +-- SignatureVaultDialog.tsx
 ¦   ¦   +-- assets
 ¦   ¦   ¦   +-- react.svg
 ¦   ¦   +-- App.css
@@ -233,6 +243,7 @@
 ¦   +-- eslint.config.js
 ¦   +-- index.html
 ¦   +-- package.json
+¦   +-- postcss.config.cjs
 ¦   +-- README.md
 ¦   +-- tailwind.config.js
 ¦   +-- tsconfig.app.json
@@ -242,5 +253,7 @@
 +-- .gitignore
 +-- package.json
 +-- project_structure.txt
++-- step-fix-tailwind-postcss-v4.ps1
++-- step-fix-tailwind-postcss.ps1
 +-- step3-admin-shell.ps1
 +-- tree.ps1

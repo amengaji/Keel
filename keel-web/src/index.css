@@ -1,63 +1,46 @@
-﻿/* src/index.css
-   Keel Web — Global Theme Tokens (FIXED)
-   ----------------------------------------------------
-   PURPOSE:
-   - True surface elevation (L0 → L3)
-   - Cards look like cards (finally)
-   - Calm maritime / control-room dark mode
-   - Clean, readable light mode
-   - Primary color remains #3194A0
-*/
+﻿/* src/index.css */
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@theme {
+  /* Surface colors */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
 
-/* ========================================================================== */
-/* LIGHT MODE — Office / Shore Environment                                     */
-/* ========================================================================== */
-:root {
-  /* Surface levels */
-  --background: 210 30% 98%;     /* L0: app background */
-  --foreground: 222 47% 11%;
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
 
-  --card: 0 0% 100%;             /* L2: cards */
-  --card-foreground: 222 47% 11%;
-
-  --muted: 210 25% 94%;          /* L1: sections */
-  --muted-foreground: 215 16% 40%;
-
-  --border: 214 20% 88%;
+  --color-border: hsl(var(--border));
 
   /* Brand */
-  --primary: 186 53% 41%;        /* #3194A0 */
-  --primary-foreground: 0 0% 100%;
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
 }
 
-/* ========================================================================== */
-/* DARK MODE — Bridge / Control Room                                           */
-/* ========================================================================== */
-.dark {
-  /* Surface levels (CLEAR separation) */
-  --background: 222 40% 6%;      /* L0: deep ocean background */
-  --foreground: 210 40% 96%;
+@layer base {
+  :root {
+    --background: 210 30% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --muted: 210 25% 94%;
+    --muted-foreground: 215 16% 40%;
+    --border: 214 20% 88%;
+    --primary: 186 53% 41%;
+    --primary-foreground: 0 0% 100%;
+  }
 
-  --muted: 222 32% 10%;          /* L1: section background */
-  --muted-foreground: 215 20% 65%;
-
-  --card: 222 28% 14%;           /* L2: cards */
-  --card-foreground: 210 40% 96%;
-
-  --border: 222 20% 18%;
-
-  /* Brand (unchanged) */
-  --primary: 186 53% 41%;
-  --primary-foreground: 0 0% 100%;
-}
-
-/* ========================================================================== */
-/* Base sizing                                                                 */
-/* ========================================================================== */
-html, body, #root {
-  height: 100%;
+  .dark {
+    --background: 222 40% 6%;
+    --foreground: 210 40% 96%;
+    --card: 222 28% 14%;
+    --card-foreground: 210 40% 96%;
+    --muted: 222 32% 10%;
+    --muted-foreground: 215 20% 65%;
+    --border: 222 20% 18%;
+    --primary: 186 53% 41%;
+    --primary-foreground: 0 0% 100%;
+  }
 }
