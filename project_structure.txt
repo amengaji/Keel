@@ -212,7 +212,35 @@
 ¦   +-- package.json
 ¦   +-- tsconfig.json
 +-- keel-web
+¦   +-- public
+¦   ¦   +-- vite.svg
+¦   +-- src
+¦   ¦   +-- admin
+¦   ¦   ¦   +-- layout
+¦   ¦   ¦   ¦   +-- AdminLayout.tsx
+¦   ¦   ¦   ¦   +-- AdminSidebar.tsx
+¦   ¦   ¦   ¦   +-- AdminTopbar.tsx
+¦   ¦   ¦   +-- pages
+¦   ¦   ¦       +-- AdminDashboardPage.tsx
+¦   ¦   ¦       +-- AdminPlaceholderPage.tsx
+¦   ¦   +-- assets
+¦   ¦   ¦   +-- react.svg
+¦   ¦   +-- App.css
+¦   ¦   +-- App.tsx
+¦   ¦   +-- index.css
+¦   ¦   +-- main.tsx
+¦   +-- .gitignore
+¦   +-- eslint.config.js
+¦   +-- index.html
+¦   +-- package.json
+¦   +-- README.md
+¦   +-- tailwind.config.js
+¦   +-- tsconfig.app.json
+¦   +-- tsconfig.json
+¦   +-- tsconfig.node.json
+¦   +-- vite.config.ts
 +-- .gitignore
 +-- package.json
 +-- project_structure.txt
++-- step3-admin-shell.ps1
 +-- tree.ps1
