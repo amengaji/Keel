@@ -229,12 +229,30 @@
 ¦   ¦   ¦   ¦   +-- AdminSidebar.tsx
 ¦   ¦   ¦   ¦   +-- AdminTopbar.tsx
 ¦   ¦   ¦   +-- pages
+¦   ¦   ¦   ¦   +-- reports
+¦   ¦   ¦   ¦   ¦   +-- AdminAuditReadinessReportPage.tsx
+¦   ¦   ¦   ¦   ¦   +-- AdminEvidenceCompletenessReportPage.tsx
+¦   ¦   ¦   ¦   ¦   +-- AdminSignatureRegisterReportPage.tsx
+¦   ¦   ¦   ¦   ¦   +-- AdminTRBStatusReportPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminApprovalsPage.tsx
+¦   ¦   ¦   ¦   +-- AdminAssignmentHistoryPage.tsx
+¦   ¦   ¦   ¦   +-- AdminCadetDetailPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminCadetsPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminDashboardPage.tsx
+¦   ¦   ¦   ¦   +-- AdminEvidenceRepositoryPage.tsx
+¦   ¦   ¦   ¦   +-- AdminImportsPage.tsx
+¦   ¦   ¦   ¦   +-- AdminLockedTRBsPage.tsx
+¦   ¦   ¦   ¦   +-- AdminPendingSignaturesPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminPlaceholderPage.tsx
+¦   ¦   ¦   ¦   +-- AdminReportsPage.tsx
+¦   ¦   ¦   ¦   +-- AdminSystemSettingsPage.tsx
+¦   ¦   ¦   ¦   +-- AdminTraineeCreatePage.tsx
+¦   ¦   ¦   ¦   +-- AdminTrainingProgressPage.tsx
+¦   ¦   ¦   ¦   +-- AdminUsersRolesPage.tsx
+¦   ¦   ¦   ¦   +-- AdminVesselCreatePage.tsx
 ¦   ¦   ¦   ¦   +-- AdminVesselDetailPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminVesselsPage.tsx
+¦   ¦   ¦   ¦   +-- AdminVesselTypesPage.tsx
 ¦   ¦   ¦   +-- security
 ¦   ¦   ¦       +-- auditData.ts
 ¦   ¦   ¦       +-- SignatureVaultContext.tsx

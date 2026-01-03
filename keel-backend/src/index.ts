@@ -21,6 +21,7 @@ import vesselAssignmentRoutes from "./routes/vesselAssignment.routes.js";
 import familiarisationInitRoutes from "./routes/familiarisationInit.routes.js";
 import familiarisationTaskUpdateRoutes from "./routes/familiarisationTaskUpdate.routes.js";
 import familiarisationSectionSubmitRoutes from "./routes/familiarisationSectionSubmit.routes.js";
+import adminUsersRolesRoutes from "./admin/routes/adminUsersRoles.routes.js";
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use("/vessels", vesselAssignmentRoutes);
 app.use("/api", familiarisationInitRoutes);
 app.use("/api", familiarisationTaskUpdateRoutes);
 app.use("/api", familiarisationSectionSubmitRoutes);
+app.use("/api/v1/admin", adminUsersRolesRoutes);
 
 
 // Health check route
@@ -78,15 +80,24 @@ async function seedRoles() {
   console.log("⭐ Default roles ensured");
 }
 
-// Connect + Sync + Seed + Start Server
+// -----------------------------------------------------------------------------
+// DATABASE STARTUP
+// -----------------------------------------------------------------------------
+// IMPORTANT (Phase 3 - Track A):
+// - We DO NOT use `alter: true`
+// - Schema is considered STABLE
+// - Admin DB views depend on columns and must not break
+// - All schema changes must be done via migrations (later phases)
+// -----------------------------------------------------------------------------
+
 sequelize
-  .sync({ alter: true })
+  .authenticate()
   .then(async () => {
-    console.log("🟢 Database connected + models synced");
+    console.log("🟢 Database connected (no schema alterations)");
     console.log("🔍 DB NAME:", process.env.DB_NAME);
     console.log("🔍 DB HOST:", process.env.DB_HOST);
 
-    // ENSURE ROLES EXIST
+    // ENSURE ROLES EXIST (safe: data-level, not schema-level)
     await seedRoles();
 
     app.listen(PORT, () => {
