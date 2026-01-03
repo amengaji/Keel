@@ -230,8 +230,11 @@
 ¦   ¦   ¦   ¦   +-- AdminTopbar.tsx
 ¦   ¦   ¦   +-- pages
 ¦   ¦   ¦   ¦   +-- AdminApprovalsPage.tsx
+¦   ¦   ¦   ¦   +-- AdminCadetsPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminDashboardPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminPlaceholderPage.tsx
+¦   ¦   ¦   ¦   +-- AdminVesselDetailPage.tsx
+¦   ¦   ¦   ¦   +-- AdminVesselsPage.tsx
 ¦   ¦   ¦   +-- security
 ¦   ¦   ¦       +-- auditData.ts
 ¦   ¦   ¦       +-- SignatureVaultContext.tsx

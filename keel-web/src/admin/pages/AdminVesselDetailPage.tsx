@@ -52,6 +52,31 @@ const vessel = {
 };
 
 /* -------------------------------------------------------------------------- */
+/* Mock Assigned Trainees (Read-Only)                                          */
+/* -------------------------------------------------------------------------- */
+/* NOTE:
+   This mirrors Cadet → Vessel assignments.
+   Replace with backend linkage in Phase 3.
+*/
+const assignedTrainees = [
+  {
+    id: "c1",
+    name: "Rahul Sharma",
+    stream: "Deck Cadet",
+    trbStatus: "In Progress",
+    auditReady: false,
+  },
+  {
+    id: "c2",
+    name: "Amit Verma",
+    stream: "Engine Cadet",
+    trbStatus: "Completed",
+    auditReady: true,
+  },
+];
+
+
+/* -------------------------------------------------------------------------- */
 /* Small helper — label + value row                                            */
 /* -------------------------------------------------------------------------- */
 function InfoRow({
@@ -169,6 +194,91 @@ export function AdminVesselDetailPage() {
           />
         </div>
       </div>
+
+
+      {/* ============================ ASSIGNED TRAINEES ============================ */}
+        <div
+        className="
+            rounded-lg
+            border border-[hsl(var(--border))]
+            bg-[hsl(var(--card))]
+            p-4
+        "
+        >
+        <h2 className="text-sm font-medium mb-3 flex items-center gap-2">
+            Assigned Trainees
+        </h2>
+
+        {assignedTrainees.length === 0 ? (
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            No trainees are currently assigned to this vessel.
+            </p>
+        ) : (
+            <table className="w-full text-sm">
+            <thead className="bg-[hsl(var(--muted))]">
+                <tr>
+                <th className="px-3 py-2 text-left font-medium">
+                    Trainee
+                </th>
+                <th className="px-3 py-2 text-left font-medium">
+                    Stream
+                </th>
+                <th className="px-3 py-2 text-left font-medium">
+                    TRB Status
+                </th>
+                <th className="px-3 py-2 text-center font-medium">
+                    Audit
+                </th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {assignedTrainees.map((trainee) => (
+                <tr
+                    key={trainee.id}
+                    onClick={() =>
+                    navigate(`/admin/cadets/${trainee.id}`)
+                    }
+                    className="
+                    border-t border-[hsl(var(--border))]
+                    hover:bg-[hsl(var(--muted))]
+                    cursor-pointer
+                    "
+                >
+                    <td className="px-3 py-2 font-medium">
+                    {trainee.name}
+                    </td>
+                    <td className="px-3 py-2">
+                    {trainee.stream}
+                    </td>
+                    <td className="px-3 py-2">
+                    {trainee.trbStatus}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                    {trainee.auditReady ? (
+                        <span className="text-xs px-2 py-1 rounded-md bg-green-500/10 text-green-600">
+                        Ready
+                        </span>
+                    ) : (
+                        <span className="text-xs px-2 py-1 rounded-md bg-red-500/10 text-red-600">
+                        Not Ready
+                        </span>
+                    )}
+                    </td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
+        )}
+
+        <p className="mt-3 text-xs text-[hsl(var(--muted-foreground))]">
+            Trainee assignments are read-only during audit review.
+            Reassignment is restricted once TRB activity exists.
+        </p>
+        </div>
+
+
+
 
       {/* ============================ AUDIT POSTURE ============================ */}
       <div

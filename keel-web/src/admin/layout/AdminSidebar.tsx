@@ -1,6 +1,6 @@
 ﻿// keel-web/src/admin/layout/AdminSidebar.tsx
 //
-// Keel Shore Admin — Sidebar Navigation (FINAL IA)
+// Keel Shore Admin — Sidebar Navigation (Phase 2.5 IA)
 // ----------------------------------------------------
 // PURPOSE:
 // - Maritime-correct information architecture
@@ -18,7 +18,6 @@ import {
   LayoutDashboard,
   Ship,
   Users,
-  BookCheck,
   ListChecks,
   FileCheck,
   XCircle,
@@ -40,6 +39,7 @@ type NavItem = {
   to: string;
   label: string;
   icon: React.ReactNode;
+  badge?: number
 };
 
 type NavSection = {
@@ -48,6 +48,7 @@ type NavSection = {
 };
 
 const sections: NavSection[] = [
+  /* ========================== COMMAND ========================== */
   {
     title: "Command",
     items: [
@@ -58,19 +59,18 @@ const sections: NavSection[] = [
       },
     ],
   },
+
+  
+
+  /* ======================== OPERATIONS ========================= */
   {
-    title: "Fleet",
+    title: "Operations",
     items: [
       {
         to: "/admin/vessels",
         label: "Vessels",
         icon: <Ship size={18} />,
       },
-    ],
-  },
-  {
-    title: "Training",
-    items: [
       {
         to: "/admin/cadets",
         label: "Cadets",
@@ -81,13 +81,10 @@ const sections: NavSection[] = [
         label: "Training Progress",
         icon: <ListChecks size={18} />,
       },
-      {
-        to: "/admin/trb-task-matrix",
-        label: "TRB Task Library",
-        icon: <BookCheck size={18} />,
-      },
     ],
   },
+
+  /* ======================== APPROVALS ========================== */
   {
     title: "Approvals",
     items: [
@@ -95,14 +92,19 @@ const sections: NavSection[] = [
         to: "/admin/pending-signatures",
         label: "Pending Signatures",
         icon: <FileCheck size={18} />,
+        badge: 3,
       },
       {
         to: "/admin/rejected",
         label: "Rejected / Returned",
         icon: <XCircle size={18} />,
+        badge: 3, // mock count for Phase 2
+
       },
     ],
   },
+
+  /* ===================== AUDIT & COMPLIANCE ==================== */
   {
     title: "Audit & Compliance",
     items: [
@@ -123,6 +125,8 @@ const sections: NavSection[] = [
       },
     ],
   },
+
+  /* ========================= REPORTS =========================== */
   {
     title: "Reports",
     items: [
@@ -133,8 +137,10 @@ const sections: NavSection[] = [
       },
     ],
   },
+
+  /* ========================= SETTINGS ========================== */
   {
-    title: "Administration",
+    title: "Settings",
     items: [
       {
         to: "/admin/users",
@@ -153,7 +159,7 @@ const sections: NavSection[] = [
       },
       {
         to: "/admin/settings",
-        label: "Settings",
+        label: "System Settings",
         icon: <Settings size={18} />,
       },
     ],
@@ -161,6 +167,15 @@ const sections: NavSection[] = [
 ];
 
 export function AdminSidebar({ collapsed }: AdminSidebarProps) {
+
+  const sectionTone: Record<string, string> = {
+  "Command": "",
+  "Fleet": "",
+  "Training": "",
+  "Approvals": "border-l-2 border-yellow-500/50 pl-2",
+  "Audit & Compliance": "border-l-2 border-red-500/50 pl-2",
+  "Settings": "opacity-70",
+};
   return (
     <aside
       className={[
@@ -169,7 +184,7 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
         collapsed ? "w-[72px]" : "w-[260px]",
       ].join(" ")}
     >
-      {/* Brand */}
+      {/* ============================ BRAND ============================ */}
       <div className="h-14 flex items-center px-3 border-b border-[hsl(var(--border))]">
         <div className="h-9 w-9 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] flex items-center justify-center font-bold">
           K
@@ -185,10 +200,10 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
         )}
       </div>
 
-      {/* Navigation */}
+      {/* ========================== NAVIGATION ========================= */}
       <nav className="p-3 space-y-6">
         {sections.map((section) => (
-          <div key={section.title}>
+          <div key={section.title}className={sectionTone[section.title] ?? ""}>
             {!collapsed && (
               <div className="px-3 mb-2 text-xs uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                 {section.title}
@@ -197,56 +212,46 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
 
             <div className="space-y-1">
               {section.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    [
-                      "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm",
-                      "transition-colors",
-                      isActive
-                        ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-                        : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
-                    ].join(" ")
-                  }
-                  aria-label={item.label}
-                >
-                  {item.icon}
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  [
+                    "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm",
+                    "transition-colors",
+                    isActive
+                      ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
+                      : item.label === "Audit Mode"
+                        ? "hover:bg-red-500/10 text-[hsl(var(--foreground))]"
+                        : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]"
+                  ].join(" ")
+                }
+                aria-label={item.label}
+              >
+                {item.icon}
 
-                  {/* Expanded label */}
-                  {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span>{item.label=== "Audit Mode" ? "Audit Mode (Read-only)": item.label}</span>}
 
-                  {/* Collapsed tooltip */}
-                  {collapsed && (
-                    <div
-                      className="
-                        pointer-events-none
-                        absolute left-full top-1/2 z-50
-                        ml-3 -translate-y-1/2
-                        whitespace-nowrap
-
-                        rounded-md
-                        bg-[hsl(var(--card))]
-                        px-3 py-1.5
-                        text-xs
-                        text-[hsl(var(--foreground))]
-
-                        shadow-lg
-                        ring-1 ring-black/10 dark:ring-white/10
-
-                        opacity-0
-                        translate-x-1
-                        transition-all duration-150
-
-                        group-hover:opacity-100
-                        group-hover:translate-x-0
-                      "
-                    >
-                      {item.label}
-                    </div>
-                  )}
-                </NavLink>
-
+                {/* Badge */}
+                {item.badge !== undefined && (
+                  <span
+                    className="
+                      ml-auto
+                      min-w-[18px]
+                      h-[18px]
+                      px-1
+                      rounded-full
+                      bg-yellow-500/20
+                      text-yellow-600
+                      text-[10px]
+                      font-semibold
+                      flex items-center justify-center
+                    "
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </NavLink>
               ))}
             </div>
           </div>

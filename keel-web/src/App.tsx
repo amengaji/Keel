@@ -11,11 +11,17 @@ import { AdminPlaceholderPage } from "./admin/pages/AdminPlaceholderPage";
 import { AdminApprovalsPage } from "./admin/pages/AdminApprovalsPage";
 import { AdminVesselsPage } from "./admin/pages/AdminVesselsPage";
 import { AdminVesselDetailPage } from "./admin/pages/AdminVesselDetailPage";
-
+import { AdminCadetsPage } from "./admin/pages/AdminCadetsPage";
+import { AdminCadetDetailPage } from "./admin/pages/AdminCadetDetailPage";
+import { AdminVesselCreatePage } from "./admin/pages/AdminVesselCreatePage";
+import { AdminTraineeCreatePage } from "./admin/pages/AdminTraineeCreatePage";
 import { AuditLayout } from "./admin/audit/AuditLayout";
 import { AuditLandingPage } from "./admin/audit/AuditLandingPage";
 import { AuditTRBPage } from "./admin/audit/AuditTRBPage";
 import { FinalTRBLockPage } from "./admin/audit/FinalTRBLockPage";
+import { AdminTrainingProgressPage } from "./admin/pages/AdminTrainingProgressPage";
+import { AdminLockedTRBsPage } from "./admin/pages/AdminLockedTRBsPage";
+import { AdminEvidenceRepositoryPage } from "./admin/pages/AdminEvidenceRepositoryPage";
 
 function applyThemeFromStorage() {
   const saved = localStorage.getItem("keel_theme");
@@ -68,8 +74,39 @@ export default function App() {
             path="vessels/:vesselId"
             element={<AdminVesselDetailPage />}
           />
+          <Route
+            path="vessels/create"
+            element={<AdminVesselCreatePage />}
+          />
 
+          {/* Cadets */}
+          <Route
+            path="cadets"
+            element={<AdminCadetsPage />}
+          />
+          <Route
+            path="cadets/create"
+            element={<AdminTraineeCreatePage />}
+          />
+          <Route
+            path="cadets/:cadetId"
+            element={<AdminCadetDetailPage />}
+          />
 
+          <Route
+            path="training-progress"
+            element={<AdminTrainingProgressPage/>}
+          />
+
+          {/* Compliance register (Phase 2.5) */}
+          <Route
+            path="locked-trbs"
+            element={<AdminLockedTRBsPage />}
+          />
+          <Route
+            path="evidence"
+            element={<AdminEvidenceRepositoryPage />}
+          />
           {/* Existing placeholders */}
           <Route path="audit" element={<AdminPlaceholderPage title="Audit Logs" />} />
           <Route path="settings" element={<AdminPlaceholderPage title="Settings" />} />
