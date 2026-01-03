@@ -76,7 +76,6 @@
 ¦   ¦   +-- keel-logo.png
 ¦   ¦   +-- splash-icon.png
 ¦   +-- src
-¦   ¦   +-- assets
 ¦   ¦   +-- auth
 ¦   ¦   ¦   +-- AuthContext.tsx
 ¦   ¦   +-- components
@@ -220,6 +219,8 @@
 ¦   ¦   ¦   ¦   +-- AuditLandingPage.tsx
 ¦   ¦   ¦   ¦   +-- AuditLayout.tsx
 ¦   ¦   ¦   ¦   +-- AuditTRBPage.tsx
+¦   ¦   ¦   ¦   +-- FinalTRBLockPage.tsx
+¦   ¦   ¦   ¦   +-- lockTRB.ts
 ¦   ¦   ¦   +-- components
 ¦   ¦   ¦   ¦   +-- ui
 ¦   ¦   ¦   ¦       +-- Card.tsx
@@ -228,9 +229,11 @@
 ¦   ¦   ¦   ¦   +-- AdminSidebar.tsx
 ¦   ¦   ¦   ¦   +-- AdminTopbar.tsx
 ¦   ¦   ¦   +-- pages
+¦   ¦   ¦   ¦   +-- AdminApprovalsPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminDashboardPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminPlaceholderPage.tsx
 ¦   ¦   ¦   +-- security
+¦   ¦   ¦       +-- auditData.ts
 ¦   ¦   ¦       +-- SignatureVaultContext.tsx
 ¦   ¦   ¦       +-- SignatureVaultDialog.tsx
 ¦   ¦   +-- assets

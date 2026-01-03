@@ -1,214 +1,220 @@
 // keel-web/src/admin/security/SignatureVaultContext.tsx
 //
-// Signature Vault — Phase 2.1 (UX + State Only)
+// Keel — Signature Vault Context (Phase 2.4)
+// ----------------------------------------------------
+// PURPOSE:
+// - Central authority “unlock” state (Master / CTO / etc.)
+// - Session-limited unlock (PIN-based UX only)
+// - Provides guard helpers for actions like TRB locking
 //
-// PURPOSE (Maritime UX):
-// - Master/CTO unlocks once per session (PIN)
-// - After unlock, app can apply “stored signature” actions without repeated prompts
-// - Session auto-expires (officers hand over devices / shift changes)
-//
-// SECURITY NOTE (Phase 2A):
-// - This is UI/state only. No backend, no crypto, no biometrics.
-// - PIN is a mock placeholder and MUST be replaced later with real policy/backend.
+// IMPORTANT:
+// - UX + state only (no backend)
+// - Secure PIN validation is mock
+// - Production: unlock should be backed by device biometrics + server policy
 
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { toast } from "sonner";
+import React, { createContext, useContext, useMemo, useState } from "react";
 
-/* -------------------------------------------------------------------------- */
-/* Types                                                                      */
-/* -------------------------------------------------------------------------- */
+export type VaultUnlockRole =
+  | "MASTER"
+  | "CHIEF_ENGINEER"
+  | "CTO"
+  | "SHORE_ADMIN"
+  | null;
 
-export type SignatureRole = "MASTER" | "CTO";
-
-type SignatureVaultState = {
-  unlockedRole: SignatureRole | null;
-  expiresAtMs: number | null;
-};
+// Your domain correction:
+// CTO means different physical ranks based on trainee category.
+// We keep the “unlock” label as CTO,
+// but expose an “effective authority” role for audit logging.
+export type TraineeCategory =
+  | "DECK_CADET"
+  | "ENGINE_CADET"
+  | "ETO_CADET"
+  | "DECK_RATING"
+  | "ENGINE_RATING";
 
 type SignatureVaultContextValue = {
-  // Current session state
+  // Session state
   isUnlocked: boolean;
-  unlockedRole: SignatureRole | null;
-  expiresAtMs: number | null;
+  unlockedRole: VaultUnlockRole;
 
-  // UI control
+  // Dialog control (your existing UX)
   isDialogOpen: boolean;
-  openDialog: (role: SignatureRole) => void;
+  dialogRole: Exclude<VaultUnlockRole, null> | null;
+  openDialog: (role: Exclude<VaultUnlockRole, null>) => void;
   closeDialog: () => void;
 
-  // Session operations
+  // Unlock / Lock actions
   unlockWithPin: (pin: string) => boolean;
   lockNow: () => void;
 
-  // Readable display helper
+  // UX helper: remaining minutes (optional)
   getRemainingMinutes: () => number | null;
 
-  // Selected role to unlock (chosen by user before entering PIN)
-  requestedRole: SignatureRole | null;
+  // Authority helpers (Phase 2.4)
+  getEffectiveAuthorityRole: (category: TraineeCategory) => string;
+  canFinalizeTRB: (category: TraineeCategory) => boolean;
 };
 
-/* -------------------------------------------------------------------------- */
-/* Configuration (Phase 2A)                                                   */
-/* -------------------------------------------------------------------------- */
+const SignatureVaultContext = createContext<SignatureVaultContextValue | null>(
+  null
+);
 
-// IMPORTANT: Replace this with backend policy later.
-// For now we keep a simple default PIN for UX testing.
-const DEFAULT_MOCK_PIN = "1234";
+export function SignatureVaultProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // -------------------------------------------------------------------------
+  // Core session state
+  // -------------------------------------------------------------------------
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [unlockedRole, setUnlockedRole] = useState<VaultUnlockRole>(null);
 
-// Session duration after successful unlock (minutes).
-// Maritime rationale: long enough for a coffee-break approval batch,
-// short enough to reduce risk on shared devices.
-const SESSION_DURATION_MIN = 20;
-
-// LocalStorage key for session persistence across refreshes.
-const STORAGE_KEY = "keel_signature_vault_session_v1";
-
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
-
-function nowMs(): number {
-  return Date.now();
-}
-
-function loadSession(): SignatureVaultState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { unlockedRole: null, expiresAtMs: null };
-    const parsed = JSON.parse(raw) as SignatureVaultState;
-
-    // Guard against malformed data
-    if (!parsed || typeof parsed !== "object") return { unlockedRole: null, expiresAtMs: null };
-
-    // Expired session should not revive
-    if (parsed.expiresAtMs && parsed.expiresAtMs <= nowMs()) {
-      return { unlockedRole: null, expiresAtMs: null };
-    }
-
-    return {
-      unlockedRole: parsed.unlockedRole ?? null,
-      expiresAtMs: parsed.expiresAtMs ?? null,
-    };
-  } catch {
-    return { unlockedRole: null, expiresAtMs: null };
-  }
-}
-
-function saveSession(state: SignatureVaultState) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // If storage fails, keep UX working in-memory.
-  }
-}
-
-function clearSession() {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignore
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Context                                                                    */
-/* -------------------------------------------------------------------------- */
-
-const SignatureVaultContext = createContext<SignatureVaultContextValue | null>(null);
-
-export function SignatureVaultProvider({ children }: { children: React.ReactNode }) {
-  const initial = useMemo(() => loadSession(), []);
-  const [state, setState] = useState<SignatureVaultState>(initial);
-
+  // Dialog state (PIN entry UI)
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [requestedRole, setRequestedRole] = useState<SignatureRole | null>(null);
+  const [dialogRole, setDialogRole] =
+    useState<Exclude<VaultUnlockRole, null> | null>(null);
 
-  const isUnlocked = useMemo(() => {
-    if (!state.unlockedRole || !state.expiresAtMs) return false;
-    return state.expiresAtMs > nowMs();
-  }, [state.expiresAtMs, state.unlockedRole]);
+  // Session timer (mock)
+  const [unlockedAtMs, setUnlockedAtMs] = useState<number | null>(null);
+  const sessionMinutes = 15;
 
-  const openDialog = useCallback((role: SignatureRole) => {
-    setRequestedRole(role);
+  // -------------------------------------------------------------------------
+  // Dialog control
+  // -------------------------------------------------------------------------
+  function openDialog(role: Exclude<VaultUnlockRole, null>) {
+    setDialogRole(role);
     setIsDialogOpen(true);
-  }, []);
+  }
 
-  const closeDialog = useCallback(() => {
+  function closeDialog() {
     setIsDialogOpen(false);
-    // Keep requestedRole until explicitly changed (helps quick retries),
-    // but you can clear if you prefer stricter behavior.
-  }, []);
+    setDialogRole(null);
+  }
 
-  const lockNow = useCallback(() => {
-    setState({ unlockedRole: null, expiresAtMs: null });
-    clearSession();
-    toast.message("Signature Vault locked");
-  }, []);
+  // -------------------------------------------------------------------------
+  // Unlock logic (PIN-based mock)
+  // -------------------------------------------------------------------------
+  function unlockWithPin(pin: string): boolean {
+    // IMPORTANT: Mock PIN logic for Phase 2.1/2.4
+    // Production: validate via secure credential store and/or backend.
+    const normalized = pin.trim();
 
-  const unlockWithPin = useCallback(
-    (pin: string) => {
-      // 1) Basic validation
-      if (!requestedRole) {
-        toast.error("Select a signature role first (Master or CTO).");
-        return false;
-      }
+    if (!dialogRole) return false;
 
-      // 2) PIN check (Phase 2A mock)
-      if (pin !== DEFAULT_MOCK_PIN) {
-        toast.error("Incorrect PIN");
-        return false;
-      }
+    // Simple mock: any 4+ digit pin unlocks
+    const ok = /^[0-9]{4,}$/.test(normalized);
 
-      // 3) Create a session
-      const expiresAtMs = nowMs() + SESSION_DURATION_MIN * 60 * 1000;
+    if (!ok) return false;
 
-      const next: SignatureVaultState = {
-        unlockedRole: requestedRole,
-        expiresAtMs,
-      };
+    setIsUnlocked(true);
+    setUnlockedRole(dialogRole);
+    setUnlockedAtMs(Date.now());
 
-      setState(next);
-      saveSession(next);
+    closeDialog();
+    return true;
+  }
 
-      toast.success(`${requestedRole} signature unlocked (${SESSION_DURATION_MIN} min)`);
-      setIsDialogOpen(false);
-      return true;
-    },
-    [requestedRole]
+  function lockNow() {
+    setIsUnlocked(false);
+    setUnlockedRole(null);
+    setUnlockedAtMs(null);
+    closeDialog();
+  }
+
+  // -------------------------------------------------------------------------
+  // Session minutes helper
+  // -------------------------------------------------------------------------
+  function getRemainingMinutes(): number | null {
+    if (!isUnlocked || !unlockedAtMs) return null;
+
+    const elapsedMs = Date.now() - unlockedAtMs;
+    const elapsedMin = Math.floor(elapsedMs / 60000);
+
+    const remaining = sessionMinutes - elapsedMin;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  // -------------------------------------------------------------------------
+  // Authority mapping (your domain rule)
+  // -------------------------------------------------------------------------
+  function getEffectiveAuthorityRole(category: TraineeCategory): string {
+    // PURPOSE:
+    // - If someone unlocked as CTO, we translate to the real authority label
+    //   for audit logs. This is critical for MMD/DG Shipping trust.
+    if (!unlockedRole) return "UNKNOWN";
+
+    if (unlockedRole === "MASTER") return "MASTER";
+    if (unlockedRole === "CHIEF_ENGINEER") return "CHIEF_ENGINEER";
+    if (unlockedRole === "SHORE_ADMIN") return "SHORE_ADMIN";
+
+    // unlockedRole === "CTO"
+    if (category === "DECK_CADET") return "CTO_DECK (Chief Officer)";
+    if (category === "ENGINE_CADET") return "CTO_ENGINE (2nd Engineer)";
+    if (category === "ETO_CADET") return "CTO_ETO (Chief Engineer)";
+    if (category === "DECK_RATING") return "CTO_DECK_RATING (Assigned Officer)";
+    if (category === "ENGINE_RATING") return "CTO_ENGINE_RATING (Assigned Officer)";
+
+    return "CTO";
+  }
+
+  function canFinalizeTRB(_category: TraineeCategory): boolean {
+    // PURPOSE:
+    // - Final TRB lock is a legal / finality action.
+    // - Only certain authorities can perform it.
+    //
+    // For now (Phase 2.4 mock), we allow:
+    // - SHORE_ADMIN always
+    // - MASTER always
+    // - CHIEF_ENGINEER always
+    //
+    // CTO alone should NOT finalize the TRB.
+    if (!isUnlocked || !unlockedRole) return false;
+
+    if (unlockedRole === "SHORE_ADMIN") return true;
+    if (unlockedRole === "MASTER") return true;
+    if (unlockedRole === "CHIEF_ENGINEER") return true;
+
+    // CTO is training approval, not final lock
+    if (unlockedRole === "CTO") return false;
+
+    // Default safe
+    return false;
+  }
+
+  const value = useMemo<SignatureVaultContextValue>(() => {
+    return {
+      isUnlocked,
+      unlockedRole,
+
+      isDialogOpen,
+      dialogRole,
+      openDialog,
+      closeDialog,
+
+      unlockWithPin,
+      lockNow,
+
+      getRemainingMinutes,
+
+      getEffectiveAuthorityRole,
+      canFinalizeTRB,
+    };
+  }, [isUnlocked, unlockedRole, isDialogOpen, dialogRole, unlockedAtMs]);
+
+  return (
+    <SignatureVaultContext.Provider value={value}>
+      {children}
+    </SignatureVaultContext.Provider>
   );
-
-  const getRemainingMinutes = useCallback(() => {
-    if (!state.expiresAtMs || !isUnlocked) return null;
-    const remainingMs = state.expiresAtMs - nowMs();
-    const remainingMin = Math.max(0, Math.ceil(remainingMs / (60 * 1000)));
-    return remainingMin;
-  }, [isUnlocked, state.expiresAtMs]);
-
-  const value: SignatureVaultContextValue = {
-    isUnlocked,
-    unlockedRole: isUnlocked ? state.unlockedRole : null,
-    expiresAtMs: isUnlocked ? state.expiresAtMs : null,
-
-    isDialogOpen,
-    openDialog,
-    closeDialog,
-
-    unlockWithPin,
-    lockNow,
-
-    getRemainingMinutes,
-
-    requestedRole,
-  };
-
-  return <SignatureVaultContext.Provider value={value}>{children}</SignatureVaultContext.Provider>;
 }
 
 export function useSignatureVault(): SignatureVaultContextValue {
   const ctx = useContext(SignatureVaultContext);
   if (!ctx) {
-    // Developer-friendly error. In UI, this should never happen once wired.
-    throw new Error("useSignatureVault must be used inside <SignatureVaultProvider />");
+    throw new Error(
+      "useSignatureVault must be used within <SignatureVaultProvider>"
+    );
   }
   return ctx;
 }

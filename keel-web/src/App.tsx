@@ -9,6 +9,8 @@ import { AdminLayout } from "./admin/layout/AdminLayout";
 import { AdminDashboardPage } from "./admin/pages/AdminDashboardPage";
 import { AdminPlaceholderPage } from "./admin/pages/AdminPlaceholderPage";
 import { AdminApprovalsPage } from "./admin/pages/AdminApprovalsPage";
+import { AdminVesselsPage } from "./admin/pages/AdminVesselsPage";
+import { AdminVesselDetailPage } from "./admin/pages/AdminVesselDetailPage";
 
 import { AuditLayout } from "./admin/audit/AuditLayout";
 import { AuditLandingPage } from "./admin/audit/AuditLandingPage";
@@ -58,9 +60,17 @@ export default function App() {
               <AdminPlaceholderPage title="Rejected / Returned" />
             }
           />
+          <Route 
+            path="vessels" 
+            element={<AdminVesselsPage />} 
+          />
+          <Route
+            path="vessels/:vesselId"
+            element={<AdminVesselDetailPage />}
+          />
+
 
           {/* Existing placeholders */}
-          <Route path="vessels" element={<AdminPlaceholderPage title="Vessels" />} />
           <Route path="audit" element={<AdminPlaceholderPage title="Audit Logs" />} />
           <Route path="settings" element={<AdminPlaceholderPage title="Settings" />} />
 

@@ -107,7 +107,7 @@ const sections: NavSection[] = [
     title: "Audit & Compliance",
     items: [
       {
-        to: "/admin/audit",
+        to: "/admin/audit-mode",
         label: "Audit Mode",
         icon: <ShieldCheck size={18} />,
       },

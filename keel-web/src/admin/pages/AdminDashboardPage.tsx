@@ -145,7 +145,7 @@ export function AdminDashboardPage() {
       </div>
 
       {/* ==========================================================
-         GHOST SIGNATURE STATUS OVERVIEW (MODULE 2.2C)
+         OFFICER SIGNATURE STATUS (MODULE 2.2C — RESTORED)
          ========================================================== */}
       <Card>
         <CardHeader

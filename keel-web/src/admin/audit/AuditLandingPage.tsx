@@ -1,17 +1,22 @@
 // keel-web/src/admin/audit/AuditLandingPage.tsx
 //
 // Keel — Audit Mode | Landing Screen (Screen A)
-//
+// ----------------------------------------------------
 // PURPOSE:
-// - Entry point for MMD / Class / Flag auditors
-// - Select context (Vessel + Cadet + TRB)
-// - Show instant audit readiness snapshot
+// - Primary audit queue for MMD / Flag / Vetting inspectors
+// - Evidence-first prioritization (no context hunting)
+// - Immediate visibility of audit risk and readiness
 // - Read-only, calm, authoritative UX
+//
+// IMPORTANT UX PRINCIPLES:
+// - Auditor must know where to start in <10 seconds
+// - Weak / incomplete records must surface first
+// - “Ready” is a state, not an encouragement to rush
 
 import type { ReactNode } from "react";
 
 /* -------------------------------------------------------------------------- */
-/* Card Primitive — explicit, no magic                                         */
+/* Card Primitive — explicit, predictable, audit-safe                          */
 /* -------------------------------------------------------------------------- */
 function Card({ children }: { children: ReactNode }) {
   return (
@@ -20,8 +25,7 @@ function Card({ children }: { children: ReactNode }) {
         rounded-xl
         bg-[hsl(var(--card))]
         p-6
-        shadow-[0_1px_2px_rgba(0,0,0,0.4),0_10px_30px_rgba(0,0,0,0.6)]
-        ring-1 ring-white/10
+        ring-1 ring-[hsl(var(--border))]
       "
     >
       {children}
@@ -29,116 +33,140 @@ function Card({ children }: { children: ReactNode }) {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Audit Row — single TRB summary                                              */
+/* -------------------------------------------------------------------------- */
+import { useNavigate } from "react-router-dom";
+
+function AuditRow({
+  cadet,
+  vessel,
+  trb,
+  note,
+  statusColor,
+}: {
+  cadet: string;
+  vessel: string;
+  trb: string;
+  note: string;
+  statusColor: string;
+}) {
+  const navigate = useNavigate();
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate("/admin/audit-mode/trb")}
+      className="
+        w-full text-left
+        flex items-center justify-between
+        rounded-lg
+        border border-[hsl(var(--border))]
+        px-4 py-3
+
+        hover:bg-[hsl(var(--muted))]
+        focus:outline-none
+        focus:ring-2
+        focus:ring-[hsl(var(--primary))]
+        transition-colors
+      "
+      aria-label={`Open audit review for ${cadet}`}
+    >
+      <div>
+        <div className="font-medium">
+          {cadet} · {trb}
+        </div>
+        <div className="text-xs text-[hsl(var(--muted-foreground))]">
+          {vessel}
+        </div>
+      </div>
+
+      <div className={`text-sm font-medium ${statusColor}`}>
+        {note}
+      </div>
+    </button>
+  );
+}
+
+
 export function AuditLandingPage() {
   return (
-    <div className="space-y-8">
-      {/* Title */}
+    <div className="space-y-10">
+      {/* ============================================================= */}
+      {/* PAGE TITLE                                                    */}
+      {/* ============================================================= */}
       <div>
         <h1 className="text-2xl font-semibold">
           Training Record Book Audit
         </h1>
         <p className="text-sm text-[hsl(var(--muted-foreground))]">
-          Select a cadet and vessel to begin inspection.
+          Evidence-first inspection queue. Records are ordered by audit risk.
         </p>
       </div>
 
-      {/* Selection Panel */}
+      {/* ============================================================= */}
+      {/* PRIORITY 1 — WEAK EVIDENCE                                    */}
+      {/* ============================================================= */}
       <Card>
-        <h2 className="text-lg font-semibold mb-4">
-          Audit Context
+        <h2 className="text-lg font-semibold mb-4 text-red-500">
+          Weak Evidence (Immediate Attention)
         </h2>
 
-        <div className="grid grid-cols-3 gap-6">
-          {/* Vessel */}
-          <div>
-            <label className="text-sm font-medium">
-              Vessel
-            </label>
-            <div className="mt-2 p-3 rounded-md bg-[hsl(var(--muted))]">
-              MV Ocean Pioneer
-            </div>
-          </div>
-
-          {/* Cadet */}
-          <div>
-            <label className="text-sm font-medium">
-              Cadet
-            </label>
-            <div className="mt-2 p-3 rounded-md bg-[hsl(var(--muted))]">
-              Rahul Sharma (Deck Cadet)
-            </div>
-          </div>
-
-          {/* TRB Type */}
-          <div>
-            <label className="text-sm font-medium">
-              TRB Type
-            </label>
-            <div className="mt-2 p-3 rounded-md bg-[hsl(var(--muted))]">
-              Deck — Operational Level
-            </div>
-          </div>
+        <div className="space-y-3">
+          <AuditRow
+            cadet="Rahul Sharma (Deck)"
+            vessel="MV Ocean Pioneer"
+            trb="Deck — Operational Level"
+            note="Evidence strength below threshold"
+            statusColor="text-red-500"
+          />
         </div>
       </Card>
 
-      {/* Readiness Snapshot */}
+      {/* ============================================================= */}
+      {/* PRIORITY 2 — INCOMPLETE RECORDS                               */}
+      {/* ============================================================= */}
       <Card>
-        <h2 className="text-lg font-semibold mb-4">
-          Audit Readiness Snapshot
+        <h2 className="text-lg font-semibold mb-4 text-yellow-400">
+          Incomplete Records
         </h2>
 
-        <div className="grid grid-cols-4 gap-6">
-          <div>
-            <div className="text-sm text-[hsl(var(--muted-foreground))]">
-              Tasks Completed
-            </div>
-            <div className="text-2xl font-semibold mt-1">
-              92%
-            </div>
-          </div>
-
-          <div>
-            <div className="text-sm text-[hsl(var(--muted-foreground))]">
-              Missing Evidence
-            </div>
-            <div className="text-2xl font-semibold text-yellow-400 mt-1">
-              3
-            </div>
-          </div>
-
-          <div>
-            <div className="text-sm text-[hsl(var(--muted-foreground))]">
-              Pending Signatures
-            </div>
-            <div className="text-2xl font-semibold text-yellow-400 mt-1">
-              1
-            </div>
-          </div>
-
-          <div>
-            <div className="text-sm text-[hsl(var(--muted-foreground))]">
-              Last Sync
-            </div>
-            <div className="text-2xl font-semibold text-green-500 mt-1">
-              Today
-            </div>
-          </div>
+        <div className="space-y-3">
+          <AuditRow
+            cadet="Amit Verma (Engine)"
+            vessel="MV Coastal Spirit"
+            trb="Engine — Operational Level"
+            note="3 tasks missing evidence · 1 signature pending"
+            statusColor="text-yellow-400"
+          />
         </div>
       </Card>
 
-      {/* Primary Action */}
-      <div className="flex justify-end">
-        <button
-          className="
-            px-6 py-3 rounded-lg
-            bg-[hsl(var(--primary))]
-            text-[hsl(var(--primary-foreground))]
-            font-medium
-            hover:opacity-90
-          "
-        >
-          Start Audit Review
-        </button>
+      {/* ============================================================= */}
+      {/* PRIORITY 3 — READY FOR FINAL LOCK                             */}
+      {/* ============================================================= */}
+      <Card>
+        <h2 className="text-lg font-semibold mb-4 text-green-500">
+          Ready for Final Lock
+        </h2>
+
+        <div className="space-y-3">
+          <AuditRow
+            cadet="Sanjay Nair (Deck)"
+            vessel="MV Eastern Horizon"
+            trb="Deck — Operational Level"
+            note="All tasks complete · Evidence verified"
+            statusColor="text-green-500"
+          />
+        </div>
+      </Card>
+
+      {/* ============================================================= */}
+      {/* FOOTNOTE — AUDIT GUIDANCE                                     */}
+      {/* ============================================================= */}
+      <div className="text-xs text-[hsl(var(--muted-foreground))]">
+        Records shown here are read-only. Final lock authority remains restricted
+        to Master, Chief Engineer, or Shore Authority.
       </div>
     </div>
   );
