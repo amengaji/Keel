@@ -17,25 +17,21 @@ import sequelize from "../../config/database.js";
  * Data source: admin_users_v
  */
 export async function fetchAdminUsers(companyId: number) {
-  const [rows] = await sequelize.query(
-    `
-    SELECT
-      user_id,
-      first_name,
-      last_name,
-      email,
-      company_id,
-      role_name,
-      is_active,
-      created_at
-    FROM admin_users_v
-    WHERE company_id = :companyId
-    ORDER BY created_at DESC
-    `,
-    {
-      replacements: { companyId }
-    }
-  );
+    const [rows] = await sequelize.query(
+      `
+      SELECT
+        user_id,
+        full_name,
+        email,
+        role_name,
+        current_vessel_id,
+        created_at,
+        updated_at
+      FROM admin_users_v
+      ORDER BY created_at DESC
+      `
+    );
+
 
   return rows;
 }
@@ -45,11 +41,13 @@ export async function fetchAdminUsers(companyId: number) {
  * Data source: admin_roles_v
  */
 export async function fetchAdminRoles() {
+  console.log("🧪 fetchAdminRoles() CALLED");
+
   const [rows] = await sequelize.query(
     `
     SELECT
       role_id,
-      role_name,
+      role_name
     FROM admin_roles_v
     ORDER BY role_name ASC
     `

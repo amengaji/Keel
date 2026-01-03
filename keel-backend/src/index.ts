@@ -22,6 +22,7 @@ import familiarisationInitRoutes from "./routes/familiarisationInit.routes.js";
 import familiarisationTaskUpdateRoutes from "./routes/familiarisationTaskUpdate.routes.js";
 import familiarisationSectionSubmitRoutes from "./routes/familiarisationSectionSubmit.routes.js";
 import adminUsersRolesRoutes from "./admin/routes/adminUsersRoles.routes.js";
+import adminShipTypesRoutes from "./admin/routes/adminShipTypes.routes.js";
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ app.use("/api", familiarisationInitRoutes);
 app.use("/api", familiarisationTaskUpdateRoutes);
 app.use("/api", familiarisationSectionSubmitRoutes);
 app.use("/api/v1/admin", adminUsersRolesRoutes);
+app.use("/api/v1/admin", adminShipTypesRoutes);
 
 
 // Health check route
