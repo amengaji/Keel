@@ -81,6 +81,11 @@ const sections: NavSection[] = [
         label: "Training Progress",
         icon: <ListChecks size={18} />,
       },
+      {
+        to: "/admin/assignments",
+        label: "Assignments",
+        icon: <Users size={18} />,
+      },
     ],
   },
 
