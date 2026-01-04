@@ -59,15 +59,15 @@ type ApiVesselRow = {
   vessel_id?: number;
   id?: number | string;
 
-  // IMO can be present under different keys if backend evolves
+  // IMO identity
   imo_number?: string;
   imo?: string;
 
-  // Name can be present under different keys if backend evolves
+  // Vessel name
   vessel_name?: string;
   name?: string;
 
-  // Ship type can be present under different keys if backend evolves
+  // Ship type taxonomy
   ship_type_id?: number;
   shipTypeId?: number;
 
@@ -75,22 +75,31 @@ type ApiVesselRow = {
   type_name?: string;
   type?: string;
 
+  // Registry / class
   flag?: string;
 
-  // Class society key variations
   classification_society?: string;
   class_society?: string;
   classSociety?: string;
 
+  // -------------------- NEW (FROM admin_vessels_v) --------------------
+  // Soft delete signal
+  is_active?: boolean;
+
+  // Human-readable status derived in SQL view
+  vessel_status?: string;
+  // -------------------------------------------------------------------
+
+  // Legacy / future compatibility
   status?: string;
 
-  // Future fields (may or may not exist yet)
   cadets_onboard?: number;
   cadetsOnboard?: number;
 
   active_trbs?: number;
   activeTRBs?: number;
 };
+
 
 /* -------------------------------------------------------------------------- */
 /* UI Model                                                                    */
@@ -108,17 +117,21 @@ type VesselUiRow = {
   type: string;
 
   // Ship type taxonomy ID (IMPORTANT for edit modal dropdown)
-  // Note: When unknown (legacy rows), we store null and block edit with a toast.
   shipTypeId: number | null;
 
   flag: string;
   classSociety: string;
 
-  status: "Active" | "Laid-up" | "Unknown";
+  // Derived from backend admin_vessels_v
+  status: "Active" | "Laid-up" | "Unknown" | "Archived";
 
-  cadetsOnboard: number; // truthful (0 until assignments wiring)
-  activeTRBs: number; // truthful (0 until TRB wiring)
+  // Soft delete flag (audit-safe)
+  isActive: boolean;
+
+  cadetsOnboard: number;
+  activeTRBs: number;
 };
+
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                     */
@@ -181,10 +194,19 @@ function StatusPill({ status }: { status: string }) {
     );
   }
 
+  if (status === "Archived") {
+    return (
+      <span className={`${base} bg-slate-500/10 text-slate-500`}>
+        Archived
+      </span>
+    );
+  }
+
   return (
     <span className={`${base} bg-slate-500/10 text-slate-500`}>Unknown</span>
   );
 }
+
 
 /* -------------------------------------------------------------------------- */
 /* Audit Risk Helper (Mock, Read-Only)                                         */
@@ -233,20 +255,31 @@ function RowIconButton(props: {
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   children: React.ReactNode;
   tone?: "neutral" | "danger";
+  disabled?: boolean;
 }) {
   const tone = props.tone ?? "neutral";
+  const disabled = props.disabled === true;
 
   return (
     <button
       type="button"
       onClick={(e) => {
+        if (disabled) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
         props.onClick(e);
       }}
+      disabled={disabled}
       className={[
         "h-9 w-9 inline-flex items-center justify-center rounded-md border",
-        "border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]",
+        "border-[hsl(var(--border))]",
+        disabled
+          ? "opacity-40 cursor-not-allowed pointer-events-none"
+          : "hover:bg-[hsl(var(--muted))]",
         tone === "danger" ? "text-red-600" : "text-[hsl(var(--foreground))]",
       ].join(" ")}
       aria-label={props.ariaLabel}
@@ -256,6 +289,7 @@ function RowIconButton(props: {
     </button>
   );
 }
+
 
 /* -------------------------------------------------------------------------- */
 /* Main Page Component                                                         */
@@ -375,25 +409,33 @@ export function AdminVesselsPage() {
           "—"
         );
 
-        const status = normalizeStatus(r.status);
+        // Backend now provides vessel_status + is_active from admin_vessels_v
+        const isActive = r.is_active !== false;
+
+        const status =
+          r.vessel_status === "Archived"
+            ? "Archived"
+            : normalizeStatus(r.vessel_status ?? r.status);
 
         // These two are not wired to your assignment/TRB backend yet.
         // Keep 0 now so the UI is truthful (not fake).
         const cadetsOnboard = (r.cadets_onboard ?? r.cadetsOnboard ?? 0) as number;
         const activeTRBs = (r.active_trbs ?? r.activeTRBs ?? 0) as number;
 
-        return {
-          id,
-          imo,
-          name,
-          type,
-          shipTypeId,
-          flag,
-          classSociety,
-          status,
-          cadetsOnboard,
-          activeTRBs,
-        };
+      return {
+        id,
+        imo,
+        name,
+        type,
+        shipTypeId,
+        flag,
+        classSociety,
+        status,
+        isActive,
+        cadetsOnboard,
+        activeTRBs,
+      };
+
       });
 
       setRows(uiRows);
@@ -754,17 +796,23 @@ export function AdminVesselsPage() {
 
             <tbody>
               {filteredVessels.map((vessel) => (
-                <tr
-                  key={vessel.id}
-                  onClick={() => navigate(`/admin/vessels/${vessel.id}`)}
-                  className="
-                    border-t border-[hsl(var(--border))]
-                    hover:bg-[hsl(var(--muted))]
-                    cursor-pointer
-                  "
+              <tr
+                key={vessel.id}
+                onClick={() => {
+                  if (!vessel.isActive) {
+                    toast.message("Archived vessels cannot be opened");
+                    return;
+                  }
+                  navigate(`/admin/vessels/${vessel.id}`);
+                }}
+                className={`
+                  border-t border-[hsl(var(--border))]
+                  ${vessel.isActive ? "hover:bg-[hsl(var(--muted))] cursor-pointer" : "opacity-60"}
+                `}
                   aria-label={`Open vessel ${vessel.name}`}
                   title="Open vessel details"
-                >
+                  >
+
                   {/* IMO + Name */}
                   <td className="px-4 py-3">
                     <div className="font-medium">{vessel.imo}</div>
@@ -794,20 +842,34 @@ export function AdminVesselsPage() {
                     <div className="flex items-center justify-center gap-2">
                       {/* Edit (pencil) */}
                       <RowIconButton
-                        title="Edit vessel"
+                        title={
+                          vessel.isActive
+                            ? "Edit vessel"
+                            : "Archived vessels cannot be edited"
+                        }
                         ariaLabel={`Edit ${vessel.name}`}
+                        disabled={!vessel.isActive}
                         onClick={() => openEditModal(vessel)}
                       >
+
+
                         <Pencil size={16} />
                       </RowIconButton>
 
                       {/* Delete (trash) — scaffold only in this step */}
                       <RowIconButton
-                        title="Delete vessel (coming next)"
+                        title={
+                          vessel.isActive
+                            ? "Delete vessel"
+                            : "Archived vessels cannot be deleted"
+                        }
                         ariaLabel={`Delete ${vessel.name}`}
+                        disabled={!vessel.isActive}
                         onClick={() => requestDeleteVessel(vessel)}
                         tone="danger"
                       >
+
+
                         <Trash2 size={16} />
                       </RowIconButton>
                     </div>

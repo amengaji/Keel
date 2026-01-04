@@ -61,7 +61,9 @@ export async function fetchAdminVessels() {
         last_special_survey_date,
         next_special_survey_date,
         created_at,
-        updated_at
+        updated_at,
+        is_active,
+        vessel_status
       FROM admin_vessels_v
       ORDER BY vessel_name ASC
       `
