@@ -3,111 +3,85 @@
 // Keel — Vessel Types (System Taxonomy Register)
 // ----------------------------------------------------
 // PURPOSE:
-// - Canonical list of vessel types supported by Keel
-// - Training + TRB applicability reference
-// - Audit-safe, read-only taxonomy
+// - Display canonical vessel types from backend
+// - Reflect real system taxonomy (Code, Name, Description)
+// - Read-only, audit-safe reference screen
 //
 // IMPORTANT:
-// - No create/edit/delete
-// - Vessel types are system-defined
-// - Changes require regulatory review
+// - Vessel types are SYSTEM-DEFINED
+// - No create / edit / delete allowed
+// - Data comes directly from admin_ship_types_v
 //
-// AUDIT NOTE:
-// This screen exists to demonstrate controlled scope,
-// not operational flexibility.
 
-import {
-  Ship,
-  Layers,
-  CheckCircle,
-  MinusCircle,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Ship, Layers } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/* Vessel Type Registry — SYSTEM DEFINED                                       */
+/* Types                                                                      */
 /* -------------------------------------------------------------------------- */
-const vesselTypes = [
-  {
-    code: "BULK",
-    name: "Bulk Carrier",
-    deckTRB: true,
-    engineTRB: true,
-    etoTRB: false,
-    ratingTRB: true,
-  },
-  {
-    code: "OIL",
-    name: "Oil Tanker",
-    deckTRB: true,
-    engineTRB: true,
-    etoTRB: true,
-    ratingTRB: true,
-  },
-  {
-    code: "CHEM",
-    name: "Chemical Tanker",
-    deckTRB: true,
-    engineTRB: true,
-    etoTRB: true,
-    ratingTRB: true,
-  },
-  {
-    code: "PROD",
-    name: "Product Tanker",
-    deckTRB: true,
-    engineTRB: true,
-    etoTRB: true,
-    ratingTRB: true,
-  },
-  {
-    code: "GAS",
-    name: "Gas Carrier",
-    deckTRB: true,
-    engineTRB: true,
-    etoTRB: true,
-    ratingTRB: true,
-  },
-  {
-    code: "CONT",
-    name: "Container Ship",
-    deckTRB: true,
-    engineTRB: true,
-    etoTRB: true,
-    ratingTRB: true,
-  },
-  {
-    code: "GEN",
-    name: "General Cargo",
-    deckTRB: true,
-    engineTRB: true,
-    etoTRB: false,
-    ratingTRB: true,
-  },
-  {
-    code: "RORO",
-    name: "Ro-Ro / PCC",
-    deckTRB: true,
-    engineTRB: true,
-    etoTRB: true,
-    ratingTRB: true,
-  },
-];
-
-/* -------------------------------------------------------------------------- */
-/* Helper Icon                                                                 */
-/* -------------------------------------------------------------------------- */
-function YesNo({ value }: { value: boolean }) {
-  return value ? (
-    <CheckCircle size={14} className="text-green-600 mx-auto" />
-  ) : (
-    <MinusCircle size={14} className="text-slate-400 mx-auto" />
-  );
-}
+/**
+ * Vessel Type shape as returned by backend.
+ * This MUST match admin_ship_types_v exactly.
+ */
+type VesselType = {
+  ship_type_id: number;
+  type_code: string;
+  name: string;
+  description: string;
+};
 
 /* -------------------------------------------------------------------------- */
 /* Main Page Component                                                         */
 /* -------------------------------------------------------------------------- */
 export function AdminVesselTypesPage() {
+  /* ------------------------------------------------------------------------ */
+  /* State                                                                    */
+  /* ------------------------------------------------------------------------ */
+  const [vesselTypes, setVesselTypes] = useState<VesselType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  /* ------------------------------------------------------------------------ */
+  /* Data Fetch                                                               */
+  /* ------------------------------------------------------------------------ */
+  useEffect(() => {
+    async function loadVesselTypes() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch(
+          "/api/v1/admin/ship-types",
+          {
+            credentials: "include", // IMPORTANT: send auth cookies
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch vessel types");
+        }
+
+        const result = await response.json();
+
+        if (!result?.success) {
+          throw new Error(result?.message || "Unknown error");
+        }
+
+        setVesselTypes(result.data || []);
+      } catch (err) {
+        console.error("Failed to load vessel types:", err);
+        setError("Unable to load vessel types");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadVesselTypes();
+  }, []);
+
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                   */
+  /* ------------------------------------------------------------------------ */
   return (
     <div className="space-y-6 max-w-6xl">
       {/* ============================ HEADER ============================ */}
@@ -118,77 +92,77 @@ export function AdminVesselTypesPage() {
         </h1>
 
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-          System-defined vessel taxonomy and Training Record Book applicability.
+          System-defined vessel taxonomy used across training and records.
         </p>
       </div>
 
-      {/* ============================ TAXONOMY TABLE ============================ */}
-      <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-[hsl(var(--muted))]">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium">
-                Code
-              </th>
-              <th className="px-4 py-3 text-left font-medium">
-                Vessel Type
-              </th>
-              <th className="px-4 py-3 text-center font-medium">
-                Deck TRB
-              </th>
-              <th className="px-4 py-3 text-center font-medium">
-                Engine TRB
-              </th>
-              <th className="px-4 py-3 text-center font-medium">
-                ETO TRB
-              </th>
-              <th className="px-4 py-3 text-center font-medium">
-                Rating TRB
-              </th>
-            </tr>
-          </thead>
+      {/* ============================ STATES ============================ */}
+      {loading && (
+        <div className="text-sm text-[hsl(var(--muted-foreground))]">
+          Loading vessel types…
+        </div>
+      )}
 
-          <tbody>
-            {vesselTypes.map((v) => (
-              <tr
-                key={v.code}
-                className="border-t border-[hsl(var(--border))]"
-              >
-                <td className="px-4 py-3 font-mono text-xs">
-                  {v.code}
-                </td>
+      {!loading && error && (
+        <div className="text-sm text-red-600">
+          {error}
+        </div>
+      )}
 
-                <td className="px-4 py-3 flex items-center gap-2">
-                  <Ship size={14} />
-                  {v.name}
-                </td>
+      {!loading && !error && vesselTypes.length === 0 && (
+        <div className="text-sm text-[hsl(var(--muted-foreground))]">
+          No vessel types available in the system.
+        </div>
+      )}
 
-                <td className="px-4 py-3 text-center">
-                  <YesNo value={v.deckTRB} />
-                </td>
-
-                <td className="px-4 py-3 text-center">
-                  <YesNo value={v.engineTRB} />
-                </td>
-
-                <td className="px-4 py-3 text-center">
-                  <YesNo value={v.etoTRB} />
-                </td>
-
-                <td className="px-4 py-3 text-center">
-                  <YesNo value={v.ratingTRB} />
-                </td>
+      {/* ============================ TABLE ============================ */}
+      {!loading && !error && vesselTypes.length > 0 && (
+        <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-[hsl(var(--muted))]">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium">
+                  Code
+                </th>
+                <th className="px-4 py-3 text-left font-medium">
+                  Vessel Type
+                </th>
+                <th className="px-4 py-3 text-left font-medium">
+                  Description
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+
+            <tbody>
+              {vesselTypes.map((v) => (
+                <tr
+                  key={v.ship_type_id}
+                  className="border-t border-[hsl(var(--border))]"
+                >
+                  <td className="px-4 py-3 font-mono text-xs">
+                    {v.type_code}
+                  </td>
+
+                  <td className="px-4 py-3 flex items-center gap-2">
+                    <Ship size={14} />
+                    {v.name}
+                  </td>
+
+                  <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
+                    {v.description}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ============================ DISCLAIMER ============================ */}
       <p className="text-xs text-[hsl(var(--muted-foreground))]">
-        Vessel types and Training Record Book applicability are system-controlled.
-        Modifications require regulatory review and are not permitted through
-        the administrative interface.
+        Vessel types are system-controlled reference data.
+        Modifications require regulatory review and are not permitted
+        through the administrative interface.
       </p>
     </div>
   );

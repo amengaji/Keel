@@ -1,5 +1,35 @@
 +-- keel-backend
+¦   +-- db
+¦   ¦   +-- migrations
+¦   ¦       +-- 001_admin_roles_v.sql
+¦   ¦       +-- 002_admin_users_v.sql
+¦   ¦       +-- 003_admin_ship_types_v.sql
+¦   ¦       +-- 004_admin_vessels_v.sql
+¦   ¦       +-- 005_admin_trb_cadets_v.sql
+¦   ¦       +-- 006_admin_trb_section_progress_v.sql
+¦   ¦       +-- 007_admin_trb_task_evidence_v.sql
+¦   ¦       +-- 008_admin_audit_timeline_v.sql
 ¦   +-- src
+¦   ¦   +-- admin
+¦   ¦   ¦   +-- controllers
+¦   ¦   ¦   ¦   +-- adminShipTypes.controller.ts
+¦   ¦   ¦   ¦   +-- adminTrb.controller.ts
+¦   ¦   ¦   ¦   +-- adminUsersRoles.controller.ts
+¦   ¦   ¦   ¦   +-- adminVessels.controller.ts
+¦   ¦   ¦   ¦   +-- trbReview.controller.ts
+¦   ¦   ¦   +-- policies
+¦   ¦   ¦   +-- routes
+¦   ¦   ¦   ¦   +-- adminShipTypes.routes.ts
+¦   ¦   ¦   ¦   +-- adminTrb.routes.ts
+¦   ¦   ¦   ¦   +-- adminUsersRoles.routes.ts
+¦   ¦   ¦   ¦   +-- adminVessels.routes.ts
+¦   ¦   ¦   ¦   +-- trbReview.routes.ts
+¦   ¦   ¦   +-- services
+¦   ¦   ¦       +-- adminShipTypes.service.ts
+¦   ¦   ¦       +-- adminTrb.service.ts
+¦   ¦   ¦       +-- adminUsersRoles.service.ts
+¦   ¦   ¦       +-- adminVessels.service.ts
+¦   ¦   ¦       +-- trbReviewWorkflow.service.ts
 ¦   ¦   +-- config
 ¦   ¦   ¦   +-- database.ts
 ¦   ¦   +-- controllers
@@ -277,7 +307,9 @@
 +-- .gitignore
 +-- package.json
 +-- project_structure.txt
++-- service.conf.lock
 +-- step-fix-tailwind-postcss-v4.ps1
 +-- step-fix-tailwind-postcss.ps1
 +-- step3-admin-shell.ps1
++-- system.conf.lock
 +-- tree.ps1

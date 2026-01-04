@@ -26,6 +26,11 @@ import adminShipTypesRoutes from "./admin/routes/adminShipTypes.routes.js";
 import adminVesselsRoutes from "./admin/routes/adminVessels.routes.js";
 import adminTrbRoutes from "./admin/routes/adminTrb.routes.js";
 import trbReviewRoutes from "./admin/routes/trbReview.routes.js";
+/* -------------------------------------------------------------------------- */
+/* ADMIN — AUDIT EXPORT ROUTES (READ-ONLY)                                     */
+/* -------------------------------------------------------------------------- */
+import adminAuditRoutes from "./admin/audit/routes/adminAudit.routes.js";
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
@@ -42,9 +47,20 @@ export { User, Role };
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// -----------------------------------------------------------------------------
+// GLOBAL MIDDLEWARE (ORDER MATTERS)
+// -----------------------------------------------------------------------------
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
+
+app.use(cookieParser()); // 🔑 REQUIRED FOR AUTH COOKIES
 app.use(express.json({ limit: "10mb" }));
+
 app.use("/auth", authRoutes);
 app.use("/me", meRoutes);
 app.use("/ship-types", shipTypeRoutes);
@@ -68,7 +84,7 @@ app.use("/api/v1/admin", adminShipTypesRoutes);
 app.use("/api/v1/admin", adminVesselsRoutes);
 app.use("/api/v1/admin/trb", adminTrbRoutes);
 app.use("/api/v1/admin/trb/review", trbReviewRoutes);
-
+app.use("/api/v1/admin/audit", adminAuditRoutes);
 
 // Health check route
 app.get("/", (req, res) => {

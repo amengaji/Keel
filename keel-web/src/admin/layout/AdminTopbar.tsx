@@ -23,6 +23,8 @@ import {
 
 import { SignatureVaultDialog } from "../security/SignatureVaultDialog";
 import { useSignatureVault } from "../security/SignatureVaultContext";
+import { LogOut } from "lucide-react";
+import { adminLogout } from "../auth/AdminAuthGate";
 
 type AdminTopbarProps = {
   onToggleSidebar: () => void;
@@ -170,6 +172,22 @@ export function AdminTopbar({ onToggleSidebar }: AdminTopbarProps) {
             title="Notifications"
           >
             <Bell size={18} />
+          </button>
+          {/* Logout */}
+          <button
+            className="
+              h-9 w-9
+              flex items-center justify-center
+              rounded-md
+              border border-[hsl(var(--border))]
+              hover:bg-red-500/10
+              text-red-600
+            "
+            onClick={adminLogout}
+            aria-label="Logout"
+            title="Logout"
+          >
+            <LogOut size={18} />
           </button>
         </div>
       </header>

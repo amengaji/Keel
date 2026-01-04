@@ -31,8 +31,8 @@ import { AdminUsersRolesPage } from "./admin/pages/AdminUsersRolesPage";
 import { AdminVesselTypesPage } from "./admin/pages/AdminVesselTypesPage"
 import { AdminImportsPage } from "./admin/pages/AdminImportsPage";
 import { AdminSystemSettingsPage } from "./admin/pages/AdminSystemSettingsPage";
-
-
+import { AdminLoginPage } from "./admin/pages/AdminLoginPage";
+import { AdminAuthGate } from "./admin/auth/AdminAuthGate";
 
 
 function applyThemeFromStorage() {
@@ -54,6 +54,12 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
 
+        
+      {/* ============================ */}
+      {/* Admin Login (NO LAYOUT)      */}
+      {/* ============================ */}
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+
         {/* Audit Mode */}
         <Route path="/admin/audit-mode" element={<AuditLayout />}>
           <Route index element={<AuditLandingPage />} />
@@ -64,7 +70,9 @@ export default function App() {
         </Route>
 
         {/* Admin */}
-        <Route path="/admin" element={<AdminLayout />}>
+        <Route path="/admin" element={<AdminAuthGate><AdminLayout /></AdminAuthGate>}>
+
+
           <Route path="dashboard" element={<AdminDashboardPage />} />
 
           {/* === Module 2.4 === */}

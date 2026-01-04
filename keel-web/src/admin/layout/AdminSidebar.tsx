@@ -29,7 +29,9 @@ import {
   Upload,
   UserCog,
   Layers,
+  LogOut,
 } from "lucide-react";
+import { adminLogout } from "../auth/AdminAuthGate";
 
 type AdminSidebarProps = {
   collapsed: boolean;
@@ -262,6 +264,23 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
           </div>
         ))}
       </nav>
+
+      {/* ========================== LOGOUT ========================== */}
+      <div className="mt-auto p-3 border-t border-[hsl(var(--border))]">
+        <button
+          onClick={adminLogout}
+          className="
+            w-full flex items-center gap-3
+            px-3 py-2 rounded-md
+            text-sm
+            text-red-600
+            hover:bg-red-500/10
+          "
+        >
+          <LogOut size={18} />
+          {!collapsed && <span>Logout</span>}
+        </button>
+      </div>
     </aside>
   );
 }

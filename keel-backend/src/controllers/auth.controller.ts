@@ -66,13 +66,13 @@ class AuthController {
     }
   }
 
-  // 2) Login (all roles)
+  // -----------------------------------------------------------------------------
+  // 2) Login (ALL roles) — COOKIE-BASED AUTH (FINAL)
+  // -----------------------------------------------------------------------------
   static async login(req: Request, res: Response) {
     console.log("🔥 LOGIN CONTROLLER HIT 🔥");
 
     try {
-      console.log("REQ BODY:", req.body);
-
       const { email, password } = req.body;
 
       if (!email || !password) {
@@ -87,20 +87,15 @@ class AuthController {
       });
 
       if (!user) {
-        console.warn("LOGIN FAILED: user not found →", email);
         return res
           .status(401)
           .json({ message: "Invalid email or password" });
       }
 
       const hash = user.get("password_hash") as string;
-
       const valid = await bcrypt.compare(password, hash);
 
-      console.log("PASSWORD MATCH RESULT:", valid);
-
       if (!valid) {
-        console.warn("LOGIN FAILED: password mismatch →", email);
         return res
           .status(401)
           .json({ message: "Invalid email or password" });
@@ -109,6 +104,9 @@ class AuthController {
       const roleInstance = user.get("role") as any;
       const roleName = roleInstance?.role_name || "UNKNOWN";
 
+      // -------------------------------------------------------------------------
+      // Generate tokens
+      // -------------------------------------------------------------------------
       const accessToken = generateAccessToken({
         userId: user.id,
         role: roleName,
@@ -118,12 +116,32 @@ class AuthController {
         userId: user.id,
       });
 
+      // Persist refresh token (for rotation & logout later)
       user.set("refresh_token", refreshToken);
       await user.save();
 
+      // -------------------------------------------------------------------------
+      // SET HTTP-ONLY COOKIES (CRITICAL FIX)
+      // -------------------------------------------------------------------------
+      res.cookie("access_token", accessToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false, // localhost ONLY
+        maxAge: 15 * 60 * 1000, // 15 minutes
+      });
+
+      res.cookie("refresh_token", refreshToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false, // localhost ONLY
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      // -------------------------------------------------------------------------
+      // RESPONSE (NO TOKENS EXPOSED)
+      // -------------------------------------------------------------------------
       return res.json({
-        accessToken,
-        refreshToken,
+        success: true,
         user: {
           id: user.id,
           email: user.email,
@@ -136,6 +154,7 @@ class AuthController {
       return res.status(500).json({ message: "Internal server error" });
     }
   }
+
 
   // 3) Refresh access token
   static async refresh(req: Request, res: Response) {

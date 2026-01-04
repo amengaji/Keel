@@ -18,15 +18,15 @@ export function SignatureVaultDialog() {
     isDialogOpen,
     closeDialog,
     unlockWithPin,
-    requestedRole,
+    dialogRole,
   } = useSignatureVault();
 
   const [pin, setPin] = useState("");
 
   const title = useMemo(() => {
-    if (!requestedRole) return "Unlock Signature";
-    return requestedRole === "MASTER" ? "Unlock Master Signature" : "Unlock CTO Signature";
-  }, [requestedRole]);
+    if (!dialogRole) return "Unlock Signature";
+    return dialogRole === "MASTER" ? "Unlock Master Signature" : "Unlock CTO Signature";
+  }, [dialogRole]);
 
   if (!isDialogOpen) return null;
 
@@ -64,7 +64,7 @@ export function SignatureVaultDialog() {
           <div className="text-sm">
             Role:{" "}
             <span className="font-medium">
-              {requestedRole ?? "Not selected"}
+              {dialogRole ?? "Not selected"}
             </span>
           </div>
 
