@@ -25,6 +25,7 @@ import adminUsersRolesRoutes from "./admin/routes/adminUsersRoles.routes.js";
 import adminShipTypesRoutes from "./admin/routes/adminShipTypes.routes.js";
 import adminVesselsRoutes from "./admin/routes/adminVessels.routes.js";
 import adminTrbRoutes from "./admin/routes/adminTrb.routes.js";
+import trbReviewRoutes from "./admin/routes/trbReview.routes.js";
 
 dotenv.config();
 
@@ -66,6 +67,7 @@ app.use("/api/v1/admin", adminUsersRolesRoutes);
 app.use("/api/v1/admin", adminShipTypesRoutes);
 app.use("/api/v1/admin", adminVesselsRoutes);
 app.use("/api/v1/admin/trb", adminTrbRoutes);
+app.use("/api/v1/admin/trb/review", trbReviewRoutes);
 
 
 // Health check route
