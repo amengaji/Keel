@@ -92,39 +92,43 @@ export function VesselUpsertModal(props: VesselUpsertModalProps) {
     let cancelled = false;
 
     async function loadShipTypes() {
-      try {
-        setShipTypesLoading(true);
+        try {
+            setShipTypesLoading(true);
 
-        const res = await fetch("/api/v1/admin/ship-types", {
-          credentials: "include",
-        });
+            const res = await fetch("/api/v1/admin/ship-types", {
+            credentials: "include",
+            });
 
-        if (!res.ok) {
-          throw new Error(`Failed to load vessel types (${res.status})`);
+            if (!res.ok) {
+            throw new Error(`Failed to load vessel types (${res.status})`);
+            }
+
+            const json = await res.json();
+
+            // FIX: Map 'ship_type_id' from backend to 'id' for frontend
+            const rows: ShipTypeRow[] = Array.isArray(json?.data)
+            ? json.data.map((item: any) => ({
+                id: item.ship_type_id, // <--- THIS WAS THE MISSING LINK
+                name: item.name,
+                }))
+            : [];
+
+            if (!cancelled) {
+            setShipTypes(rows);
+            }
+        } catch (err: any) {
+            console.error("❌ Failed to load ship types:", err);
+            toast.error(err?.message || "Unable to load vessel types");
+
+            if (!cancelled) {
+            setShipTypes([]);
+            }
+        } finally {
+            if (!cancelled) {
+            setShipTypesLoading(false);
+            }
         }
-
-        const json = await res.json();
-
-        const rows: ShipTypeRow[] = Array.isArray(json?.data)
-          ? json.data
-          : [];
-
-        if (!cancelled) {
-          setShipTypes(rows);
         }
-      } catch (err: any) {
-        console.error("❌ Failed to load ship types:", err);
-        toast.error(err?.message || "Unable to load vessel types");
-
-        if (!cancelled) {
-          setShipTypes([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setShipTypesLoading(false);
-        }
-      }
-    }
 
     loadShipTypes();
 

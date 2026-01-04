@@ -8,24 +8,27 @@
 // - Backend wired to /api/v1/admin/vessels (cookie auth)
 //
 // WHAT CHANGED IN THIS PHASE:
-// - "Create Vessel" is now enabled using VesselUpsertModal (Option A: Modal UX)
-// - After create success → list reloads from backend (truthful UI)
-//
-// WHAT IS STILL READ-ONLY / COMING NEXT:
-// - Edit Vessel (same modal, edit mode) — next step
-// - Soft Delete (audit-safe is_active) — next step
-// - Ship Types dropdown (read-only taxonomy) — next step
+// - "Create Vessel" is enabled using VesselUpsertModal (Option A: Modal UX)
+// - "Edit Vessel" is now enabled (pencil icon per row) using the SAME modal
+// - Row click still opens vessel details page (except when clicking action icons)
+// - "Delete Vessel" icon is now present per row (UX scaffold only; wiring later)
 //
 // IMPORTANT TECH NOTES:
 // - Uses cookie-based auth (HttpOnly) → credentials: "include" is REQUIRED
 // - Vite dev proxy handles routing to backend (:5000)
 // - This file is intentionally defensive against backend schema evolution
 //
+// UX NOTE:
+// - We use explicit Edit/Delete icons in an Actions column.
+// - Clicking the row opens details; clicking icons MUST NOT navigate.
+//
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Ship, Filter, Info } from "lucide-react";
+import { Ship, Filter, Info, Pencil, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { ConfirmDeleteModal } from "../../components/common/ConfirmDeleteModal";
+
 
 import {
   VesselUpsertModal,
@@ -44,6 +47,7 @@ import {
  * - vessel_id (number)  -> from view: admin_vessels_v
  * - imo_number (string)
  * - vessel_name (string)
+ * - ship_type_id (number)  -> IMPORTANT for edit modal
  * - ship_type_name (string)
  * - flag (string)
  * - classification_society (string) OR class_society (legacy UI field)
@@ -64,6 +68,9 @@ type ApiVesselRow = {
   name?: string;
 
   // Ship type can be present under different keys if backend evolves
+  ship_type_id?: number;
+  shipTypeId?: number;
+
   ship_type_name?: string;
   type_name?: string;
   type?: string;
@@ -96,10 +103,19 @@ type VesselUiRow = {
   id: string; // canonical UI id (string)
   imo: string;
   name: string;
+
+  // Ship type UI label
   type: string;
+
+  // Ship type taxonomy ID (IMPORTANT for edit modal dropdown)
+  // Note: When unknown (legacy rows), we store null and block edit with a toast.
+  shipTypeId: number | null;
+
   flag: string;
   classSociety: string;
+
   status: "Active" | "Laid-up" | "Unknown";
+
   cadetsOnboard: number; // truthful (0 until assignments wiring)
   activeTRBs: number; // truthful (0 until TRB wiring)
 };
@@ -132,6 +148,19 @@ function getString(...candidates: Array<string | undefined | null>): string {
     if (v) return v;
   }
   return "";
+}
+
+/**
+ * Parses a candidate into a finite number. Returns null if invalid.
+ * We use this for ship_type_id so Edit modal never opens with broken data.
+ */
+function getNumberOrNull(...candidates: Array<number | string | undefined | null>): number | null {
+  for (const c of candidates) {
+    if (c === undefined || c === null) continue;
+    const n = typeof c === "number" ? c : Number(String(c));
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -190,6 +219,45 @@ function AuditRiskBadge({ trbs }: { trbs: number }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Row Actions (Edit / Delete)                                                 */
+/* -------------------------------------------------------------------------- */
+/**
+ * Small icon button used inside table rows.
+ * IMPORTANT:
+ * - We must stop event propagation so row click does NOT trigger navigation.
+ * - We keep a consistent hit area for touch/trackpad usability.
+ */
+function RowIconButton(props: {
+  title: string;
+  ariaLabel: string;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  children: React.ReactNode;
+  tone?: "neutral" | "danger";
+}) {
+  const tone = props.tone ?? "neutral";
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        props.onClick(e);
+      }}
+      className={[
+        "h-9 w-9 inline-flex items-center justify-center rounded-md border",
+        "border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]",
+        tone === "danger" ? "text-red-600" : "text-[hsl(var(--foreground))]",
+      ].join(" ")}
+      aria-label={props.ariaLabel}
+      title={props.title}
+    >
+      {props.children}
+    </button>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Main Page Component                                                         */
 /* -------------------------------------------------------------------------- */
 export function AdminVesselsPage() {
@@ -215,14 +283,33 @@ export function AdminVesselsPage() {
   /* ====================================================================== */
   /**
    * We use one modal for create + edit.
-   * For this step, we only open it in "create" mode.
+   * In this step:
+   * - Create opens from "+ Create Vessel"
+   * - Edit opens from pencil icon on each row
    */
   const [upsertOpen, setUpsertOpen] = useState(false);
   const [upsertMode, setUpsertMode] = useState<VesselUpsertMode>("create");
 
-  // In later steps we will populate this for edit mode
+  // Edit mode uses this to pre-fill the modal
   const [upsertInitialData, setUpsertInitialData] =
     useState<VesselUpsertInitialData | undefined>(undefined);
+
+
+    // -------------------- Delete (Soft Delete) Modal State --------------------
+
+    // Controls confirm delete modal visibility
+    const [deleteOpen, setDeleteOpen] = useState(false);
+
+    // Vessel selected for deletion
+    const [deleteTarget, setDeleteTarget] = useState<{
+      id: string;
+      name: string;
+    } | null>(null);
+
+    // Prevent double-submit while API is in progress
+    const [deleting, setDeleting] = useState(false);
+
+
 
   /* ------------------------------------------------------------------------ */
   /* Data Load (Reusable)                                                     */
@@ -271,8 +358,12 @@ export function AdminVesselsPage() {
         // Operational name used in shore + onboard comms
         const name = getString(r.vessel_name, r.name, "(Unnamed Vessel)");
 
-        // Ship type is taxonomy controlled by system (read-only)
+        // Ship type taxonomy label (read-only)
         const type = getString(r.ship_type_name, r.type_name, r.type, "—");
+
+        // Ship type taxonomy ID (needed for edit modal dropdown)
+        // NOTE: If backend doesn't send it for some reason, we keep null and block edit.
+        const shipTypeId = getNumberOrNull(r.ship_type_id, r.shipTypeId);
 
         const flag = getString(r.flag, "—");
 
@@ -296,6 +387,7 @@ export function AdminVesselsPage() {
           imo,
           name,
           type,
+          shipTypeId,
           flag,
           classSociety,
           status,
@@ -347,6 +439,105 @@ export function AdminVesselsPage() {
     setUpsertInitialData(undefined);
     setUpsertOpen(true);
   }
+
+  /**
+   * Opens the upsert modal in "edit" mode (from pencil icon).
+   * We pre-fill the fields we have available in the vessels list.
+   *
+   * IMPORTANT:
+   * - shipTypeId MUST be present, otherwise the dropdown cannot preselect correctly.
+   * - If shipTypeId is missing, we block edit and show a toast (defensive UX).
+   */
+  function openEditModal(vessel: VesselUiRow) {
+    if (!vessel?.id) {
+      toast.error("Unable to edit vessel: missing vessel id");
+      return;
+    }
+
+    if (vessel.shipTypeId === null) {
+      toast.error(
+        "Unable to edit vessel: vessel type id missing. Please refresh and try again."
+      );
+      return;
+    }
+
+    // Convert UI model to modal initial data shape
+    const initial: VesselUpsertInitialData = {
+      id: vessel.id,
+      imo_number: vessel.imo === "IMO (Not set)" ? "" : vessel.imo,
+      name: vessel.name === "(Unnamed Vessel)" ? "" : vessel.name,
+      ship_type_id: vessel.shipTypeId,
+      flag: vessel.flag === "—" ? "" : vessel.flag,
+      classification_society: vessel.classSociety === "—" ? "" : vessel.classSociety,
+    };
+
+    setUpsertMode("edit");
+    setUpsertInitialData(initial);
+    setUpsertOpen(true);
+  }
+
+    /**
+     * Opens confirm delete modal for the selected vessel.
+     * NOTE:
+     * - Actual delete happens only after explicit confirmation.
+     * - This is audit-safe soft delete.
+     */
+    function requestDeleteVessel(vessel: VesselUiRow) {
+      if (!vessel?.id) {
+        toast.error("Unable to delete vessel: missing vessel id");
+        return;
+      }
+
+      setDeleteTarget({
+        id: vessel.id,
+        name: vessel.name,
+      });
+
+      setDeleteOpen(true);
+    }
+
+    /**
+     * Performs SOFT DELETE via backend.
+     * Endpoint:
+     *   DELETE /api/v1/admin/vessels/:id
+     */
+    async function confirmDeleteVessel() {
+      if (!deleteTarget) return;
+
+      try {
+        setDeleting(true);
+
+        const res = await fetch(
+          `/api/v1/admin/vessels/${deleteTarget.id}`,
+          {
+            method: "DELETE",
+            credentials: "include",
+          }
+        );
+
+        const json = await res.json();
+
+        if (!res.ok || json?.success === false) {
+          throw new Error(json?.message || "Failed to delete vessel");
+        }
+
+        toast.success(`Vessel "${deleteTarget.name}" deleted successfully`);
+
+        // Close modal
+        setDeleteOpen(false);
+        setDeleteTarget(null);
+
+        // Refresh list so UI reflects truth
+        await loadVessels();
+      } catch (err: any) {
+        console.error("❌ Vessel delete failed:", err);
+        toast.error(err?.message || "Unable to delete vessel");
+      } finally {
+        setDeleting(false);
+      }
+    }
+
+
 
   /**
    * Closes the modal safely.
@@ -405,7 +596,7 @@ export function AdminVesselsPage() {
           <Info size={18} />
         </button>
 
-        {/* Create Vessel (NOW modal-based) */}
+        {/* Create Vessel (modal-based) */}
         <button
           onClick={openCreateModal}
           className="
@@ -555,6 +746,9 @@ export function AdminVesselsPage() {
                 <th className="px-4 py-3 text-center font-medium">Cadets</th>
                 <th className="px-4 py-3 text-center font-medium">Active TRBs</th>
                 <th className="px-4 py-3 text-center font-medium">Audit Risk</th>
+
+                {/* NEW: Actions column (Edit/Delete icons) */}
+                <th className="px-4 py-3 text-center font-medium">Actions</th>
               </tr>
             </thead>
 
@@ -594,6 +788,30 @@ export function AdminVesselsPage() {
                   <td className="px-4 py-3 text-center">
                     <AuditRiskBadge trbs={vessel.activeTRBs} />
                   </td>
+
+                  {/* NEW: Actions cell */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-2">
+                      {/* Edit (pencil) */}
+                      <RowIconButton
+                        title="Edit vessel"
+                        ariaLabel={`Edit ${vessel.name}`}
+                        onClick={() => openEditModal(vessel)}
+                      >
+                        <Pencil size={16} />
+                      </RowIconButton>
+
+                      {/* Delete (trash) — scaffold only in this step */}
+                      <RowIconButton
+                        title="Delete vessel (coming next)"
+                        ariaLabel={`Delete ${vessel.name}`}
+                        onClick={() => requestDeleteVessel(vessel)}
+                        tone="danger"
+                      >
+                        <Trash2 size={16} />
+                      </RowIconButton>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -603,14 +821,10 @@ export function AdminVesselsPage() {
 
       {/* ============================ FOOTNOTE ============================ */}
       <p className="text-xs text-[hsl(var(--muted-foreground))]">
-        This fleet view is audit-safe. Create is enabled; Edit and soft-delete will be enabled next.
+        This fleet view is audit-safe. Create + Edit are enabled; soft-delete will be enabled next.
       </p>
 
       {/* ============================ UPSERT MODAL (Create/Edit) ============================ */}
-      {/* NOTE:
-          - In this step, we open only in CREATE mode.
-          - Next step will add EDIT mode wiring.
-      */}
       <VesselUpsertModal
         open={upsertOpen}
         mode={upsertMode}
@@ -621,6 +835,24 @@ export function AdminVesselsPage() {
           // so UI always reflects the truth.
           await loadVessels();
         }}
+      />
+      {/* ============================ CONFIRM DELETE MODAL ============================ */}
+      <ConfirmDeleteModal
+        open={deleteOpen}
+        title="Delete Vessel"
+        description={
+          deleteTarget
+            ? `Are you sure you want to remove "${deleteTarget.name}" from the fleet?`
+            : ""
+        }
+        confirmLabel="Delete Vessel"
+        loading={deleting}
+        onCancel={() => {
+          if (deleting) return;
+          setDeleteOpen(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={confirmDeleteVessel}
       />
     </div>
   );
