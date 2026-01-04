@@ -184,3 +184,29 @@ export async function softDeleteVessel(vesselId: number) {
     message: "Vessel deleted successfully",
   };
 }
+
+/**
+ * Restore (unarchive) a vessel
+ * ACTION:
+ * - Marks vessel as active again
+ * - Audit safe (no data loss)
+ */
+export async function restoreVessel(vesselId: number) {
+  const vessel = await Vessel.findOne({
+    where: {
+      id: vesselId,
+      is_active: false,
+    },
+  });
+
+  if (!vessel) {
+    throw new Error("Vessel not found or already active");
+  }
+
+  await vessel.update({ is_active: true });
+
+  return {
+    message: "Vessel restored successfully",
+  };
+}
+

@@ -25,7 +25,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Ship, Filter, Info, Pencil, Trash2 } from "lucide-react";
+import { Ship, Filter, Info, Pencil, Trash2, RotateCcw  } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ConfirmDeleteModal } from "../../components/common/ConfirmDeleteModal";
 
@@ -343,6 +343,15 @@ export function AdminVesselsPage() {
     // Prevent double-submit while API is in progress
     const [deleting, setDeleting] = useState(false);
 
+    // -------------------- Restore (Unarchive) Modal State --------------------
+
+    const [restoreOpen, setRestoreOpen] = useState(false);
+    const [restoreTarget, setRestoreTarget] = useState<{
+      id: string;
+      name: string;
+    } | null>(null);
+    const [restoring, setRestoring] = useState(false);
+
 
 
   /* ------------------------------------------------------------------------ */
@@ -537,6 +546,63 @@ export function AdminVesselsPage() {
 
       setDeleteOpen(true);
     }
+
+    /**
+ * Open restore confirmation modal for archived vessel
+ */
+function requestRestoreVessel(vessel: VesselUiRow) {
+  if (!vessel?.id) {
+    toast.error("Unable to restore vessel: missing vessel id");
+    return;
+  }
+
+  setRestoreTarget({
+    id: vessel.id,
+    name: vessel.name,
+  });
+
+  setRestoreOpen(true);
+}
+
+/**
+ * Perform restore (unarchive) operation
+ * Endpoint:
+ *   PATCH /api/v1/admin/vessels/:id/restore
+ */
+async function confirmRestoreVessel() {
+  if (!restoreTarget) return;
+
+  try {
+    setRestoring(true);
+
+    const res = await fetch(
+      `/api/v1/admin/vessels/${restoreTarget.id}/restore`,
+      {
+        method: "PATCH",
+        credentials: "include",
+      }
+    );
+
+    const json = await res.json();
+
+    if (!res.ok || json?.success === false) {
+      throw new Error(json?.message || "Failed to restore vessel");
+    }
+
+    toast.success(`Vessel "${restoreTarget.name}" restored successfully`);
+
+    setRestoreOpen(false);
+    setRestoreTarget(null);
+
+    await loadVessels();
+  } catch (err: any) {
+    console.error("❌ Vessel restore failed:", err);
+    toast.error(err?.message || "Unable to restore vessel");
+  } finally {
+    setRestoring(false);
+  }
+}
+
 
     /**
      * Performs SOFT DELETE via backend.
@@ -840,39 +906,47 @@ export function AdminVesselsPage() {
                   {/* NEW: Actions cell */}
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-2">
-                      {/* Edit (pencil) */}
+                    {/* Restore (only for archived vessels) */}
+                    {!vessel.isActive && (
                       <RowIconButton
-                        title={
-                          vessel.isActive
-                            ? "Edit vessel"
-                            : "Archived vessels cannot be edited"
-                        }
-                        ariaLabel={`Edit ${vessel.name}`}
-                        disabled={!vessel.isActive}
-                        onClick={() => openEditModal(vessel)}
+                        title="Restore vessel"
+                        ariaLabel={`Restore ${vessel.name}`}
+                        onClick={() => requestRestoreVessel(vessel)}
                       >
-
-
-                        <Pencil size={16} />
+                        <RotateCcw size={16} />
                       </RowIconButton>
+                    )}
 
-                      {/* Delete (trash) — scaffold only in this step */}
-                      <RowIconButton
-                        title={
-                          vessel.isActive
-                            ? "Delete vessel"
-                            : "Archived vessels cannot be deleted"
-                        }
-                        ariaLabel={`Delete ${vessel.name}`}
-                        disabled={!vessel.isActive}
-                        onClick={() => requestDeleteVessel(vessel)}
-                        tone="danger"
-                      >
+                    {/* Edit (disabled if archived) */}
+                    <RowIconButton
+                      title={
+                        vessel.isActive
+                          ? "Edit vessel"
+                          : "Archived vessels cannot be edited"
+                      }
+                      ariaLabel={`Edit ${vessel.name}`}
+                      disabled={!vessel.isActive}
+                      onClick={() => openEditModal(vessel)}
+                    >
+                      <Pencil size={16} />
+                    </RowIconButton>
 
+                    {/* Delete (disabled if archived) */}
+                    <RowIconButton
+                      title={
+                        vessel.isActive
+                          ? "Delete vessel"
+                          : "Archived vessels cannot be deleted"
+                      }
+                      ariaLabel={`Delete ${vessel.name}`}
+                      disabled={!vessel.isActive}
+                      onClick={() => requestDeleteVessel(vessel)}
+                      tone="danger"
+                    >
+                      <Trash2 size={16} />
+                    </RowIconButton>
+                  </div>
 
-                        <Trash2 size={16} />
-                      </RowIconButton>
-                    </div>
                   </td>
                 </tr>
               ))}
@@ -916,6 +990,25 @@ export function AdminVesselsPage() {
         }}
         onConfirm={confirmDeleteVessel}
       />
+      {/* ============================ CONFIRM RESTORE MODAL ============================ */}
+      <ConfirmDeleteModal
+        open={restoreOpen}
+        title="Restore Vessel"
+        description={
+          restoreTarget
+            ? `Are you sure you want to restore "${restoreTarget.name}" back into active service?`
+            : ""
+        }
+        confirmLabel="Restore Vessel"
+        loading={restoring}
+        onCancel={() => {
+          if (restoring) return;
+          setRestoreOpen(false);
+          setRestoreTarget(null);
+        }}
+        onConfirm={confirmRestoreVessel}
+      />
+
     </div>
   );
 }

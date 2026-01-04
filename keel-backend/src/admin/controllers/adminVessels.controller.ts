@@ -22,6 +22,7 @@ import {
   createVessel,
   updateVessel,
   softDeleteVessel,
+  restoreVessel,
 } from "../services/adminVessels.service.js";
 
 /* ======================================================================
@@ -173,3 +174,26 @@ export async function deleteAdminVessel(req: Request, res: Response) {
     return respondWithError(res, error);
   }
 }
+
+/**
+ * Restore (unarchive) vessel
+ * PATCH /api/v1/admin/vessels/:vesselId/restore
+ */
+export async function restoreVesselHandler(req: Request, res: Response) {
+  try {
+    const vesselId = Number(req.params.vesselId);
+
+    const result = await restoreVessel(vesselId);
+
+    return res.json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error: any) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Unable to restore vessel",
+    });
+  }
+}
+

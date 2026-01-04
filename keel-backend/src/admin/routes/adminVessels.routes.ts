@@ -19,6 +19,7 @@ import {
   postAdminVessel,
   putAdminVessel,
   deleteAdminVessel,
+  restoreVesselHandler,
 } from "../controllers/adminVessels.controller.js";
 import { authGuard } from "../../middleware/auth.middleware.js";
 
@@ -47,5 +48,10 @@ router.put("/vessels/:vesselId", authGuard, putAdminVessel);
 // DELETE /api/v1/admin/vessels/:vesselId
 // Soft delete a vessel (sets is_active = false)
 router.delete("/vessels/:vesselId", authGuard, deleteAdminVessel);
+
+
+//RESTORE 
+router.patch("/vessels/:vesselId/restore", authGuard, restoreVesselHandler);
+
 
 export default router;
