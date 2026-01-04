@@ -62,7 +62,7 @@ export function authGuard(
     // -----------------------------------------------------------------------
     const decoded = jwt.verify(
       token,
-      process.env.JWT_ACCESS_SECRET as string
+      process.env.ACCESS_TOKEN_SECRET as string
     ) as AuthUser;
 
     // -----------------------------------------------------------------------
