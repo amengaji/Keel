@@ -11,6 +11,13 @@
 ¦   ¦       +-- 008_admin_audit_timeline_v.sql
 ¦   +-- src
 ¦   ¦   +-- admin
+¦   ¦   ¦   +-- audit
+¦   ¦   ¦   ¦   +-- controllers
+¦   ¦   ¦   ¦   ¦   +-- adminAudit.controller.ts
+¦   ¦   ¦   ¦   +-- routes
+¦   ¦   ¦   ¦   ¦   +-- adminAudit.routes.ts
+¦   ¦   ¦   ¦   +-- services
+¦   ¦   ¦   ¦       +-- adminAudit.service.ts
 ¦   ¦   ¦   +-- controllers
 ¦   ¦   ¦   ¦   +-- adminShipTypes.controller.ts
 ¦   ¦   ¦   ¦   +-- adminTrb.controller.ts
@@ -251,6 +258,8 @@
 ¦   ¦   ¦   ¦   +-- AuditTRBPage.tsx
 ¦   ¦   ¦   ¦   +-- FinalTRBLockPage.tsx
 ¦   ¦   ¦   ¦   +-- lockTRB.ts
+¦   ¦   ¦   +-- auth
+¦   ¦   ¦   ¦   +-- AdminAuthGate.tsx
 ¦   ¦   ¦   +-- components
 ¦   ¦   ¦   ¦   +-- ui
 ¦   ¦   ¦   ¦       +-- Card.tsx
@@ -272,6 +281,7 @@
 ¦   ¦   ¦   ¦   +-- AdminEvidenceRepositoryPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminImportsPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminLockedTRBsPage.tsx
+¦   ¦   ¦   ¦   +-- AdminLoginPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminPendingSignaturesPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminPlaceholderPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminReportsPage.tsx

@@ -1,32 +1,37 @@
 // keel-web/src/admin/pages/AdminVesselsPage.tsx
 //
-// Keel — Vessels (Backend Wired — Read-Only)
-// ----------------------------------------------------
+// Keel — Vessels (Backend Wired — Create Enabled via Modal)
+// ---------------------------------------------------------
 // PURPOSE:
 // - Authoritative vessel list for Shore / DPA / Admin
-// - IMO-first, maritime-correct identity
-// - Read-only by design (audit-safe)
+// - IMO-first, maritime-correct identity (IMO is the vessel identity anchor)
+// - Backend wired to /api/v1/admin/vessels (cookie auth)
 //
-// IMPORTANT:
-// - Uses cookie-based auth (HttpOnly)
-// - credentials: "include" is REQUIRED
-// - No create/edit/delete logic here
+// WHAT CHANGED IN THIS PHASE:
+// - "Create Vessel" is now enabled using VesselUpsertModal (Option A: Modal UX)
+// - After create success → list reloads from backend (truthful UI)
 //
-// UX NOTES:
-// - Preserves your existing layout
-// - Adds Loading / Empty / Error states
-// - Keeps filters/search client-side
+// WHAT IS STILL READ-ONLY / COMING NEXT:
+// - Edit Vessel (same modal, edit mode) — next step
+// - Soft Delete (audit-safe is_active) — next step
+// - Ship Types dropdown (read-only taxonomy) — next step
 //
-// NEXT PHASES (NOT IN THIS FILE):
-// - Vessel create/edit workflow
-// - Cadet assignment
-// - Live TRB indicators from admin TRB views
-// - Import from Excel
+// IMPORTANT TECH NOTES:
+// - Uses cookie-based auth (HttpOnly) → credentials: "include" is REQUIRED
+// - Vite dev proxy handles routing to backend (:5000)
+// - This file is intentionally defensive against backend schema evolution
+//
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Ship, Filter, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
+import {
+  VesselUpsertModal,
+  type VesselUpsertInitialData,
+  type VesselUpsertMode,
+} from "./VesselUpsertModal";
 
 /* -------------------------------------------------------------------------- */
 /* Types (Defensive)                                                          */
@@ -36,13 +41,12 @@ import { useNavigate } from "react-router-dom";
  * We keep this defensive because backend fields may evolve during Track wiring.
  *
  * EXPECTED (typical):
- * - vessel_id (number)
- * - imo_number or imo (string)
- * - vessel_name or name (string)
- * - ship_type_name or type_name (string)
+ * - vessel_id (number)  -> from view: admin_vessels_v
+ * - imo_number (string)
+ * - vessel_name (string)
+ * - ship_type_name (string)
  * - flag (string)
- * - class_society or classSociety (string)
- * - status (string)
+ * - classification_society (string) OR class_society (legacy UI field)
  *
  * NOTE:
  * We intentionally do NOT hard-fail if some fields are missing.
@@ -51,18 +55,23 @@ type ApiVesselRow = {
   vessel_id?: number;
   id?: number | string;
 
+  // IMO can be present under different keys if backend evolves
   imo_number?: string;
   imo?: string;
 
+  // Name can be present under different keys if backend evolves
   vessel_name?: string;
   name?: string;
 
+  // Ship type can be present under different keys if backend evolves
   ship_type_name?: string;
   type_name?: string;
   type?: string;
 
   flag?: string;
 
+  // Class society key variations
+  classification_society?: string;
   class_society?: string;
   classSociety?: string;
 
@@ -84,20 +93,25 @@ type ApiVesselRow = {
  * This keeps the UI stable even if backend field names differ.
  */
 type VesselUiRow = {
-  id: string;
+  id: string; // canonical UI id (string)
   imo: string;
   name: string;
   type: string;
   flag: string;
   classSociety: string;
   status: "Active" | "Laid-up" | "Unknown";
-  cadetsOnboard: number; // mock/0 until assignments wiring
-  activeTRBs: number; // mock/0 until TRB wiring
+  cadetsOnboard: number; // truthful (0 until assignments wiring)
+  activeTRBs: number; // truthful (0 until TRB wiring)
 };
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Normalizes status into a small known set so pills remain stable.
+ * If backend later provides richer statuses, we can map them here.
+ */
 function normalizeStatus(raw?: string): "Active" | "Laid-up" | "Unknown" {
   const v = (raw ?? "").trim().toLowerCase();
 
@@ -108,6 +122,10 @@ function normalizeStatus(raw?: string): "Active" | "Laid-up" | "Unknown" {
   return "Unknown";
 }
 
+/**
+ * Returns the first non-empty string from candidates.
+ * This is key to "defensive wiring" while backend view fields evolve.
+ */
 function getString(...candidates: Array<string | undefined | null>): string {
   for (const c of candidates) {
     const v = (c ?? "").toString().trim();
@@ -123,14 +141,20 @@ function StatusPill({ status }: { status: string }) {
   const base = "px-2.5 py-1 rounded-full text-xs font-medium inline-block";
 
   if (status === "Active") {
-    return <span className={`${base} bg-green-500/10 text-green-600`}>Active</span>;
+    return (
+      <span className={`${base} bg-green-500/10 text-green-600`}>Active</span>
+    );
   }
 
   if (status === "Laid-up") {
-    return <span className={`${base} bg-yellow-500/10 text-yellow-600`}>Laid-up</span>;
+    return (
+      <span className={`${base} bg-yellow-500/10 text-yellow-600`}>Laid-up</span>
+    );
   }
 
-  return <span className={`${base} bg-slate-500/10 text-slate-500`}>Unknown</span>;
+  return (
+    <span className={`${base} bg-slate-500/10 text-slate-500`}>Unknown</span>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -171,20 +195,40 @@ function AuditRiskBadge({ trbs }: { trbs: number }) {
 export function AdminVesselsPage() {
   const navigate = useNavigate();
 
-  // ---------------- Backend state ----------------
+  /* ====================================================================== */
+  /* Backend state                                                           */
+  /* ====================================================================== */
   const [rows, setRows] = useState<VesselUiRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // ---------------- UI State (Read-only) ----------------
+  /* ====================================================================== */
+  /* UI state                                                                 */
+  /* ====================================================================== */
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "Active" | "Laid-up">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "Active" | "Laid-up">(
+    "ALL"
+  );
+
+  /* ====================================================================== */
+  /* Modal state (Create/Edit)                                                */
+  /* ====================================================================== */
+  /**
+   * We use one modal for create + edit.
+   * For this step, we only open it in "create" mode.
+   */
+  const [upsertOpen, setUpsertOpen] = useState(false);
+  const [upsertMode, setUpsertMode] = useState<VesselUpsertMode>("create");
+
+  // In later steps we will populate this for edit mode
+  const [upsertInitialData, setUpsertInitialData] =
+    useState<VesselUpsertInitialData | undefined>(undefined);
 
   /* ------------------------------------------------------------------------ */
-  /* Data Load                                                                 */
+  /* Data Load (Reusable)                                                     */
   /* ------------------------------------------------------------------------ */
   /**
-   * Loads vessels from backend (admin read-only route).
+   * Loads vessels from backend (admin route).
    *
    * EXPECTED API:
    *   GET /api/v1/admin/vessels
@@ -192,106 +236,145 @@ export function AdminVesselsPage() {
    * IMPORTANT:
    * - Must include cookies (HttpOnly auth)
    * - Vite dev proxy handles routing to :5000 backend
+   *
+   * Why useCallback:
+   * - So we can re-run loading after create/update/delete without duplicating code.
    */
+  const loadVessels = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLoadError(null);
+
+      const res = await fetch("/api/v1/admin/vessels", {
+        credentials: "include",
+      });
+
+      // If session expires, AuthGate will normally redirect.
+      // But we still handle it gracefully in-page.
+      if (!res.ok) {
+        const message = `Unable to load vessels (HTTP ${res.status})`;
+        throw new Error(message);
+      }
+
+      // Safe JSON parse (this endpoint should return JSON)
+      const data = await res.json();
+
+      const apiRows: ApiVesselRow[] = Array.isArray(data?.data) ? data.data : [];
+
+      const uiRows: VesselUiRow[] = apiRows.map((r, idx) => {
+        const idRaw = r.vessel_id ?? r.id ?? `row_${idx}`;
+        const id = String(idRaw);
+
+        // IMO is the vessel’s identity anchor in maritime operations
+        const imo = getString(r.imo_number, r.imo, "IMO (Not set)");
+
+        // Operational name used in shore + onboard comms
+        const name = getString(r.vessel_name, r.name, "(Unnamed Vessel)");
+
+        // Ship type is taxonomy controlled by system (read-only)
+        const type = getString(r.ship_type_name, r.type_name, r.type, "—");
+
+        const flag = getString(r.flag, "—");
+
+        // Support multiple backend keys
+        const classSociety = getString(
+          r.classification_society,
+          r.class_society,
+          r.classSociety,
+          "—"
+        );
+
+        const status = normalizeStatus(r.status);
+
+        // These two are not wired to your assignment/TRB backend yet.
+        // Keep 0 now so the UI is truthful (not fake).
+        const cadetsOnboard = (r.cadets_onboard ?? r.cadetsOnboard ?? 0) as number;
+        const activeTRBs = (r.active_trbs ?? r.activeTRBs ?? 0) as number;
+
+        return {
+          id,
+          imo,
+          name,
+          type,
+          flag,
+          classSociety,
+          status,
+          cadetsOnboard,
+          activeTRBs,
+        };
+      });
+
+      setRows(uiRows);
+    } catch (err: any) {
+      console.error("❌ Admin vessels load failed:", err);
+
+      const msg = err?.message || "Unable to load vessels";
+      setLoadError(msg);
+      toast.error(msg);
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /* ------------------------------------------------------------------------ */
+  /* Initial load                                                             */
+  /* ------------------------------------------------------------------------ */
   useEffect(() => {
     let cancelled = false;
 
-    async function loadVessels() {
-      try {
-        setLoading(true);
-        setLoadError(null);
-
-        const res = await fetch("/api/v1/admin/vessels", {
-          credentials: "include",
-        });
-
-        // If session expires, AuthGate will normally redirect.
-        // But we still handle it gracefully in-page.
-        if (!res.ok) {
-          const message = `Unable to load vessels (HTTP ${res.status})`;
-          throw new Error(message);
-        }
-
-        // Safe JSON parse (some endpoints might return empty; this one should return JSON)
-        const data = await res.json();
-
-        const apiRows: ApiVesselRow[] = Array.isArray(data?.data) ? data.data : [];
-
-        const uiRows: VesselUiRow[] = apiRows.map((r, idx) => {
-          const idRaw = r.vessel_id ?? r.id ?? `row_${idx}`;
-          const id = String(idRaw);
-
-          const imo = getString(r.imo_number, r.imo, "IMO (Not set)");
-          const name = getString(r.vessel_name, r.name, "(Unnamed Vessel)");
-          const type = getString(r.ship_type_name, r.type_name, r.type, "—");
-          const flag = getString(r.flag, "—");
-          const classSociety = getString(r.class_society, r.classSociety, "—");
-          const status = normalizeStatus(r.status);
-
-          // These two are not wired to your assignment/TRB backend yet.
-          // Keep 0 now so the UI is truthful (not fake).
-          const cadetsOnboard =
-            (r.cadets_onboard ?? r.cadetsOnboard ?? 0) as number;
-
-          const activeTRBs =
-            (r.active_trbs ?? r.activeTRBs ?? 0) as number;
-
-          return {
-            id,
-            imo,
-            name,
-            type,
-            flag,
-            classSociety,
-            status,
-            cadetsOnboard,
-            activeTRBs,
-          };
-        });
-
-        if (!cancelled) {
-          setRows(uiRows);
-        }
-      } catch (err: any) {
-        console.error("❌ Admin vessels load failed:", err);
-
-        if (!cancelled) {
-          const msg = err?.message || "Unable to load vessels";
-          setLoadError(msg);
-          toast.error(msg);
-          setRows([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+    async function run() {
+      if (cancelled) return;
+      await loadVessels();
     }
 
-    loadVessels();
+    run();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadVessels]);
 
-  // ---------------- Derived Vessel List ----------------
+  /* ------------------------------------------------------------------------ */
+  /* Modal handlers                                                           */
+  /* ------------------------------------------------------------------------ */
+  /**
+   * Opens the upsert modal in "create" mode.
+   * We intentionally clear initialData so the form is clean.
+   */
+  function openCreateModal() {
+    setUpsertMode("create");
+    setUpsertInitialData(undefined);
+    setUpsertOpen(true);
+  }
+
+  /**
+   * Closes the modal safely.
+   * Keeping this as a helper makes future edits easier.
+   */
+  function closeUpsertModal() {
+    setUpsertOpen(false);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Derived Vessel List (Search + Status)                                    */
+  /* ------------------------------------------------------------------------ */
   const filteredVessels = useMemo(() => {
     return rows.filter((v) => {
       const s = search.trim().toLowerCase();
 
       const matchesSearch =
-        !s ||
-        v.imo.toLowerCase().includes(s) ||
-        v.name.toLowerCase().includes(s);
+        !s || v.imo.toLowerCase().includes(s) || v.name.toLowerCase().includes(s);
 
-      const matchesStatus =
-        statusFilter === "ALL" || v.status === statusFilter;
+      const matchesStatus = statusFilter === "ALL" || v.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [rows, search, statusFilter]);
 
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                    */
+  /* ------------------------------------------------------------------------ */
   return (
     <div className="space-y-6">
       {/* ============================ PAGE HEADER ============================ */}
@@ -306,11 +389,9 @@ export function AdminVesselsPage() {
           </p>
         </div>
 
-        {/* Info action */}
+        {/* Info action (UX-only helper) */}
         <button
-          onClick={() =>
-            toast.message("Vessel management will expand in Phase 3")
-          }
+          onClick={() => toast.message("Vessel management will expand in Phase 3")}
           className="
             h-9 w-9
             flex items-center justify-center
@@ -324,13 +405,9 @@ export function AdminVesselsPage() {
           <Info size={18} />
         </button>
 
-        {/* Create Vessel (NOT wired yet) */}
+        {/* Create Vessel (NOW modal-based) */}
         <button
-          onClick={() => {
-            toast.message("Create Vessel will be enabled in the next phase.");
-            // Keep navigation path intact for later activation
-            // navigate("/admin/vessels/create");
-          }}
+          onClick={openCreateModal}
           className="
             px-4 py-2
             rounded-md
@@ -339,7 +416,7 @@ export function AdminVesselsPage() {
             hover:opacity-90
           "
           aria-label="Create vessel"
-          title="Create Vessel (coming next)"
+          title="Create Vessel"
         >
           + Create Vessel
         </button>
@@ -378,9 +455,7 @@ export function AdminVesselsPage() {
           {["ALL", "Active", "Laid-up"].map((status) => (
             <button
               key={status}
-              onClick={() =>
-                setStatusFilter(status as "ALL" | "Active" | "Laid-up")
-              }
+              onClick={() => setStatusFilter(status as "ALL" | "Active" | "Laid-up")}
               className={[
                 "px-3 py-1.5 rounded-md text-sm border",
                 statusFilter === status
@@ -394,6 +469,23 @@ export function AdminVesselsPage() {
             </button>
           ))}
         </div>
+
+        {/* Refresh button (small, optional UX) */}
+        <button
+          onClick={loadVessels}
+          className="
+            ml-auto
+            px-3 py-1.5
+            rounded-md
+            border border-[hsl(var(--border))]
+            hover:bg-[hsl(var(--muted))]
+            text-sm
+          "
+          aria-label="Refresh vessels"
+          title="Refresh vessels list"
+        >
+          Refresh
+        </button>
       </div>
 
       {/* ============================ DATA STATES ============================ */}
@@ -495,13 +587,9 @@ export function AdminVesselsPage() {
                     <StatusPill status={vessel.status} />
                   </td>
 
-                  <td className="px-4 py-3 text-center">
-                    {vessel.cadetsOnboard}
-                  </td>
+                  <td className="px-4 py-3 text-center">{vessel.cadetsOnboard}</td>
 
-                  <td className="px-4 py-3 text-center">
-                    {vessel.activeTRBs}
-                  </td>
+                  <td className="px-4 py-3 text-center">{vessel.activeTRBs}</td>
 
                   <td className="px-4 py-3 text-center">
                     <AuditRiskBadge trbs={vessel.activeTRBs} />
@@ -515,8 +603,25 @@ export function AdminVesselsPage() {
 
       {/* ============================ FOOTNOTE ============================ */}
       <p className="text-xs text-[hsl(var(--muted-foreground))]">
-        This is a read-only fleet view. Editing, imports, and training linkage will be enabled in later phases.
+        This fleet view is audit-safe. Create is enabled; Edit and soft-delete will be enabled next.
       </p>
+
+      {/* ============================ UPSERT MODAL (Create/Edit) ============================ */}
+      {/* NOTE:
+          - In this step, we open only in CREATE mode.
+          - Next step will add EDIT mode wiring.
+      */}
+      <VesselUpsertModal
+        open={upsertOpen}
+        mode={upsertMode}
+        initialData={upsertInitialData}
+        onClose={closeUpsertModal}
+        onSuccess={async () => {
+          // After successful create/update/delete, reload list from backend
+          // so UI always reflects the truth.
+          await loadVessels();
+        }}
+      />
     </div>
   );
 }

@@ -43,6 +43,7 @@ export function AdminAuthGate({ children }: AdminAuthGateProps) {
 
         setAuthenticated(true);
       } catch {
+        toast.error("Session expired. Please log in again.");
         setAuthenticated(false);
       } finally {
         setChecking(false);
