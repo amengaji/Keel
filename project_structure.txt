@@ -24,7 +24,6 @@
 ¦   ¦   ¦   ¦   +-- adminUsersRoles.controller.ts
 ¦   ¦   ¦   ¦   +-- adminVessels.controller.ts
 ¦   ¦   ¦   ¦   +-- trbReview.controller.ts
-¦   ¦   ¦   +-- policies
 ¦   ¦   ¦   +-- routes
 ¦   ¦   ¦   ¦   +-- adminShipTypes.routes.ts
 ¦   ¦   ¦   ¦   +-- adminTrb.routes.ts
@@ -55,6 +54,9 @@
 ¦   ¦   ¦   +-- trbFamiliarisation.controller.ts
 ¦   ¦   ¦   +-- vessel.controller.ts
 ¦   ¦   ¦   +-- vesselAssignment.controller.ts
+¦   ¦   +-- db
+¦   ¦   ¦   +-- migrations
+¦   ¦   ¦       +-- 20260105_add_is_active_to_vessels.sql
 ¦   ¦   +-- middleware
 ¦   ¦   ¦   +-- auth.middleware.ts
 ¦   ¦   ¦   +-- role.middleware.ts
@@ -113,6 +115,7 @@
 ¦   ¦   +-- keel-logo.png
 ¦   ¦   +-- splash-icon.png
 ¦   +-- src
+¦   ¦   +-- assets
 ¦   ¦   +-- auth
 ¦   ¦   ¦   +-- AuthContext.tsx
 ¦   ¦   +-- components
@@ -293,12 +296,16 @@
 ¦   ¦   ¦   ¦   +-- AdminVesselDetailPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminVesselsPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminVesselTypesPage.tsx
+¦   ¦   ¦   ¦   +-- VesselUpsertModal.tsx
 ¦   ¦   ¦   +-- security
 ¦   ¦   ¦       +-- auditData.ts
 ¦   ¦   ¦       +-- SignatureVaultContext.tsx
 ¦   ¦   ¦       +-- SignatureVaultDialog.tsx
 ¦   ¦   +-- assets
 ¦   ¦   ¦   +-- react.svg
+¦   ¦   +-- components
+¦   ¦   ¦   +-- common
+¦   ¦   ¦       +-- ConfirmDeleteModal.tsx
 ¦   ¦   +-- App.css
 ¦   ¦   +-- App.tsx
 ¦   ¦   +-- index.css
