@@ -9,6 +9,9 @@
 ¦   ¦       +-- 006_admin_trb_section_progress_v.sql
 ¦   ¦       +-- 007_admin_trb_task_evidence_v.sql
 ¦   ¦       +-- 008_admin_audit_timeline_v.sql
+¦   ¦       +-- 009_cadet_profiles.sql
+¦   ¦       +-- 20260106_create_cadet_profiles.sql
+¦   ¦       +-- 20260106_fix_cadet_profiles.sql
 ¦   +-- src
 ¦   ¦   +-- admin
 ¦   ¦   ¦   +-- audit
@@ -19,19 +22,25 @@
 ¦   ¦   ¦   ¦   +-- services
 ¦   ¦   ¦   ¦       +-- adminAudit.service.ts
 ¦   ¦   ¦   +-- controllers
+¦   ¦   ¦   ¦   +-- adminCadetProfiles.controller.ts
 ¦   ¦   ¦   ¦   +-- adminShipTypes.controller.ts
+¦   ¦   ¦   ¦   +-- adminTrainees.controller.ts
 ¦   ¦   ¦   ¦   +-- adminTrb.controller.ts
 ¦   ¦   ¦   ¦   +-- adminUsersRoles.controller.ts
 ¦   ¦   ¦   ¦   +-- adminVessels.controller.ts
 ¦   ¦   ¦   ¦   +-- trbReview.controller.ts
 ¦   ¦   ¦   +-- routes
+¦   ¦   ¦   ¦   +-- adminCadetProfiles.routes.ts
 ¦   ¦   ¦   ¦   +-- adminShipTypes.routes.ts
+¦   ¦   ¦   ¦   +-- adminTrainees.routes.ts
 ¦   ¦   ¦   ¦   +-- adminTrb.routes.ts
 ¦   ¦   ¦   ¦   +-- adminUsersRoles.routes.ts
 ¦   ¦   ¦   ¦   +-- adminVessels.routes.ts
 ¦   ¦   ¦   ¦   +-- trbReview.routes.ts
 ¦   ¦   ¦   +-- services
+¦   ¦   ¦       +-- adminCadetProfiles.service.ts
 ¦   ¦   ¦       +-- adminShipTypes.service.ts
+¦   ¦   ¦       +-- adminTrainees.service.ts
 ¦   ¦   ¦       +-- adminTrb.service.ts
 ¦   ¦   ¦       +-- adminUsersRoles.service.ts
 ¦   ¦   ¦       +-- adminVessels.service.ts
@@ -64,6 +73,7 @@
 ¦   ¦   ¦   +-- associations.ts
 ¦   ¦   ¦   +-- CadetFamiliarisationAttachment.ts
 ¦   ¦   ¦   +-- CadetFamiliarisationState.ts
+¦   ¦   ¦   +-- CadetProfile.ts
 ¦   ¦   ¦   +-- CadetVesselAssignment.ts
 ¦   ¦   ¦   +-- FamiliarisationSectionTemplate.ts
 ¦   ¦   ¦   +-- FamiliarisationTaskTemplate.ts

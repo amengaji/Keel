@@ -8,16 +8,10 @@
 // - Foundation for TRB, audit, and vessel assignment
 //
 // IMPORTANT:
-// - UI/UX only (Phase 3 foundation)
-// - No backend persistence
+// - Backend persistence ENABLED (Phase 3)
 // - No vessel assignment here
 // - Rank and TRB applicability are auto-derived
 //
-// FUTURE PHASES (NOT IN THIS FILE):
-// - Backend persistence
-// - Bulk import
-// - Vessel assignment
-// - Document uploads
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -86,22 +80,47 @@ export function AdminTraineeCreatePage() {
 
   /* ----------------------------- Local State ------------------------------ */
   const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [traineeType, setTraineeType] = useState<TraineeType | "">("");
   const [nationality, setNationality] = useState("");
   const [notes, setNotes] = useState("");
-
+  const [submitting, setSubmitting] = useState(false);
+  
   const derived = traineeType ? TRAINEE_TYPE_META[traineeType] : null;
 
   /* ----------------------------- Submit Handler ---------------------------- */
-  function handleCreateTrainee() {
-    if (!fullName || !traineeType) {
-      toast.error("Full name and trainee type are required");
-      return;
+async function handleCreateTrainee() {
+  if (!fullName || !email || !traineeType) {
+    toast.error("Full name, email and trainee type are required");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/v1/admin/trainees", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        full_name: fullName,
+        email,
+      }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      throw new Error(json.message);
     }
 
-    toast.success("Trainee created successfully (mock)");
+    toast.success("Trainee created successfully");
     navigate("/admin/cadets");
+  } catch (err: any) {
+    toast.error(err.message || "Unable to create trainee");
   }
+}
+
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -151,15 +170,38 @@ export function AdminTraineeCreatePage() {
           <input
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="Rahul Sharma"
+            placeholder="Anuj Mengaji"
             className="
               mt-1 w-full
               px-3 py-2
               rounded-md
               border border-[hsl(var(--border))]
-              bg-transparent
+              bg-[hsl(var(--background))]
+              text-[hsl(var(--foreground))]
+              outline-none
+            "
+          />
+        </div>
+
+        {/* Email */}
+        <div>
+          <label className="text-sm font-medium">
+            Email <span className="text-red-500">*</span>
+          </label>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="anuj@example.com"
+            className="
+              mt-1 w-full
+              px-3 py-2
+              rounded-md
+              border border-[hsl(var(--border))]
+              bg-[hsl(var(--background))]
+              text-[hsl(var(--foreground))]
               outline-none
               focus:ring-2 focus:ring-[hsl(var(--primary))]
+
             "
           />
         </div>
@@ -179,15 +221,19 @@ export function AdminTraineeCreatePage() {
               px-3 py-2
               rounded-md
               border border-[hsl(var(--border))]
-              bg-transparent
+              bg-[hsl(var(--background))]
+              text-[hsl(var(--foreground))]
               outline-none
-              focus:ring-2 focus:ring-[hsl(var(--primary))]
             "
           >
             <option value="">Select trainee type</option>
             {Object.entries(TRAINEE_TYPE_META).map(
               ([key, meta]) => (
-                <option key={key} value={key}>
+                <option
+                  key={key}
+                  value={key}
+                  className="bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
+                >
                   {meta.label}
                 </option>
               )
@@ -207,13 +253,14 @@ export function AdminTraineeCreatePage() {
               px-3 py-2
               rounded-md
               border border-[hsl(var(--border))]
-              bg-transparent
+              bg-[hsl(var(--background))]
+              text-[hsl(var(--foreground))]
               outline-none
             "
           />
         </div>
 
-        {/* ============================ DERIVED INFO ============================ */}
+        {/* Derived Info */}
         <div
           className="
             rounded-md
@@ -223,9 +270,7 @@ export function AdminTraineeCreatePage() {
             space-y-2
           "
         >
-          <div className="text-sm font-medium">
-            Derived Information
-          </div>
+          <div className="text-sm font-medium">Derived Information</div>
 
           <div className="text-sm flex justify-between">
             <span className="text-[hsl(var(--muted-foreground))]">
@@ -271,7 +316,8 @@ export function AdminTraineeCreatePage() {
               px-3 py-2
               rounded-md
               border border-[hsl(var(--border))]
-              bg-transparent
+              bg-[hsl(var(--background))]
+              text-[hsl(var(--foreground))]
               outline-none
               resize-none
             "
@@ -296,15 +342,17 @@ export function AdminTraineeCreatePage() {
 
         <button
           onClick={handleCreateTrainee}
+          disabled={submitting}
           className="
             px-4 py-2
             rounded-md
             bg-[hsl(var(--primary))]
             text-[hsl(var(--primary-foreground))]
             hover:opacity-90
+            disabled:opacity-60
           "
         >
-          Create Trainee
+          {submitting ? "Creating…" : "Create Trainee"}
         </button>
       </div>
     </div>

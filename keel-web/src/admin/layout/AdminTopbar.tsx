@@ -77,7 +77,7 @@ export function AdminTopbar({ onToggleSidebar }: AdminTopbarProps) {
         <div className="flex-1 min-w-0">
           <input
             className="
-              w-full max-w-[520px]
+              w-full max-w-130
               px-3 py-2 rounded-md
               border border-[hsl(var(--border))]
               bg-transparent

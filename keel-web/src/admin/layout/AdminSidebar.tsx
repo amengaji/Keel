@@ -188,7 +188,7 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
       className={[
         "border-r border-[hsl(var(--border))] bg-[hsl(var(--card))]",
         "transition-all duration-200",
-        collapsed ? "w-[72px]" : "w-[260px]",
+        collapsed ? "w-18" : "w-65",
       ].join(" ")}
     >
       {/* ============================ BRAND ============================ */}
@@ -244,8 +244,8 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
                   <span
                     className="
                       ml-auto
-                      min-w-[18px]
-                      h-[18px]
+                      min-w-4.5
+                      h-4.5
                       px-1
                       rounded-full
                       bg-yellow-500/20
