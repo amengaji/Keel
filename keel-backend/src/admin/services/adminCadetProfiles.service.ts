@@ -265,6 +265,8 @@ export async function getCadetProfile(cadetId: number) {
 
     // UI commonly uses seaman_book_number; DB uses seamans_book_number
     seaman_book_number: row.seamans_book_number,
+    // UI expects seaman_book_country (no "s" after seaman)
+    seaman_book_country: row.seamans_book_country,
     seamans_book_country: row.seamans_book_country,
 
     indos_number: row.indos_number,

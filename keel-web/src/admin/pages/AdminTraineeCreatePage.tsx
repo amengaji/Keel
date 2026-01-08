@@ -84,7 +84,7 @@ export function AdminTraineeCreatePage() {
   const [traineeType, setTraineeType] = useState<TraineeType | "">("");
   const [nationality, setNationality] = useState("");
   const [notes, setNotes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting,] = useState(false);
   
   const derived = traineeType ? TRAINEE_TYPE_META[traineeType] : null;
 

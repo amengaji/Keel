@@ -1,40 +1,54 @@
 // keel-web/src/admin/pages/AdminCadetDetailPage.tsx
 //
-// Keel — Cadet Detail (Read-Only)
+// Keel — Cadet Detail (Identity + Optional Training Overview)
 // ----------------------------------------------------
 // PURPOSE:
-// - Read-only cadet drill-down
-// - Source: /api/v1/admin/trainees (admin_trb_cadets_v)
-// - Audit safe, no mutations
+// - Cadet drill-down that ALWAYS works for identity registry cadets
+// - Identity source: /api/v1/admin/cadets (users-based registry)
+// - Training/TRB snapshot: /api/v1/admin/trainees (admin_trb_cadets_v) OPTIONAL
 //
+// WHY THIS MATTERS:
+// - A new cadet may NOT exist in admin_trb_cadets_v until assignment/training starts.
+// - So we must NOT fail the page if the trainee view has no row.
+//
+// SAFETY:
+// - Read-only view page (no mutations here)
+// - Profile edits happen on /admin/cadets/:cadetId/profile (Phase 3A)
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  User,
-  BookCheck,
-  ShieldCheck,
-  Ship,
-} from "lucide-react";
+import { ArrowLeft, User, BookCheck, ShieldCheck, IdCard } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 
-interface ApiCadetRow {
+interface ApiCadetIdentityRow {
+  cadet_id: number;
+  cadet_email: string;
+  cadet_name: string;
+  created_at: string;
+  updated_at: string;
+  role_name: string;
+}
+
+interface ApiCadetTrainingRow {
   assignment_id: number;
   cadet_id: number;
   cadet_email: string;
+
   vessel_id: number | null;
   vessel_name: string | null;
   ship_type_name: string | null;
+
   assignment_start_date: string | null;
   assignment_end_date: string | null;
+
   total_tasks: number | null;
   tasks_master_approved: number | null;
   completion_percentage: number | null;
+
   last_activity_at: string | null;
   overall_status: string | null;
 }
@@ -74,57 +88,92 @@ export function AdminCadetDetailPage() {
   const navigate = useNavigate();
   const { cadetId } = useParams();
 
-  const [row, setRow] = useState<ApiCadetRow | null>(null);
+  const cadetIdNum = useMemo(() => Number(cadetId), [cadetId]);
+
+  const [identity, setIdentity] = useState<ApiCadetIdentityRow | null>(null);
+  const [training, setTraining] = useState<ApiCadetTrainingRow | null>(null);
+
   const [loading, setLoading] = useState(true);
 
   /* ------------------------------ Load Data ------------------------------ */
-
   useEffect(() => {
     let cancelled = false;
 
-    async function loadCadet() {
+    async function load() {
       try {
         setLoading(true);
 
-        const res = await fetch("/api/v1/admin/trainees", {
+        if (!cadetIdNum || Number.isNaN(cadetIdNum)) {
+          throw new Error("Invalid cadet ID");
+        }
+
+        // STEP 1: Load identity registry (MUST exist)
+        const identityRes = await fetch("/api/v1/admin/cadets", {
           credentials: "include",
         });
 
-        if (!res.ok) {
-          throw new Error(`Failed to load cadets (${res.status})`);
+        if (!identityRes.ok) {
+          throw new Error(`Failed to load cadets (${identityRes.status})`);
         }
 
-        const json = await res.json();
-        const list: ApiCadetRow[] = Array.isArray(json?.data)
-          ? json.data
+        const identityJson = await identityRes.json().catch(() => null);
+        const identityList: ApiCadetIdentityRow[] = Array.isArray(identityJson?.data)
+          ? identityJson.data
           : [];
 
-        const found = list.find(
-          (c) => String(c.cadet_id) === String(cadetId)
+        const foundIdentity = identityList.find(
+          (c) => String(c.cadet_id) === String(cadetIdNum)
         );
 
-        if (!found) {
-          throw new Error("Cadet not found");
+        if (!foundIdentity) {
+          // This means user record is missing (actual error)
+          throw new Error("Cadet not found in identity registry");
+        }
+
+        // STEP 2: Load training/TRB overview (OPTIONAL)
+        // If cadet has no assignment/training yet, they may not exist in this view.
+        let foundTraining: ApiCadetTrainingRow | null = null;
+
+        try {
+          const trainingRes = await fetch("/api/v1/admin/trainees", {
+            credentials: "include",
+          });
+
+          if (trainingRes.ok) {
+            const trainingJson = await trainingRes.json().catch(() => null);
+            const trainingList: ApiCadetTrainingRow[] = Array.isArray(trainingJson?.data)
+              ? trainingJson.data
+              : [];
+
+            foundTraining =
+              trainingList.find((t) => String(t.cadet_id) === String(cadetIdNum)) ?? null;
+          }
+        } catch {
+          // silently ignore (we still show identity view)
+          foundTraining = null;
         }
 
         if (!cancelled) {
-          setRow(found);
+          setIdentity(foundIdentity);
+          setTraining(foundTraining);
         }
       } catch (err: any) {
-        console.error("❌ Failed to load cadet:", err);
+        console.error("❌ Failed to load cadet detail:", err);
         toast.error(err?.message || "Unable to load cadet");
-      } finally {
         if (!cancelled) {
-          setLoading(false);
+          setIdentity(null);
+          setTraining(null);
         }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
-    loadCadet();
+    load();
     return () => {
       cancelled = true;
     };
-  }, [cadetId]);
+  }, [cadetIdNum]);
 
   /* ---------------------------------------------------------------------- */
 
@@ -136,7 +185,7 @@ export function AdminCadetDetailPage() {
     );
   }
 
-  if (!row) {
+  if (!identity) {
     return null;
   }
 
@@ -159,69 +208,87 @@ export function AdminCadetDetailPage() {
       </button>
 
       {/* ============================ HEADER ============================ */}
-      <div>
-        <h1 className="text-xl font-semibold flex items-center gap-2">
-          <User size={20} />
-          {row.cadet_email}
-        </h1>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold flex items-center gap-2">
+            <User size={20} />
+            {identity.cadet_name}
+          </h1>
 
-        <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-          Cadet · Training Record Overview
-        </p>
+          <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
+            {identity.cadet_email}
+          </p>
+        </div>
+
+        <button
+          onClick={() => navigate(`/admin/cadets/${identity.cadet_id}/profile`)}
+          className="
+            inline-flex items-center gap-2
+            px-4 py-2
+            rounded-md
+            border border-[hsl(var(--border))]
+            bg-[hsl(var(--card))]
+            hover:bg-[hsl(var(--muted))]
+            text-sm
+            whitespace-nowrap
+          "
+          title="Open Identity Profile (Phase 3A)"
+        >
+          <IdCard size={16} />
+          Open Identity Profile
+        </button>
       </div>
 
-      {/* ============================ ASSIGNMENT ============================ */}
+      {/* ============================ IDENTITY SNAPSHOT ============================ */}
       <div className="rounded-lg border bg-[hsl(var(--card))] p-4 space-y-2">
-        <InfoRow label="Cadet Email" value={row.cadet_email} />
-        <InfoRow
-          label="Assigned Vessel"
-          value={row.vessel_name}
-        />
-        <InfoRow
-          label="Ship Type"
-          value={row.ship_type_name}
-        />
-        <InfoRow
-          label="Assignment Period"
-          value={
-            row.assignment_start_date
-              ? `${row.assignment_start_date} → ${
-                  row.assignment_end_date || "Present"
-                }`
-              : null
-          }
-        />
+        <InfoRow label="Cadet ID" value={identity.cadet_id} />
+        <InfoRow label="Role" value={identity.role_name} />
+        <InfoRow label="Created" value={new Date(identity.created_at).toLocaleString()} />
+        <InfoRow label="Last Updated" value={new Date(identity.updated_at).toLocaleString()} />
       </div>
 
-      {/* ============================ TRB SNAPSHOT ============================ */}
+      {/* ============================ TRAINING / TRB SNAPSHOT ============================ */}
       <div className="rounded-lg border bg-[hsl(var(--card))] p-4 space-y-3">
         <h2 className="text-sm font-medium flex items-center gap-2">
           <BookCheck size={16} />
-          Training Progress
+          Training / TRB Snapshot
         </h2>
 
-        <InfoRow
-          label="Completion"
-          value={
-            row.completion_percentage !== null
-              ? `${row.completion_percentage}%`
-              : null
-          }
-        />
-        <InfoRow
-          label="Tasks Approved"
-          value={row.tasks_master_approved}
-        />
-        <InfoRow
-          label="Total Tasks"
-          value={row.total_tasks}
-        />
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-[hsl(var(--muted-foreground))]">
-            Overall Status
-          </span>
-          <StatusPill value={row.overall_status} />
-        </div>
+        {!training ? (
+          <div className="text-sm text-[hsl(var(--muted-foreground))]">
+            No assignment / training record found yet for this cadet. This is normal for newly created cadets.
+          </div>
+        ) : (
+          <>
+            <InfoRow label="Assigned Vessel" value={training.vessel_name} />
+            <InfoRow label="Ship Type" value={training.ship_type_name} />
+            <InfoRow
+              label="Assignment Period"
+              value={
+                training.assignment_start_date
+                  ? `${training.assignment_start_date} → ${training.assignment_end_date || "Present"}`
+                  : null
+              }
+            />
+            <InfoRow
+              label="Completion"
+              value={
+                training.completion_percentage !== null
+                  ? `${training.completion_percentage}%`
+                  : null
+              }
+            />
+            <InfoRow label="Tasks Approved" value={training.tasks_master_approved} />
+            <InfoRow label="Total Tasks" value={training.total_tasks} />
+
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-[hsl(var(--muted-foreground))]">
+                Overall Status
+              </span>
+              <StatusPill value={training.overall_status} />
+            </div>
+          </>
+        )}
       </div>
 
       {/* ============================ AUDIT ============================ */}
@@ -232,8 +299,8 @@ export function AdminCadetDetailPage() {
         </h2>
 
         <p className="text-xs text-[hsl(var(--muted-foreground))]">
-          This profile is read-only. Detailed inspection and
-          verification is performed through Audit Mode.
+          Identity and documents are managed in “Cadet Identity Profile” (Phase 3A).
+          Training progress is read-only here and comes from the audit-safe TRB view.
         </p>
       </div>
     </div>
