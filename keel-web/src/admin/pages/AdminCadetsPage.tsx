@@ -5,7 +5,8 @@
 // PURPOSE:
 // - Cadet identity registry (NO training context)
 // - Data source: /api/v1/admin/cadets
-// - Create / Edit / Delete cadets only
+// - Create / Edit cadets
+// - Import cadets via Excel (preview-first, audit-safe)
 //
 // IMPORTANT:
 // - NO vessel assignment
@@ -13,13 +14,15 @@
 // - Assignment & training live elsewhere
 //
 // PHASE:
-// - Phase 3 — STEP A
+// - Phase 3 — STEP A + Import UI
 //
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { User, Plus } from "lucide-react";
+import { User, Plus, Upload } from "lucide-react";
+
+import { CadetImportModal } from "../components/CadetImportModal";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -44,43 +47,44 @@ export function AdminCadetsPage() {
   const [rows, setRows] = useState<ApiCadetRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Import modal state
+  const [importOpen, setImportOpen] = useState(false);
+
   /* ------------------------------ Load Data ------------------------------ */
+
+  async function loadCadets() {
+    try {
+      setLoading(true);
+
+      const res = await fetch("/api/v1/admin/cadets", {
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to load cadets (${res.status})`);
+      }
+
+      const json = await res.json();
+      setRows(Array.isArray(json?.data) ? json.data : []);
+    } catch (err: any) {
+      console.error("❌ Failed to load cadets:", err);
+      toast.error(err?.message || "Unable to load cadets");
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadCadets() {
-      try {
-        setLoading(true);
-
-        const res = await fetch("/api/v1/admin/cadets", {
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to load cadets (${res.status})`);
-        }
-
-        const json = await res.json();
-
-        if (!cancelled) {
-          setRows(Array.isArray(json?.data) ? json.data : []);
-        }
-      } catch (err: any) {
-        console.error("❌ Failed to load cadets:", err);
-        toast.error(err?.message || "Unable to load cadets");
-
-        if (!cancelled) {
-          setRows([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+    async function run() {
+      if (!cancelled) {
+        await loadCadets();
       }
     }
 
-    loadCadets();
+    run();
     return () => {
       cancelled = true;
     };
@@ -104,21 +108,41 @@ export function AdminCadetsPage() {
           </p>
         </div>
 
-        {/* Create Cadet */}
-        <button
-          onClick={() => navigate("/admin/cadets/create")}
-          className="
-            inline-flex items-center gap-2
-            px-4 py-2
-            rounded-md
-            bg-[hsl(var(--primary))]
-            text-[hsl(var(--primary-foreground))]
-            hover:opacity-90
-          "
-        >
-          <Plus size={16} />
-          Create Cadet
-        </button>
+        {/* ACTIONS */}
+        <div className="flex gap-2">
+          {/* Import Cadets */}
+          <button
+            onClick={() => setImportOpen(true)}
+            className="
+              inline-flex items-center gap-2
+              px-4 py-2
+              rounded-md
+              border border-[hsl(var(--border))]
+              bg-[hsl(var(--card))]
+              text-[hsl(var(--foreground))]
+              hover:bg-[hsl(var(--muted))]
+            "
+          >
+            <Upload size={16} />
+            Import Cadets
+          </button>
+
+          {/* Create Cadet */}
+          <button
+            onClick={() => navigate("/admin/cadets/create")}
+            className="
+              inline-flex items-center gap-2
+              px-4 py-2
+              rounded-md
+              bg-[hsl(var(--primary))]
+              text-[hsl(var(--primary-foreground))]
+              hover:opacity-90
+            "
+          >
+            <Plus size={16} />
+            Create Cadet
+          </button>
+        </div>
       </div>
 
       {/* ============================ TABLE ============================ */}
@@ -198,6 +222,16 @@ export function AdminCadetsPage() {
         Training Record Book progress, and audit workflows are handled
         in their respective modules.
       </p>
+
+      {/* ============================ IMPORT MODAL ============================ */}
+      <CadetImportModal
+        open={importOpen}
+        onCancel={() => setImportOpen(false)}
+        onCommitted={async () => {
+          // Refresh list after successful import or no-op success
+          await loadCadets();
+        }}
+      />
     </div>
   );
 }

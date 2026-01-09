@@ -133,14 +133,14 @@ async function findExistingEmailsLower(emailsLower: string[]): Promise<Set<strin
 
 export function buildCadetImportTemplateXlsxBuffer(): Buffer {
   const headers = [
-    "full_name*",
-    "email*",
-    "trainee_type*",
+    "full_name",
+    "email",
+    "trainee_type",
     "nationality",
     "notes",
-    "rank_label (optional; auto-derived)",
-    "category (optional; auto-derived)",
-    "trb_applicable (optional; auto-derived)",
+    "rank_label",
+    "category",
+    "trb_applicable",
   ];
 
   const example = [

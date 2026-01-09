@@ -113,7 +113,7 @@ export function ConfirmDeleteModal({
                 
                 {/* FEATURED ICON */}
                 <div className="
-                  mx-auto flex h-14 w-14 flex-shrink-0 items-center justify-center 
+                  mx-auto flex h-14 w-14 shrink-0 items-center justify-center 
                   rounded-full bg-red-100 sm:mx-0 sm:h-12 sm:w-12
                   ring-8 ring-red-50 dark:bg-red-900/20 dark:ring-red-900/10
                 ">
@@ -138,7 +138,7 @@ export function ConfirmDeleteModal({
                   {/* AUDIT / SOFT DELETE NOTICE */}
                   <div className="mt-4 rounded-md bg-orange-50 dark:bg-orange-900/10 p-3 border border-orange-100 dark:border-orange-900/20">
                     <div className="flex">
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
                         <Info className="h-5 w-5 text-orange-400" aria-hidden="true" />
                       </div>
                       <div className="ml-3 flex-1 md:flex md:justify-between">
