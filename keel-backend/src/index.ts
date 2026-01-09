@@ -28,6 +28,7 @@ import adminTrbRoutes from "./admin/routes/adminTrb.routes.js";
 import trbReviewRoutes from "./admin/routes/trbReview.routes.js";
 import adminTraineesRoutes from "./admin/routes/adminTrainees.routes.js";
 import adminCadetProfilesRoutes from "./admin/routes/adminCadetProfiles.routes.js";
+import adminImportsRoutes from "./admin/routes/adminImports.routes.js";
 
 /* -------------------------------------------------------------------------- */
 /* ADMIN — AUDIT EXPORT ROUTES (READ-ONLY)                                     */
@@ -90,6 +91,7 @@ app.use("/api/v1/admin/trb/review", trbReviewRoutes);
 app.use("/api/v1/admin/audit", adminAuditRoutes);
 app.use("/api/v1/admin", adminTraineesRoutes);
 app.use("/api/v1/admin", adminCadetProfilesRoutes);
+app.use("/api/v1/admin", adminImportsRoutes);
 
 // Health check route
 app.get("/", (req, res) => {

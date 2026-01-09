@@ -43,4 +43,9 @@
     --primary: 186 53% 41%;
     --primary-foreground: 0 0% 100%;
   }
+  
+  /* ✅ FORCE ALL BORDERS TO USE THEME BORDER COLOR */
+  *, ::before, ::after {
+    border-color: hsl(var(--border));
+  }
 }
