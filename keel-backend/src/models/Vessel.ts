@@ -10,7 +10,43 @@
 import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/database.js";
 
-class Vessel extends Model {}
+class Vessel extends Model {
+  declare id: number;
+  declare name: string;
+  declare imo_number: string;
+  declare call_sign: string | null;
+  declare mmsi: string | null;
+  declare flag: string | null;
+  declare port_of_registry: string | null;
+  declare ship_type_id: number;
+  declare classification_society: string | null;
+  declare builder: string | null;
+  declare year_built: number | null;
+  declare gross_tonnage: number | null;
+  declare net_tonnage: number | null;
+  declare deadweight_tonnage: number | null;
+  declare length_overall_m: number | null;
+  declare breadth_moulded_m: number | null;
+  declare depth_m: number | null;
+  declare draught_summer_m: number | null;
+  declare main_engine_type: string | null;
+  declare main_engine_model: string | null;
+  declare main_engine_power_kw: number | null;
+  declare aux_engine_details: string | null;
+  declare service_speed_knots: number | null;
+  declare owner_company: string | null;
+  declare manager_company: string | null;
+  declare operating_area: string | null;
+  declare ice_class: string | null;
+  declare last_drydock_date: string | null;
+  declare next_drydock_date: string | null;
+  declare last_special_survey_date: string | null;
+  declare next_special_survey_date: string | null;
+  declare is_active: boolean;
+  
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
+}
 
 Vessel.init(
   {

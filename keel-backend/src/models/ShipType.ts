@@ -1,7 +1,15 @@
 import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/database.js";
 
-class ShipType extends Model {}
+class ShipType extends Model {
+  declare id: number;
+  declare type_code: string;
+  declare name: string;
+  declare description: string | null;
+  
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
+}
 
 ShipType.init(
   {
