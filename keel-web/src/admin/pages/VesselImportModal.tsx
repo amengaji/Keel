@@ -219,6 +219,9 @@ export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModa
       const form = new FormData();
       form.append("file", file);
 
+      console.log("Uploading file:", file?.name, file?.size);
+
+
       const res = await fetch("/api/v1/admin/imports/vessels/preview", {
         method: "POST",
         credentials: "include",
