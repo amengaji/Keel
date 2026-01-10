@@ -1,351 +1,362 @@
 +-- keel-backend
-¦   +-- db
-¦   ¦   +-- migrations
-¦   ¦       +-- 001_admin_roles_v.sql
-¦   ¦       +-- 002_admin_users_v.sql
-¦   ¦       +-- 003_admin_ship_types_v.sql
-¦   ¦       +-- 004_admin_vessels_v.sql
-¦   ¦       +-- 005_admin_trb_cadets_v.sql
-¦   ¦       +-- 006_admin_trb_section_progress_v.sql
-¦   ¦       +-- 007_admin_trb_task_evidence_v.sql
-¦   ¦       +-- 008_admin_audit_timeline_v.sql
-¦   ¦       +-- 009_cadet_profiles.sql
-¦   ¦       +-- 20260106_create_cadet_profiles.sql
-¦   ¦       +-- 20260106_fix_cadet_profiles.sql
-¦   ¦       +-- 20260107_add_unique_cadet_profiles_docs.sql
-¦   +-- src
-¦   ¦   +-- admin
-¦   ¦   ¦   +-- audit
-¦   ¦   ¦   ¦   +-- controllers
-¦   ¦   ¦   ¦   ¦   +-- adminAudit.controller.ts
-¦   ¦   ¦   ¦   +-- routes
-¦   ¦   ¦   ¦   ¦   +-- adminAudit.routes.ts
-¦   ¦   ¦   ¦   +-- services
-¦   ¦   ¦   ¦       +-- adminAudit.service.ts
-¦   ¦   ¦   +-- controllers
-¦   ¦   ¦   ¦   +-- adminCadetProfiles.controller.ts
-¦   ¦   ¦   ¦   +-- adminImports.controller.ts
-¦   ¦   ¦   ¦   +-- adminShipTypes.controller.ts
-¦   ¦   ¦   ¦   +-- adminTrainees.controller.ts
-¦   ¦   ¦   ¦   +-- adminTrb.controller.ts
-¦   ¦   ¦   ¦   +-- adminUsersRoles.controller.ts
-¦   ¦   ¦   ¦   +-- adminVesselImports.controller.ts
-¦   ¦   ¦   ¦   +-- adminVessels.controller.ts
-¦   ¦   ¦   ¦   +-- trbReview.controller.ts
-¦   ¦   ¦   +-- imports
-¦   ¦   ¦   ¦   +-- cadetImportHeaders.ts
-¦   ¦   ¦   +-- policies
-¦   ¦   ¦   +-- routes
-¦   ¦   ¦   ¦   +-- adminCadetProfiles.routes.ts
-¦   ¦   ¦   ¦   +-- adminImports.routes.ts
-¦   ¦   ¦   ¦   +-- adminShipTypes.routes.ts
-¦   ¦   ¦   ¦   +-- adminTrainees.routes.ts
-¦   ¦   ¦   ¦   +-- adminTrb.routes.ts
-¦   ¦   ¦   ¦   +-- adminUsersRoles.routes.ts
-¦   ¦   ¦   ¦   +-- adminVesselImports.routes.ts
-¦   ¦   ¦   ¦   +-- adminVessels.routes.ts
-¦   ¦   ¦   ¦   +-- trbReview.routes.ts
-¦   ¦   ¦   +-- services
-¦   ¦   ¦       +-- adminCadetProfiles.service.ts
-¦   ¦   ¦       +-- adminImports.service.ts
-¦   ¦   ¦       +-- adminImportsCadetsCommit.service.ts
-¦   ¦   ¦       +-- adminShipTypes.service.ts
-¦   ¦   ¦       +-- adminTrainees.service.ts
-¦   ¦   ¦       +-- adminTrb.service.ts
-¦   ¦   ¦       +-- adminUsersRoles.service.ts
-¦   ¦   ¦       +-- adminVesselImports.service.ts
-¦   ¦   ¦       +-- adminVessels.service.ts
-¦   ¦   ¦       +-- trbReviewWorkflow.service.ts
-¦   ¦   +-- config
-¦   ¦   ¦   +-- database.ts
-¦   ¦   +-- controllers
-¦   ¦   ¦   +-- auth.controller.ts
-¦   ¦   ¦   +-- cadetFamiliarisation.controller.ts
-¦   ¦   ¦   +-- familiarisationInit.controller.ts
-¦   ¦   ¦   +-- familiarisationProgress.controller.ts
-¦   ¦   ¦   +-- familiarisationReview.controller.ts
-¦   ¦   ¦   +-- familiarisationSectionSubmit.controller.ts
-¦   ¦   ¦   +-- familiarisationTask.controller.ts
-¦   ¦   ¦   +-- familiarisationTaskUpdate.controller.ts
-¦   ¦   ¦   +-- famSectionTemplate.controller.ts
-¦   ¦   ¦   +-- famTaskTemplate.controller.ts
-¦   ¦   ¦   +-- me.controller.ts
-¦   ¦   ¦   +-- shipType.controller.ts
-¦   ¦   ¦   +-- trbFamiliarisation.controller.ts
-¦   ¦   ¦   +-- vessel.controller.ts
-¦   ¦   ¦   +-- vesselAssignment.controller.ts
-¦   ¦   +-- db
-¦   ¦   ¦   +-- migrations
-¦   ¦   ¦       +-- 20260105_add_is_active_to_vessels.sql
-¦   ¦   +-- middleware
-¦   ¦   ¦   +-- auth.middleware.ts
-¦   ¦   ¦   +-- role.middleware.ts
-¦   ¦   +-- models
-¦   ¦   ¦   +-- associations.ts
-¦   ¦   ¦   +-- CadetFamiliarisationAttachment.ts
-¦   ¦   ¦   +-- CadetFamiliarisationState.ts
-¦   ¦   ¦   +-- CadetProfile.ts
-¦   ¦   ¦   +-- CadetVesselAssignment.ts
-¦   ¦   ¦   +-- FamiliarisationSectionTemplate.ts
-¦   ¦   ¦   +-- FamiliarisationTaskTemplate.ts
-¦   ¦   ¦   +-- index.ts
-¦   ¦   ¦   +-- Role.ts
-¦   ¦   ¦   +-- ShipType.ts
-¦   ¦   ¦   +-- User.ts
-¦   ¦   ¦   +-- Vessel.ts
-¦   ¦   +-- routes
-¦   ¦   ¦   +-- auth.routes.ts
-¦   ¦   ¦   +-- cadetFamiliarisation.routes.ts
-¦   ¦   ¦   +-- familiarisationInit.routes.ts
-¦   ¦   ¦   +-- familiarisationProgress.routes.ts
-¦   ¦   ¦   +-- familiarisationReview.routes.ts
-¦   ¦   ¦   +-- familiarisationSectionSubmit.routes.ts
-¦   ¦   ¦   +-- familiarisationTask.routes.ts
-¦   ¦   ¦   +-- familiarisationTaskUpdate.routes.ts
-¦   ¦   ¦   +-- famSectionTemplate.routes.ts
-¦   ¦   ¦   +-- famStructureBulk.routes.ts
-¦   ¦   ¦   +-- famTaskTemplate.routes.ts
-¦   ¦   ¦   +-- famTaskTemplateBulk.routes.ts
-¦   ¦   ¦   +-- me.routes.ts
-¦   ¦   ¦   +-- role.routes.ts
-¦   ¦   ¦   +-- shipType.routes.ts
-¦   ¦   ¦   +-- trbFamiliarisation.routes.ts
-¦   ¦   ¦   +-- vessel.routes.ts
-¦   ¦   ¦   +-- vesselAssignment.routes.ts
-¦   ¦   +-- scripts
-¦   ¦   ¦   +-- seedUsers.ts
-¦   ¦   +-- utils
-¦   ¦   ¦   +-- jwt.ts
-¦   ¦   +-- index.ts
-¦   +-- .env
-¦   +-- generate-hash.cjs
-¦   +-- package.json
-¦   +-- tsconfig.json
+ï¿½   +-- db
+ï¿½   ï¿½   +-- migrations
+ï¿½   ï¿½       +-- 001_admin_roles_v.sql
+ï¿½   ï¿½       +-- 002_admin_users_v.sql
+ï¿½   ï¿½       +-- 003_admin_ship_types_v.sql
+ï¿½   ï¿½       +-- 004_admin_vessels_v.sql
+ï¿½   ï¿½       +-- 005_admin_trb_cadets_v.sql
+ï¿½   ï¿½       +-- 006_admin_trb_section_progress_v.sql
+ï¿½   ï¿½       +-- 007_admin_trb_task_evidence_v.sql
+ï¿½   ï¿½       +-- 008_admin_audit_timeline_v.sql
+ï¿½   ï¿½       +-- 009_admin_vessels_v_fix.sql
+ï¿½   ï¿½       +-- 009_cadet_profiles.sql
+ï¿½   ï¿½       +-- 20260106_create_cadet_profiles.sql
+ï¿½   ï¿½       +-- 20260106_fix_cadet_profiles.sql
+ï¿½   ï¿½       +-- 20260107_add_unique_cadet_profiles_docs.sql
+ï¿½   +-- src
+ï¿½   ï¿½   +-- admin
+ï¿½   ï¿½   ï¿½   +-- audit
+ï¿½   ï¿½   ï¿½   ï¿½   +-- controllers
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- adminAudit.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- routes
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- adminAudit.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- services
+ï¿½   ï¿½   ï¿½   ï¿½       +-- adminAudit.service.ts
+ï¿½   ï¿½   ï¿½   +-- controllers
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminCadetAssignments.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminCadetProfiles.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminImports.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminShipTypes.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminTrainees.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminTrb.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminUsersRoles.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminVesselAssignmentClose.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminVesselAssignments.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminVesselImports.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminVessels.controller.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- trbReview.controller.ts
+ï¿½   ï¿½   ï¿½   +-- imports
+ï¿½   ï¿½   ï¿½   ï¿½   +-- cadetImportHeaders.ts
+ï¿½   ï¿½   ï¿½   +-- policies
+ï¿½   ï¿½   ï¿½   +-- routes
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminCadetAssignments.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminCadetProfiles.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminImports.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminShipTypes.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminTrainees.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminTrb.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminUsersRoles.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminVesselAssignmentClose.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminVesselAssignments.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminVesselImports.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- adminVessels.routes.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- trbReview.routes.ts
+ï¿½   ï¿½   ï¿½   +-- services
+ï¿½   ï¿½   ï¿½       +-- adminCadetAssignments.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminCadetProfiles.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminImports.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminImportsCadetsCommit.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminShipTypes.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminTrainees.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminTrb.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminUsersRoles.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminVesselAssignmentClose.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminVesselAssignments.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminVesselImports.service.ts
+ï¿½   ï¿½   ï¿½       +-- adminVessels.service.ts
+ï¿½   ï¿½   ï¿½       +-- trbReviewWorkflow.service.ts
+ï¿½   ï¿½   +-- config
+ï¿½   ï¿½   ï¿½   +-- database.ts
+ï¿½   ï¿½   +-- controllers
+ï¿½   ï¿½   ï¿½   +-- auth.controller.ts
+ï¿½   ï¿½   ï¿½   +-- cadetFamiliarisation.controller.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationInit.controller.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationProgress.controller.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationReview.controller.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationSectionSubmit.controller.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationTask.controller.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationTaskUpdate.controller.ts
+ï¿½   ï¿½   ï¿½   +-- famSectionTemplate.controller.ts
+ï¿½   ï¿½   ï¿½   +-- famTaskTemplate.controller.ts
+ï¿½   ï¿½   ï¿½   +-- me.controller.ts
+ï¿½   ï¿½   ï¿½   +-- shipType.controller.ts
+ï¿½   ï¿½   ï¿½   +-- trbFamiliarisation.controller.ts
+ï¿½   ï¿½   ï¿½   +-- vessel.controller.ts
+ï¿½   ï¿½   ï¿½   +-- vesselAssignment.controller.ts
+ï¿½   ï¿½   +-- db
+ï¿½   ï¿½   ï¿½   +-- migrations
+ï¿½   ï¿½   ï¿½       +-- 20260105_add_is_active_to_vessels.sql
+ï¿½   ï¿½   +-- middleware
+ï¿½   ï¿½   ï¿½   +-- auth.middleware.ts
+ï¿½   ï¿½   ï¿½   +-- role.middleware.ts
+ï¿½   ï¿½   +-- models
+ï¿½   ï¿½   ï¿½   +-- associations.ts
+ï¿½   ï¿½   ï¿½   +-- CadetFamiliarisationAttachment.ts
+ï¿½   ï¿½   ï¿½   +-- CadetFamiliarisationState.ts
+ï¿½   ï¿½   ï¿½   +-- CadetProfile.ts
+ï¿½   ï¿½   ï¿½   +-- CadetVesselAssignment.ts
+ï¿½   ï¿½   ï¿½   +-- FamiliarisationSectionTemplate.ts
+ï¿½   ï¿½   ï¿½   +-- FamiliarisationTaskTemplate.ts
+ï¿½   ï¿½   ï¿½   +-- index.ts
+ï¿½   ï¿½   ï¿½   +-- Role.ts
+ï¿½   ï¿½   ï¿½   +-- ShipType.ts
+ï¿½   ï¿½   ï¿½   +-- User.ts
+ï¿½   ï¿½   ï¿½   +-- Vessel.ts
+ï¿½   ï¿½   +-- routes
+ï¿½   ï¿½   ï¿½   +-- auth.routes.ts
+ï¿½   ï¿½   ï¿½   +-- cadetFamiliarisation.routes.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationInit.routes.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationProgress.routes.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationReview.routes.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationSectionSubmit.routes.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationTask.routes.ts
+ï¿½   ï¿½   ï¿½   +-- familiarisationTaskUpdate.routes.ts
+ï¿½   ï¿½   ï¿½   +-- famSectionTemplate.routes.ts
+ï¿½   ï¿½   ï¿½   +-- famStructureBulk.routes.ts
+ï¿½   ï¿½   ï¿½   +-- famTaskTemplate.routes.ts
+ï¿½   ï¿½   ï¿½   +-- famTaskTemplateBulk.routes.ts
+ï¿½   ï¿½   ï¿½   +-- me.routes.ts
+ï¿½   ï¿½   ï¿½   +-- role.routes.ts
+ï¿½   ï¿½   ï¿½   +-- shipType.routes.ts
+ï¿½   ï¿½   ï¿½   +-- trbFamiliarisation.routes.ts
+ï¿½   ï¿½   ï¿½   +-- vessel.routes.ts
+ï¿½   ï¿½   ï¿½   +-- vesselAssignment.routes.ts
+ï¿½   ï¿½   +-- scripts
+ï¿½   ï¿½   ï¿½   +-- seedUsers.ts
+ï¿½   ï¿½   +-- utils
+ï¿½   ï¿½   ï¿½   +-- jwt.ts
+ï¿½   ï¿½   +-- index.ts
+ï¿½   +-- .env
+ï¿½   +-- generate-hash.cjs
+ï¿½   +-- package.json
+ï¿½   +-- tsconfig.json
 +-- keel-docs
-¦   +-- backend-architecture.md
-¦   +-- domain-model.md
-¦   +-- frontend-architecture.md
-¦   +-- phases.md
-¦   +-- stack.md
-¦   +-- user-flows.md
-¦   +-- vision.md
+ï¿½   +-- backend-architecture.md
+ï¿½   +-- domain-model.md
+ï¿½   +-- frontend-architecture.md
+ï¿½   +-- phases.md
+ï¿½   +-- stack.md
+ï¿½   +-- user-flows.md
+ï¿½   +-- vision.md
 +-- keel-mobile
-¦   +-- assets
-¦   ¦   +-- adaptive-icon.png
-¦   ¦   +-- favicon.png
-¦   ¦   +-- keel-logo.png
-¦   ¦   +-- splash-icon.png
-¦   +-- src
-¦   ¦   +-- auth
-¦   ¦   ¦   +-- AuthContext.tsx
-¦   ¦   +-- components
-¦   ¦   ¦   +-- common
-¦   ¦   ¦   ¦   +-- CheckboxBox.tsx
-¦   ¦   ¦   ¦   +-- YesNoCapsule.tsx
-¦   ¦   ¦   +-- home
-¦   ¦   ¦   ¦   +-- AttentionItem.tsx
-¦   ¦   ¦   ¦   +-- ComplianceIndicatorCard.tsx
-¦   ¦   ¦   ¦   +-- PendingTasksCard.tsx
-¦   ¦   ¦   ¦   +-- ProgressCard.tsx
-¦   ¦   ¦   ¦   +-- QuickActionsRow.tsx
-¦   ¦   ¦   ¦   +-- VesselCard.tsx
-¦   ¦   ¦   +-- inputs
-¦   ¦   ¦   ¦   +-- DateInputField.tsx
-¦   ¦   ¦   ¦   +-- LatLongInput.tsx
-¦   ¦   ¦   ¦   +-- TimeInputField.tsx
-¦   ¦   ¦   +-- layout
-¦   ¦   ¦   ¦   +-- AppHeader.tsx
-¦   ¦   ¦   +-- tasks
-¦   ¦   ¦   ¦   +-- index.ts
-¦   ¦   ¦   ¦   +-- TaskAttachments.tsx
-¦   ¦   ¦   ¦   +-- TaskInfoSheet.tsx
-¦   ¦   ¦   ¦   +-- TaskListItem.tsx
-¦   ¦   ¦   ¦   +-- TaskRow.tsx
-¦   ¦   ¦   ¦   +-- TaskSectionCard.tsx
-¦   ¦   ¦   ¦   +-- TaskStatusBadge.tsx
-¦   ¦   ¦   ¦   +-- TaskStatusChip.tsx
-¦   ¦   ¦   +-- toast
-¦   ¦   ¦   ¦   +-- GlobalToast.tsx
-¦   ¦   ¦   ¦   +-- ToastProvider.tsx
-¦   ¦   ¦   ¦   +-- useToast.ts
-¦   ¦   ¦   +-- ui
-¦   ¦   ¦       +-- KeelButton.tsx
-¦   ¦   ¦       +-- KeelCard.tsx
-¦   ¦   ¦       +-- KeelScreen.tsx
-¦   ¦   +-- config
-¦   ¦   ¦   +-- cargoProfiles.ts
-¦   ¦   ¦   +-- seaServiceSections.ts
-¦   ¦   ¦   +-- shipTypes.ts
-¦   ¦   +-- daily-logs
-¦   ¦   ¦   +-- DailyLogsContext.tsx
-¦   ¦   ¦   +-- dailyLogsDomain.ts
-¦   ¦   +-- db
-¦   ¦   ¦   +-- tasks
-¦   ¦   ¦   ¦   +-- index.ts
-¦   ¦   ¦   ¦   +-- taskQueries.ts
-¦   ¦   ¦   ¦   +-- taskSeed.ts
-¦   ¦   ¦   ¦   +-- taskStatusMachine.ts
-¦   ¦   ¦   +-- dailyLogs.ts
-¦   ¦   ¦   +-- database.ts
-¦   ¦   ¦   +-- seaService.ts
-¦   ¦   ¦   +-- taskAttachments.ts
-¦   ¦   ¦   +-- taskGuidance.ts
-¦   ¦   ¦   +-- tasks.ts
-¦   ¦   ¦   +-- watchkeeping.ts
-¦   ¦   +-- navigation
-¦   ¦   ¦   +-- AppNavigator.tsx
-¦   ¦   ¦   +-- AuthNavigator.tsx
-¦   ¦   ¦   +-- BottomTabNavigator.tsx
-¦   ¦   ¦   +-- MainNavigator.tsx
-¦   ¦   ¦   +-- OnboardingNavigator.tsx
-¦   ¦   ¦   +-- tasksNavigator.tsx
-¦   ¦   ¦   +-- types.ts
-¦   ¦   +-- screens
-¦   ¦   ¦   +-- tasks
-¦   ¦   ¦   ¦   +-- index.ts
-¦   ¦   ¦   ¦   +-- TaskSectionScreen.tsx
-¦   ¦   ¦   ¦   +-- TasksHomeScreen.tsx
-¦   ¦   ¦   +-- DailyScreen.tsx
-¦   ¦   ¦   +-- EnableBiometricsScreen.tsx
-¦   ¦   ¦   +-- HomeScreen.tsx
-¦   ¦   ¦   +-- LoginScreen.tsx
-¦   ¦   ¦   +-- OnboardingIntroScreen.tsx
-¦   ¦   ¦   +-- ProfileScreen.tsx
-¦   ¦   ¦   +-- SeaServiceScreen.tsx
-¦   ¦   ¦   +-- SeaServiceWizardScreen.tsx
-¦   ¦   ¦   +-- SettingsScreen.tsx
-¦   ¦   ¦   +-- StartSeaServiceScreen.tsx
-¦   ¦   ¦   +-- TaskDetailsScreen.tsx
-¦   ¦   ¦   +-- TaskListScreen.tsx
-¦   ¦   ¦   +-- WelcomeScreen.tsx
-¦   ¦   +-- sea-service
-¦   ¦   ¦   +-- sections
-¦   ¦   ¦   ¦   +-- AuxMachineryElectricalSection.tsx
-¦   ¦   ¦   ¦   +-- CargoCapabilitiesSection.tsx
-¦   ¦   ¦   ¦   +-- DeckMachineryManeuveringSection.tsx
-¦   ¦   ¦   ¦   +-- DimensionsTonnageSection.tsx
-¦   ¦   ¦   ¦   +-- FireFightingAppliancesSection.tsx
-¦   ¦   ¦   ¦   +-- GeneralIdentitySection.tsx
-¦   ¦   ¦   ¦   +-- InertGasSystemSection.tsx
-¦   ¦   ¦   ¦   +-- LifeSavingAppliancesSection.tsx
-¦   ¦   ¦   ¦   +-- NavigationCommunicationSection.tsx
-¦   ¦   ¦   ¦   +-- PollutionPreventionSection.tsx
-¦   ¦   ¦   ¦   +-- PropulsionPerformanceSection.tsx
-¦   ¦   ¦   +-- SeaServiceContext.tsx
-¦   ¦   ¦   +-- seaServiceDefaults.ts
-¦   ¦   ¦   +-- seaServiceSchema.ts
-¦   ¦   ¦   +-- seaServiceStatus.ts
-¦   ¦   ¦   +-- SeaServiceWizard.tsx
-¦   ¦   +-- services
-¦   ¦   ¦   +-- api.ts
-¦   ¦   +-- tasks
-¦   ¦   ¦   +-- guidance
-¦   ¦   ¦   ¦   +-- data
-¦   ¦   ¦   ¦   ¦   +-- tasks.deck.cadet.json
-¦   ¦   ¦   ¦   ¦   +-- tasks.deck.rating.json
-¦   ¦   ¦   ¦   ¦   +-- tasks.engine.cadet.json
-¦   ¦   ¦   ¦   ¦   +-- tasks.engine.rating.json
-¦   ¦   ¦   ¦   +-- guidance.loader.ts
-¦   ¦   ¦   ¦   +-- guidance.types.ts
-¦   ¦   ¦   ¦   +-- index.ts
-¦   ¦   ¦   ¦   +-- __README__.md
-¦   ¦   ¦   +-- taskCatalog.static.ts
-¦   ¦   ¦   +-- taskCatalog.ts
-¦   ¦   +-- theme
-¦   ¦   ¦   +-- keelTheme.ts
-¦   ¦   +-- types
-¦   ¦   ¦   +-- tasks.ts
-¦   ¦   +-- utils
-¦   ¦   ¦   +-- secureStore.ts
-¦   ¦   ¦   +-- stcwCompliance.ts
-¦   ¦   ¦   +-- watchAggregation.ts
-¦   ¦   ¦   +-- watchHours.ts
-¦   ¦   ¦   +-- watchWeeklyAggregation.ts
-¦   ¦   +-- watchkeeping
-¦   ¦       +-- WatchkeepingContext.tsx
-¦   ¦       +-- watchkeepingDomain.ts
-¦   +-- .gitignore
-¦   +-- app.json
-¦   +-- App.tsx
-¦   +-- index.ts
-¦   +-- package.json
-¦   +-- tsconfig.json
+ï¿½   +-- assets
+ï¿½   ï¿½   +-- adaptive-icon.png
+ï¿½   ï¿½   +-- favicon.png
+ï¿½   ï¿½   +-- keel-logo.png
+ï¿½   ï¿½   +-- splash-icon.png
+ï¿½   +-- src
+ï¿½   ï¿½   +-- auth
+ï¿½   ï¿½   ï¿½   +-- AuthContext.tsx
+ï¿½   ï¿½   +-- components
+ï¿½   ï¿½   ï¿½   +-- common
+ï¿½   ï¿½   ï¿½   ï¿½   +-- CheckboxBox.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- YesNoCapsule.tsx
+ï¿½   ï¿½   ï¿½   +-- home
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AttentionItem.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- ComplianceIndicatorCard.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- PendingTasksCard.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- ProgressCard.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- QuickActionsRow.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- VesselCard.tsx
+ï¿½   ï¿½   ï¿½   +-- inputs
+ï¿½   ï¿½   ï¿½   ï¿½   +-- DateInputField.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- LatLongInput.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- TimeInputField.tsx
+ï¿½   ï¿½   ï¿½   +-- layout
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AppHeader.tsx
+ï¿½   ï¿½   ï¿½   +-- tasks
+ï¿½   ï¿½   ï¿½   ï¿½   +-- index.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- TaskAttachments.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- TaskInfoSheet.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- TaskListItem.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- TaskRow.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- TaskSectionCard.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- TaskStatusBadge.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- TaskStatusChip.tsx
+ï¿½   ï¿½   ï¿½   +-- toast
+ï¿½   ï¿½   ï¿½   ï¿½   +-- GlobalToast.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- ToastProvider.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- useToast.ts
+ï¿½   ï¿½   ï¿½   +-- ui
+ï¿½   ï¿½   ï¿½       +-- KeelButton.tsx
+ï¿½   ï¿½   ï¿½       +-- KeelCard.tsx
+ï¿½   ï¿½   ï¿½       +-- KeelScreen.tsx
+ï¿½   ï¿½   +-- config
+ï¿½   ï¿½   ï¿½   +-- cargoProfiles.ts
+ï¿½   ï¿½   ï¿½   +-- seaServiceSections.ts
+ï¿½   ï¿½   ï¿½   +-- shipTypes.ts
+ï¿½   ï¿½   +-- daily-logs
+ï¿½   ï¿½   ï¿½   +-- DailyLogsContext.tsx
+ï¿½   ï¿½   ï¿½   +-- dailyLogsDomain.ts
+ï¿½   ï¿½   +-- db
+ï¿½   ï¿½   ï¿½   +-- tasks
+ï¿½   ï¿½   ï¿½   ï¿½   +-- index.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- taskQueries.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- taskSeed.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- taskStatusMachine.ts
+ï¿½   ï¿½   ï¿½   +-- dailyLogs.ts
+ï¿½   ï¿½   ï¿½   +-- database.ts
+ï¿½   ï¿½   ï¿½   +-- seaService.ts
+ï¿½   ï¿½   ï¿½   +-- taskAttachments.ts
+ï¿½   ï¿½   ï¿½   +-- taskGuidance.ts
+ï¿½   ï¿½   ï¿½   +-- tasks.ts
+ï¿½   ï¿½   ï¿½   +-- watchkeeping.ts
+ï¿½   ï¿½   +-- navigation
+ï¿½   ï¿½   ï¿½   +-- AppNavigator.tsx
+ï¿½   ï¿½   ï¿½   +-- AuthNavigator.tsx
+ï¿½   ï¿½   ï¿½   +-- BottomTabNavigator.tsx
+ï¿½   ï¿½   ï¿½   +-- MainNavigator.tsx
+ï¿½   ï¿½   ï¿½   +-- OnboardingNavigator.tsx
+ï¿½   ï¿½   ï¿½   +-- tasksNavigator.tsx
+ï¿½   ï¿½   ï¿½   +-- types.ts
+ï¿½   ï¿½   +-- screens
+ï¿½   ï¿½   ï¿½   +-- tasks
+ï¿½   ï¿½   ï¿½   ï¿½   +-- index.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- TaskSectionScreen.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- TasksHomeScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- DailyScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- EnableBiometricsScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- HomeScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- LoginScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- OnboardingIntroScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- ProfileScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- SeaServiceScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- SeaServiceWizardScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- SettingsScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- StartSeaServiceScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- TaskDetailsScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- TaskListScreen.tsx
+ï¿½   ï¿½   ï¿½   +-- WelcomeScreen.tsx
+ï¿½   ï¿½   +-- sea-service
+ï¿½   ï¿½   ï¿½   +-- sections
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AuxMachineryElectricalSection.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- CargoCapabilitiesSection.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- DeckMachineryManeuveringSection.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- DimensionsTonnageSection.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- FireFightingAppliancesSection.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- GeneralIdentitySection.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- InertGasSystemSection.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- LifeSavingAppliancesSection.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- NavigationCommunicationSection.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- PollutionPreventionSection.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- PropulsionPerformanceSection.tsx
+ï¿½   ï¿½   ï¿½   +-- SeaServiceContext.tsx
+ï¿½   ï¿½   ï¿½   +-- seaServiceDefaults.ts
+ï¿½   ï¿½   ï¿½   +-- seaServiceSchema.ts
+ï¿½   ï¿½   ï¿½   +-- seaServiceStatus.ts
+ï¿½   ï¿½   ï¿½   +-- SeaServiceWizard.tsx
+ï¿½   ï¿½   +-- services
+ï¿½   ï¿½   ï¿½   +-- api.ts
+ï¿½   ï¿½   +-- tasks
+ï¿½   ï¿½   ï¿½   +-- guidance
+ï¿½   ï¿½   ï¿½   ï¿½   +-- data
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- tasks.deck.cadet.json
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- tasks.deck.rating.json
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- tasks.engine.cadet.json
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- tasks.engine.rating.json
+ï¿½   ï¿½   ï¿½   ï¿½   +-- __README__.md
+ï¿½   ï¿½   ï¿½   ï¿½   +-- guidance.loader.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- guidance.types.ts
+ï¿½   ï¿½   ï¿½   ï¿½   +-- index.ts
+ï¿½   ï¿½   ï¿½   +-- taskCatalog.static.ts
+ï¿½   ï¿½   ï¿½   +-- taskCatalog.ts
+ï¿½   ï¿½   +-- theme
+ï¿½   ï¿½   ï¿½   +-- keelTheme.ts
+ï¿½   ï¿½   +-- types
+ï¿½   ï¿½   ï¿½   +-- tasks.ts
+ï¿½   ï¿½   +-- utils
+ï¿½   ï¿½   ï¿½   +-- secureStore.ts
+ï¿½   ï¿½   ï¿½   +-- stcwCompliance.ts
+ï¿½   ï¿½   ï¿½   +-- watchAggregation.ts
+ï¿½   ï¿½   ï¿½   +-- watchHours.ts
+ï¿½   ï¿½   ï¿½   +-- watchWeeklyAggregation.ts
+ï¿½   ï¿½   +-- watchkeeping
+ï¿½   ï¿½       +-- WatchkeepingContext.tsx
+ï¿½   ï¿½       +-- watchkeepingDomain.ts
+ï¿½   +-- .gitignore
+ï¿½   +-- app.json
+ï¿½   +-- App.tsx
+ï¿½   +-- index.ts
+ï¿½   +-- package.json
+ï¿½   +-- tsconfig.json
 +-- keel-web
-¦   +-- public
-¦   ¦   +-- vite.svg
-¦   +-- src
-¦   ¦   +-- admin
-¦   ¦   ¦   +-- audit
-¦   ¦   ¦   ¦   +-- AuditLandingPage.tsx
-¦   ¦   ¦   ¦   +-- AuditLayout.tsx
-¦   ¦   ¦   ¦   +-- AuditTRBPage.tsx
-¦   ¦   ¦   ¦   +-- FinalTRBLockPage.tsx
-¦   ¦   ¦   ¦   +-- lockTRB.ts
-¦   ¦   ¦   +-- auth
-¦   ¦   ¦   ¦   +-- AdminAuthGate.tsx
-¦   ¦   ¦   +-- components
-¦   ¦   ¦   ¦   +-- ui
-¦   ¦   ¦   ¦   ¦   +-- Card.tsx
-¦   ¦   ¦   ¦   +-- CadetImportModal.tsx
-¦   ¦   ¦   +-- layout
-¦   ¦   ¦   ¦   +-- AdminLayout.tsx
-¦   ¦   ¦   ¦   +-- AdminSidebar.tsx
-¦   ¦   ¦   ¦   +-- AdminTopbar.tsx
-¦   ¦   ¦   +-- pages
-¦   ¦   ¦   ¦   +-- reports
-¦   ¦   ¦   ¦   ¦   +-- AdminAuditReadinessReportPage.tsx
-¦   ¦   ¦   ¦   ¦   +-- AdminEvidenceCompletenessReportPage.tsx
-¦   ¦   ¦   ¦   ¦   +-- AdminSignatureRegisterReportPage.tsx
-¦   ¦   ¦   ¦   ¦   +-- AdminTRBStatusReportPage.tsx
-¦   ¦   ¦   ¦   +-- AdminApprovalsPage.tsx
-¦   ¦   ¦   ¦   +-- AdminAssignmentHistoryPage.tsx
-¦   ¦   ¦   ¦   +-- AdminCadetDetailPage.tsx
-¦   ¦   ¦   ¦   +-- AdminCadetProfilePage.tsx
-¦   ¦   ¦   ¦   +-- AdminCadetsPage.tsx
-¦   ¦   ¦   ¦   +-- AdminDashboardPage.tsx
-¦   ¦   ¦   ¦   +-- AdminEvidenceRepositoryPage.tsx
-¦   ¦   ¦   ¦   +-- AdminImportsPage.tsx
-¦   ¦   ¦   ¦   +-- AdminLockedTRBsPage.tsx
-¦   ¦   ¦   ¦   +-- AdminLoginPage.tsx
-¦   ¦   ¦   ¦   +-- AdminPendingSignaturesPage.tsx
-¦   ¦   ¦   ¦   +-- AdminPlaceholderPage.tsx
-¦   ¦   ¦   ¦   +-- AdminReportsPage.tsx
-¦   ¦   ¦   ¦   +-- AdminSystemSettingsPage.tsx
-¦   ¦   ¦   ¦   +-- AdminTraineeCreatePage.tsx
-¦   ¦   ¦   ¦   +-- AdminTrainingProgressPage.tsx
-¦   ¦   ¦   ¦   +-- AdminUsersRolesPage.tsx
-¦   ¦   ¦   ¦   +-- AdminVesselCreatePage.tsx
-¦   ¦   ¦   ¦   +-- AdminVesselDetailPage.tsx
-¦   ¦   ¦   ¦   +-- AdminVesselsPage.tsx
-¦   ¦   ¦   ¦   +-- AdminVesselTypesPage.tsx
-¦   ¦   ¦   ¦   +-- VesselImportModal.tsx
-¦   ¦   ¦   ¦   +-- VesselUpsertModal.tsx
-¦   ¦   ¦   +-- security
-¦   ¦   ¦       +-- auditData.ts
-¦   ¦   ¦       +-- SignatureVaultContext.tsx
-¦   ¦   ¦       +-- SignatureVaultDialog.tsx
-¦   ¦   +-- assets
-¦   ¦   ¦   +-- react.svg
-¦   ¦   +-- components
-¦   ¦   ¦   +-- common
-¦   ¦   ¦       +-- CheckboxBox.tsx
-¦   ¦   ¦       +-- ConfirmDeleteModal.tsx
-¦   ¦   ¦       +-- YesNoCapsule.tsx
-¦   ¦   +-- App.css
-¦   ¦   +-- App.tsx
-¦   ¦   +-- index.css
-¦   ¦   +-- main.tsx
-¦   +-- .gitignore
-¦   +-- eslint.config.js
-¦   +-- index.html
-¦   +-- package.json
-¦   +-- postcss.config.cjs
-¦   +-- README.md
-¦   +-- tailwind.config.js
-¦   +-- tsconfig.app.json
-¦   +-- tsconfig.json
-¦   +-- tsconfig.node.json
-¦   +-- vite.config.ts
+ï¿½   +-- public
+ï¿½   ï¿½   +-- vite.svg
+ï¿½   +-- src
+ï¿½   ï¿½   +-- admin
+ï¿½   ï¿½   ï¿½   +-- audit
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AuditLandingPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AuditLayout.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AuditTRBPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- FinalTRBLockPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- lockTRB.ts
+ï¿½   ï¿½   ï¿½   +-- auth
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminAuthGate.tsx
+ï¿½   ï¿½   ï¿½   +-- components
+ï¿½   ï¿½   ï¿½   ï¿½   +-- ui
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- Card.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AssignCadetToVesselModal.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- CadetImportModal.tsx
+ï¿½   ï¿½   ï¿½   +-- layout
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminLayout.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminSidebar.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminTopbar.tsx
+ï¿½   ï¿½   ï¿½   +-- pages
+ï¿½   ï¿½   ï¿½   ï¿½   +-- reports
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminAuditReadinessReportPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminEvidenceCompletenessReportPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminSignatureRegisterReportPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminTRBStatusReportPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminApprovalsPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminAssignmentHistoryPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminCadetDetailPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminCadetProfilePage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminCadetsPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminDashboardPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminEvidenceRepositoryPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminImportsPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminLockedTRBsPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminLoginPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminPendingSignaturesPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminPlaceholderPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminReportsPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminSystemSettingsPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminTraineeCreatePage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminTrainingProgressPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminUsersRolesPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminVesselCreatePage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminVesselDetailPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminVesselsPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- AdminVesselTypesPage.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- VesselImportModal.tsx
+ï¿½   ï¿½   ï¿½   ï¿½   +-- VesselUpsertModal.tsx
+ï¿½   ï¿½   ï¿½   +-- security
+ï¿½   ï¿½   ï¿½       +-- auditData.ts
+ï¿½   ï¿½   ï¿½       +-- SignatureVaultContext.tsx
+ï¿½   ï¿½   ï¿½       +-- SignatureVaultDialog.tsx
+ï¿½   ï¿½   +-- assets
+ï¿½   ï¿½   ï¿½   +-- react.svg
+ï¿½   ï¿½   +-- components
+ï¿½   ï¿½   ï¿½   +-- common
+ï¿½   ï¿½   ï¿½       +-- CheckboxBox.tsx
+ï¿½   ï¿½   ï¿½       +-- ConfirmDeleteModal.tsx
+ï¿½   ï¿½   ï¿½       +-- YesNoCapsule.tsx
+ï¿½   ï¿½   +-- App.css
+ï¿½   ï¿½   +-- App.tsx
+ï¿½   ï¿½   +-- index.css
+ï¿½   ï¿½   +-- main.tsx
+ï¿½   +-- .gitignore
+ï¿½   +-- eslint.config.js
+ï¿½   +-- index.html
+ï¿½   +-- package.json
+ï¿½   +-- postcss.config.cjs
+ï¿½   +-- README.md
+ï¿½   +-- tailwind.config.js
+ï¿½   +-- tsconfig.app.json
+ï¿½   +-- tsconfig.json
+ï¿½   +-- tsconfig.node.json
+ï¿½   +-- vite.config.ts
 +-- .gitignore
 +-- cadets.xlsx
 +-- keel_cadet_import_template.xlsx

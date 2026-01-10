@@ -92,3 +92,47 @@ export async function getVesselAssignments(
     });
   }
 }
+
+/* ====================================================================== */
+/* WRITE — COMPLETE ASSIGNMENT (PHASE 4E)                                  */
+/* ====================================================================== */
+
+import { completeAssignment } from "../services/adminVesselAssignments.service.js";
+
+/**
+ * PATCH /api/v1/admin/vessel-assignments/:assignmentId/complete
+ *
+ * BODY:
+ * - end_date (optional)
+ * - notes (optional)
+ */
+export async function completeVesselAssignment(
+  req: Request,
+  res: Response
+) {
+  try {
+    const assignmentId = Number(req.params.assignmentId);
+
+    if (!assignmentId || Number.isNaN(assignmentId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid assignment identifier",
+      });
+    }
+
+    const result = await completeAssignment(assignmentId, req.body ?? {});
+
+    return res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error: any) {
+    console.error("❌ Failed to complete assignment:", error);
+
+    return res.status(400).json({
+      success: false,
+      message: error?.message || "Unable to complete assignment",
+    });
+  }
+}
+

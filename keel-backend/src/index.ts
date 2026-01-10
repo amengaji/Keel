@@ -32,6 +32,7 @@ import adminImportsRoutes from "./admin/routes/adminImports.routes.js";
 import adminVesselImportsRoutes from "./admin/routes/adminVesselImports.routes.js";
 import adminCadetAssignmentsRoutes from "./admin/routes/adminCadetAssignments.routes.js";
 import adminVesselAssignmentsRoutes from "./admin/routes/adminVesselAssignments.routes.js";
+import adminVesselAssignmentCloseRoutes from "./admin/routes/adminVesselAssignmentClose.routes.js";
 
 /* -------------------------------------------------------------------------- */
 /* ADMIN — AUDIT EXPORT ROUTES (READ-ONLY)                                     */
@@ -98,6 +99,7 @@ app.use("/api/v1/admin", adminImportsRoutes);
 app.use("/api/v1/admin", adminVesselImportsRoutes);
 app.use("/api/v1/admin", adminCadetAssignmentsRoutes);
 app.use("/api/v1/admin", adminVesselAssignmentsRoutes);
+app.use("/api/v1/admin", adminVesselAssignmentCloseRoutes);
 
 // Health check route
 app.get("/", (req, res) => {

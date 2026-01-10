@@ -354,7 +354,7 @@ export function AdminVesselDetailPage() {
           Cadet Assignment Timeline
         </h2>
 
-        {assignments.length === 0 ? (
+        {sortedAssignments.length === 0 ? (
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
             No cadet assignment history recorded for this vessel.
           </p>
@@ -375,17 +375,13 @@ export function AdminVesselDetailPage() {
                     "border-t cursor-pointer",
                     getRowTone(a.status),
                   ].join(" ")}
-
-                  onClick={() =>
-                    navigate(`/admin/cadets/${a.cadet_id}`)
-                  }
+                  onClick={() => navigate(`/admin/cadets/${a.cadet_id}`)}
                 >
                   <td className="px-3 py-2 font-medium">{a.cadet_name}</td>
-                    <td className="px-3 py-2">
+                  <td className="px-3 py-2">
                     {formatIsoDate(a.start_date)} →{" "}
                     {a.end_date ? formatIsoDate(a.end_date) : "Present"}
                   </td>
-
                   <td className="px-3 py-2 text-center">
                     <StatusPill value={a.status} />
                   </td>
@@ -394,6 +390,7 @@ export function AdminVesselDetailPage() {
             </tbody>
           </table>
         )}
+
       </div>
 
       {/* AUDIT */}

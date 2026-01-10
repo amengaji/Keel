@@ -117,5 +117,78 @@ export async function fetchAssignmentsByCadet(
     }
   );
 
+  
+
   return rows as VesselAssignmentRow[];
+}
+
+/* ======================================================================
+ * WRITE — COMPLETE ASSIGNMENT (PHASE 4E)
+ * ====================================================================== */
+
+/**
+ * Complete an ACTIVE cadet ↔ vessel assignment
+ *
+ * RULES:
+ * - Assignment must exist
+ * - Status must be ACTIVE
+ * - Status transition is one-way (ACTIVE → COMPLETED)
+ * - Audit safe (no deletes)
+ */
+export async function completeAssignment(
+  assignmentId: number,
+  payload: {
+    end_date?: string;
+    notes?: string;
+  }
+) {
+  const { end_date, notes } = payload;
+
+  // Fetch assignment
+  const [rows]: any[] = await sequelize.query(
+    `
+    SELECT
+      id,
+      status
+    FROM cadet_vessel_assignments
+    WHERE id = :assignmentId
+    `,
+    {
+      replacements: { assignmentId },
+    }
+  );
+
+  const assignment = rows?.[0];
+
+  if (!assignment) {
+    throw new Error("Assignment not found");
+  }
+
+  if (assignment.status !== "ACTIVE") {
+    throw new Error("Only ACTIVE assignments can be completed");
+  }
+
+  // Perform completion
+  await sequelize.query(
+    `
+    UPDATE cadet_vessel_assignments
+    SET
+      status = 'COMPLETED',
+      end_date = COALESCE(:end_date, CURRENT_DATE),
+      notes = COALESCE(:notes, notes),
+      "updatedAt" = NOW()
+    WHERE id = :assignmentId
+    `,
+    {
+      replacements: {
+        assignmentId,
+        end_date: end_date ?? null,
+        notes: notes ?? null,
+      },
+    }
+  );
+
+  return {
+    message: "Assignment completed successfully",
+  };
 }
