@@ -6,7 +6,7 @@
 // - IMPORTANT:
 //   • Reads always come from VIEW (audit safe)
 //   • Writes always go to TABLE (controlled, validated)
-//   • Vessel Types are READ-ONLY system taxonomy
+//   • Service MUST match view contract exactly
 //
 
 import sequelize from "../../config/database.js";
@@ -19,55 +19,29 @@ import Vessel from "../../models/Vessel.js";
 /**
  * Fetch vessels for Admin UI.
  * Source: admin_vessels_v (DB VIEW)
- * NOTE:
- * - No filters
- * - No writes
- * - Audit-safe
+ *
+ * CONTRACT:
+ * - Column list MUST match view definition
+ * - NO optional / speculative fields allowed
  */
 export async function fetchAdminVessels() {
   try {
-    const [rows] = await sequelize.query(
-      `
+    const [rows] = await sequelize.query(`
       SELECT
         vessel_id,
         vessel_name,
         imo_number,
-        call_sign,
-        mmsi,
         ship_type_id,
         ship_type_name,
         flag,
-        port_of_registry,
         classification_society,
-        builder,
-        year_built,
-        gross_tonnage,
-        net_tonnage,
-        deadweight_tonnage,
-        length_overall_m,
-        breadth_moulded_m,
-        depth_m,
-        draught_summer_m,
-        main_engine_type,
-        main_engine_model,
-        main_engine_power_kw,
-        service_speed_knots,
-        owner_company,
-        manager_company,
-        operating_area,
-        ice_class,
-        last_drydock_date,
-        next_drydock_date,
-        last_special_survey_date,
-        next_special_survey_date,
-        created_at,
-        updated_at,
         is_active,
-        vessel_status
+        vessel_status,
+        cadets_onboard,
+        active_trbs
       FROM admin_vessels_v
       ORDER BY vessel_name ASC
-      `
-    );
+    `);
 
     return rows;
   } catch (error) {
@@ -88,19 +62,12 @@ export async function fetchAdminVessels() {
  * - is_active defaults to true
  */
 export async function createVessel(payload: any) {
-  const {
-    name,
-    imo_number,
-    ship_type_id,
-    ...optionalFields
-  } = payload;
+  const { name, imo_number, ship_type_id, ...optionalFields } = payload;
 
-  // --- Basic validation (toast-friendly) ---
   if (!name || !imo_number || !ship_type_id) {
     throw new Error("Vessel name, IMO number, and vessel type are required");
   }
 
-  // --- Ensure IMO uniqueness ---
   const existing = await Vessel.findOne({
     where: { imo_number },
   });
@@ -109,7 +76,6 @@ export async function createVessel(payload: any) {
     throw new Error("A vessel with this IMO number already exists");
   }
 
-  // --- Create vessel ---
   const vessel = await Vessel.create({
     name,
     imo_number,
@@ -125,33 +91,23 @@ export async function createVessel(payload: any) {
  * Update an existing vessel
  * RULES:
  * - IMO number CANNOT be changed after creation
- * - All other fields are editable
- * - Vessel must exist and be active
+ * - Vessel must be active
  */
 export async function updateVessel(vesselId: number, payload: any) {
   const vessel = await Vessel.findOne({
-    where: {
-      id: vesselId,
-      is_active: true,
-    },
+    where: { id: vesselId, is_active: true },
   });
 
   if (!vessel) {
     throw new Error("Vessel not found or already deleted");
   }
 
-  // --- Block IMO change explicitly ---
-  // NOTE:
-  // Sequelize Model is not strongly typed here, so we cast to `any`
-  // This avoids unsafe refactors and keeps behavior identical
   const existingImo = (vessel as any).imo_number;
 
   if (payload.imo_number && payload.imo_number !== existingImo) {
     throw new Error("IMO number cannot be modified after vessel creation");
   }
 
-
-  // --- Remove IMO if accidentally sent ---
   delete payload.imo_number;
 
   await vessel.update(payload);
@@ -160,18 +116,11 @@ export async function updateVessel(vesselId: number, payload: any) {
 }
 
 /**
- * Soft delete a vessel
- * ACTION:
- * - Marks vessel as inactive
- * - No physical delete
- * - Audit safe
+ * Soft delete a vessel (audit-safe)
  */
 export async function softDeleteVessel(vesselId: number) {
   const vessel = await Vessel.findOne({
-    where: {
-      id: vesselId,
-      is_active: true,
-    },
+    where: { id: vesselId, is_active: true },
   });
 
   if (!vessel) {
@@ -180,23 +129,15 @@ export async function softDeleteVessel(vesselId: number) {
 
   await vessel.update({ is_active: false });
 
-  return {
-    message: "Vessel deleted successfully",
-  };
+  return { message: "Vessel deleted successfully" };
 }
 
 /**
  * Restore (unarchive) a vessel
- * ACTION:
- * - Marks vessel as active again
- * - Audit safe (no data loss)
  */
 export async function restoreVessel(vesselId: number) {
   const vessel = await Vessel.findOne({
-    where: {
-      id: vesselId,
-      is_active: false,
-    },
+    where: { id: vesselId, is_active: false },
   });
 
   if (!vessel) {
@@ -205,8 +146,5 @@ export async function restoreVessel(vesselId: number) {
 
   await vessel.update({ is_active: true });
 
-  return {
-    message: "Vessel restored successfully",
-  };
+  return { message: "Vessel restored successfully" };
 }
-

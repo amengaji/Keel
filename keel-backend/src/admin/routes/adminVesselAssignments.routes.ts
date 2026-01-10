@@ -19,21 +19,25 @@ import {
 
 const router = Router();
 
-/* ====================================================================== */
-/* READ — ASSIGNMENT HISTORY                                               */
-/* ====================================================================== */
+/**
+ * Existing (keep)
+ * GET /api/v1/admin/vessel-assignments
+ */
+router.get("/vessel-assignments", getVesselAssignments);
 
 /**
- * GET /api/v1/admin/vessel-assignments
- *
- * Optional query params:
- * - cadet_id
- * - vessel_id
+ * ✅ NEW ALIAS (Phase 4B / 4C UI)
+ * GET /api/v1/admin/vessels/:vesselId/assignments
  */
 router.get(
-  "/vessel-assignments",
-  authGuard,
+  "/vessels/:vesselId/assignments",
+  (req, res, next) => {
+    // normalize param → query (NO logic duplication)
+    req.query.vessel_id = req.params.vesselId;
+    next();
+  },
   getVesselAssignments
 );
+
 
 export default router;

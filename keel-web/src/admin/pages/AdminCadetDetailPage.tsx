@@ -1,24 +1,30 @@
 // keel-web/src/admin/pages/AdminCadetDetailPage.tsx
 //
-// Keel — Cadet Detail (Identity + Optional Training Overview)
-// ----------------------------------------------------
+// Keel — Cadet Detail (Identity + Training + Assignment History)
+// --------------------------------------------------------------
 // PURPOSE:
 // - Cadet drill-down that ALWAYS works for identity registry cadets
-// - Identity source: /api/v1/admin/cadets (users-based registry)
-// - Training/TRB snapshot: /api/v1/admin/trainees (admin_trb_cadets_v) OPTIONAL
+// - Identity source: /api/v1/admin/cadets
+// - Training/TRB snapshot: /api/v1/admin/trainees (OPTIONAL)
+// - Assignment History: /api/v1/admin/vessel-assignments (READ-ONLY)
 //
-// WHY THIS MATTERS:
-// - A new cadet may NOT exist in admin_trb_cadets_v until assignment/training starts.
-// - So we must NOT fail the page if the trainee view has no row.
+// AUDIT SAFETY:
+// - No mutations
+// - No silent writes
+// - Assignment history is immutable evidence
 //
-// SAFETY:
-// - Read-only view page (no mutations here)
-// - Profile edits happen on /admin/cadets/:cadetId/profile (Phase 3A)
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, User, BookCheck, ShieldCheck, IdCard } from "lucide-react";
+import {
+  ArrowLeft,
+  User,
+  BookCheck,
+  ShieldCheck,
+  IdCard,
+  Anchor,
+} from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -53,6 +59,22 @@ interface ApiCadetTrainingRow {
   overall_status: string | null;
 }
 
+/**
+ * Assignment history row (Phase 4B)
+ * Source: /api/v1/admin/vessel-assignments
+ */
+interface ApiAssignmentRow {
+  assignment_id: number;
+  cadet_id: number;
+  cadet_name: string;
+  vessel_id: number;
+  vessel_name: string;
+  start_date: string;
+  end_date: string | null;
+  status: "ACTIVE" | "COMPLETED" | "CANCELLED";
+  created_at: string;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -72,10 +94,17 @@ function InfoRow({
   );
 }
 
-function StatusPill({ value }: { value: string | null }) {
+function StatusPill({ value }: { value: string }) {
+  const color =
+    value === "ACTIVE"
+      ? "bg-green-500/10 text-green-600"
+      : value === "COMPLETED"
+      ? "bg-blue-500/10 text-blue-600"
+      : "bg-red-500/10 text-red-600";
+
   return (
-    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600">
-      {value || "Unknown"}
+    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${color}`}>
+      {value}
     </span>
   );
 }
@@ -92,6 +121,7 @@ export function AdminCadetDetailPage() {
 
   const [identity, setIdentity] = useState<ApiCadetIdentityRow | null>(null);
   const [training, setTraining] = useState<ApiCadetTrainingRow | null>(null);
+  const [assignments, setAssignments] = useState<ApiAssignmentRow[]>([]);
 
   const [loading, setLoading] = useState(true);
 
@@ -107,16 +137,16 @@ export function AdminCadetDetailPage() {
           throw new Error("Invalid cadet ID");
         }
 
-        // STEP 1: Load identity registry (MUST exist)
+        /* ------------------ IDENTITY (MUST EXIST) ------------------ */
         const identityRes = await fetch("/api/v1/admin/cadets", {
           credentials: "include",
         });
 
         if (!identityRes.ok) {
-          throw new Error(`Failed to load cadets (${identityRes.status})`);
+          throw new Error("Unable to load cadet registry");
         }
 
-        const identityJson = await identityRes.json().catch(() => null);
+        const identityJson = await identityRes.json();
         const identityList: ApiCadetIdentityRow[] = Array.isArray(identityJson?.data)
           ? identityJson.data
           : [];
@@ -126,12 +156,10 @@ export function AdminCadetDetailPage() {
         );
 
         if (!foundIdentity) {
-          // This means user record is missing (actual error)
           throw new Error("Cadet not found in identity registry");
         }
 
-        // STEP 2: Load training/TRB overview (OPTIONAL)
-        // If cadet has no assignment/training yet, they may not exist in this view.
+        /* ------------------ TRAINING (OPTIONAL) ------------------ */
         let foundTraining: ApiCadetTrainingRow | null = null;
 
         try {
@@ -140,22 +168,45 @@ export function AdminCadetDetailPage() {
           });
 
           if (trainingRes.ok) {
-            const trainingJson = await trainingRes.json().catch(() => null);
-            const trainingList: ApiCadetTrainingRow[] = Array.isArray(trainingJson?.data)
+            const trainingJson = await trainingRes.json();
+            const trainingList: ApiCadetTrainingRow[] = Array.isArray(
+              trainingJson?.data
+            )
               ? trainingJson.data
               : [];
 
             foundTraining =
-              trainingList.find((t) => String(t.cadet_id) === String(cadetIdNum)) ?? null;
+              trainingList.find(
+                (t) => String(t.cadet_id) === String(cadetIdNum)
+              ) ?? null;
           }
         } catch {
-          // silently ignore (we still show identity view)
           foundTraining = null;
+        }
+
+        /* ------------------ ASSIGNMENT HISTORY (READ-ONLY) ------------------ */
+        let assignmentRows: ApiAssignmentRow[] = [];
+
+        try {
+          const assignRes = await fetch(
+            `/api/v1/admin/vessel-assignments?cadet_id=${cadetIdNum}`,
+            { credentials: "include" }
+          );
+
+          if (assignRes.ok) {
+            const assignJson = await assignRes.json();
+            assignmentRows = Array.isArray(assignJson?.data)
+              ? assignJson.data
+              : [];
+          }
+        } catch {
+          assignmentRows = [];
         }
 
         if (!cancelled) {
           setIdentity(foundIdentity);
           setTraining(foundTraining);
+          setAssignments(assignmentRows);
         }
       } catch (err: any) {
         console.error("❌ Failed to load cadet detail:", err);
@@ -163,6 +214,7 @@ export function AdminCadetDetailPage() {
         if (!cancelled) {
           setIdentity(null);
           setTraining(null);
+          setAssignments([]);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -194,14 +246,7 @@ export function AdminCadetDetailPage() {
       {/* ============================ BACK ============================ */}
       <button
         onClick={() => navigate("/admin/cadets")}
-        className="
-          inline-flex items-center gap-2
-          text-sm
-          px-3 py-1.5
-          rounded-md
-          border border-[hsl(var(--border))]
-          hover:bg-[hsl(var(--muted))]
-        "
+        className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border hover:bg-[hsl(var(--muted))]"
       >
         <ArrowLeft size={16} />
         Back to Cadets
@@ -214,25 +259,16 @@ export function AdminCadetDetailPage() {
             <User size={20} />
             {identity.cadet_name}
           </h1>
-
           <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
             {identity.cadet_email}
           </p>
         </div>
 
         <button
-          onClick={() => navigate(`/admin/cadets/${identity.cadet_id}/profile`)}
-          className="
-            inline-flex items-center gap-2
-            px-4 py-2
-            rounded-md
-            border border-[hsl(var(--border))]
-            bg-[hsl(var(--card))]
-            hover:bg-[hsl(var(--muted))]
-            text-sm
-            whitespace-nowrap
-          "
-          title="Open Identity Profile (Phase 3A)"
+          onClick={() =>
+            navigate(`/admin/cadets/${identity.cadet_id}/profile`)
+          }
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-md border bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))] text-sm"
         >
           <IdCard size={16} />
           Open Identity Profile
@@ -243,11 +279,17 @@ export function AdminCadetDetailPage() {
       <div className="rounded-lg border bg-[hsl(var(--card))] p-4 space-y-2">
         <InfoRow label="Cadet ID" value={identity.cadet_id} />
         <InfoRow label="Role" value={identity.role_name} />
-        <InfoRow label="Created" value={new Date(identity.created_at).toLocaleString()} />
-        <InfoRow label="Last Updated" value={new Date(identity.updated_at).toLocaleString()} />
+        <InfoRow
+          label="Created"
+          value={new Date(identity.created_at).toLocaleString()}
+        />
+        <InfoRow
+          label="Last Updated"
+          value={new Date(identity.updated_at).toLocaleString()}
+        />
       </div>
 
-      {/* ============================ TRAINING / TRB SNAPSHOT ============================ */}
+      {/* ============================ TRAINING SNAPSHOT ============================ */}
       <div className="rounded-lg border bg-[hsl(var(--card))] p-4 space-y-3">
         <h2 className="text-sm font-medium flex items-center gap-2">
           <BookCheck size={16} />
@@ -255,9 +297,9 @@ export function AdminCadetDetailPage() {
         </h2>
 
         {!training ? (
-          <div className="text-sm text-[hsl(var(--muted-foreground))]">
-            No assignment / training record found yet for this cadet. This is normal for newly created cadets.
-          </div>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            No assignment or training activity recorded yet for this cadet.
+          </p>
         ) : (
           <>
             <InfoRow label="Assigned Vessel" value={training.vessel_name} />
@@ -266,30 +308,65 @@ export function AdminCadetDetailPage() {
               label="Assignment Period"
               value={
                 training.assignment_start_date
-                  ? `${training.assignment_start_date} → ${training.assignment_end_date || "Present"}`
+                  ? `${training.assignment_start_date} → ${
+                      training.assignment_end_date || "Present"
+                    }`
                   : null
               }
             />
-            <InfoRow
-              label="Completion"
-              value={
-                training.completion_percentage !== null
-                  ? `${training.completion_percentage}%`
-                  : null
-              }
-            />
-            <InfoRow label="Tasks Approved" value={training.tasks_master_approved} />
-            <InfoRow label="Total Tasks" value={training.total_tasks} />
-
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[hsl(var(--muted-foreground))]">
-                Overall Status
-              </span>
-              <StatusPill value={training.overall_status} />
-            </div>
           </>
         )}
       </div>
+
+      {/* ============================ ASSIGNMENT HISTORY ============================ */}
+      <div className="rounded-lg border bg-[hsl(var(--card))] p-4 space-y-3">
+        <h2 className="text-sm font-medium flex items-center gap-2">
+          <Anchor size={16} />
+          Assignment History
+        </h2>
+
+        {assignments.length === 0 ? (
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            No vessel assignment history recorded for this cadet yet.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-[hsl(var(--muted))]">
+              <tr>
+                <th className="px-3 py-2 text-left">Vessel</th>
+                <th className="px-3 py-2 text-left">Period</th>
+                <th className="px-3 py-2 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assignments.map((a) => (
+                <tr
+                  key={a.assignment_id}
+                  className="border-t hover:bg-[hsl(var(--muted))] cursor-pointer"
+                  onClick={() => navigate(`/admin/vessels/${a.vessel_id}`)}
+                  title="Open vessel details"
+                >
+                  <td className="px-3 py-2 font-medium">
+                    {a.vessel_name}
+                  </td>
+
+                  <td className="px-3 py-2">
+                    {new Date(a.start_date).toLocaleDateString()} →{" "}
+                    {a.end_date
+                      ? new Date(a.end_date).toLocaleDateString()
+                      : "Present"}
+                  </td>
+
+                  <td className="px-3 py-2 text-center">
+                    <StatusPill value={a.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
 
       {/* ============================ AUDIT ============================ */}
       <div className="rounded-lg border bg-[hsl(var(--card))] p-4">
@@ -299,8 +376,8 @@ export function AdminCadetDetailPage() {
         </h2>
 
         <p className="text-xs text-[hsl(var(--muted-foreground))]">
-          Identity and documents are managed in “Cadet Identity Profile” (Phase 3A).
-          Training progress is read-only here and comes from the audit-safe TRB view.
+          Assignment history is immutable and serves as audit evidence for
+          sea-time verification.
         </p>
       </div>
     </div>
