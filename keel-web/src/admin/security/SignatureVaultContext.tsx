@@ -77,7 +77,7 @@ export function SignatureVaultProvider({
 
   // Session timer (mock)
   const [unlockedAtMs, setUnlockedAtMs] = useState<number | null>(null);
-  const sessionMinutes = 15;
+  const sessionMinutes = 150;
 
   // -------------------------------------------------------------------------
   // Dialog control

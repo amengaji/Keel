@@ -23,6 +23,10 @@ import { toast } from "sonner";
 import { User, Plus, Upload } from "lucide-react";
 
 import { CadetImportModal } from "../components/CadetImportModal";
+import {
+  AssignCadetToVesselModal,
+} from "../components/AssignCadetToVesselModal";
+
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -37,6 +41,20 @@ interface ApiCadetRow {
   role_name: string;
 }
 
+  /* -------------------------------------------------------------------------- */
+  /* Trainee Assignment View (READ-ONLY)                                        */
+  /* -------------------------------------------------------------------------- */
+  /**
+   * This mirrors admin_trb_cadets_v.
+   * Used ONLY to display vessel assignment (read-only).
+   */
+  interface ApiTraineeRow {
+    cadet_id: number;
+    vessel_id: number;
+    vessel_name: string;
+  }
+
+
 /* -------------------------------------------------------------------------- */
 /* Main Page                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -49,6 +67,21 @@ export function AdminCadetsPage() {
 
   // Import modal state
   const [importOpen, setImportOpen] = useState(false);
+
+  // Read-only assignment lookup: cadet_id → vessel_name
+  const [traineeVesselMap, setTraineeVesselMap] = useState<
+    Record<number, string>
+  >({});
+
+  // Assign Vessel modal state
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [selectedCadet, setSelectedCadet] = useState<{
+    id: number;
+    name: string;
+    email: string;
+  } | null>(null);
+
+
 
   /* ------------------------------ Load Data ------------------------------ */
 
@@ -75,12 +108,56 @@ export function AdminCadetsPage() {
     }
   }
 
+  /* -------------------- Load Trainee Assignments (Read-Only) -------------------- */
+/**
+ * Fetches trainee assignment view.
+ * IMPORTANT:
+ * - Read-only
+ * - View-based (admin_trb_cadets_v)
+ * - No mutation, no assignment logic
+ */
+async function loadTraineeAssignments() {
+  try {
+    const res = await fetch("/api/v1/admin/trainees", {
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to load trainee assignments (${res.status})`);
+    }
+
+    const json = await res.json();
+    const rows: ApiTraineeRow[] = Array.isArray(json?.data)
+      ? json.data
+      : [];
+
+    const map: Record<number, string> = {};
+
+    for (const r of rows) {
+      if (r.cadet_id && r.vessel_name) {
+        map[r.cadet_id] = r.vessel_name;
+      }
+    }
+
+    setTraineeVesselMap(map);
+  } catch (err: any) {
+    console.error("❌ Failed to load trainee assignments:", err);
+    toast.error(
+      err?.message || "Unable to load cadet vessel assignments"
+    );
+    setTraineeVesselMap({});
+  }
+}
+
+
   useEffect(() => {
     let cancelled = false;
 
     async function run() {
       if (!cancelled) {
         await loadCadets();
+        await loadTraineeAssignments(); // read-only vessel visibility
+
       }
     }
 
@@ -159,6 +236,8 @@ export function AdminCadetsPage() {
             <tr className="text-left">
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Email</th>
+              <th className="px-4 py-2">Assigned Vessel</th>
+              <th className="px-4 py-2 text-center">Action</th>
               <th className="px-4 py-2">Created</th>
             </tr>
           </thead>
@@ -207,9 +286,52 @@ export function AdminCadetsPage() {
                     {row.cadet_email}
                   </td>
 
+                  <td className="px-4 py-3 text-sm">
+                    {traineeVesselMap[row.cadet_id] ? (
+                      <span className="font-medium">
+                        {traineeVesselMap[row.cadet_id]}
+                      </span>
+                    ) : (
+                      <span className="text-[hsl(var(--muted-foreground))]">
+                        — Not Assigned —
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="px-4 py-3 text-center">
+                    {traineeVesselMap[row.cadet_id] ? (
+                      <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                        Assigned
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedCadet({
+                            id: row.cadet_id,
+                            name: row.cadet_name,
+                            email: row.cadet_email,
+                          });
+                          setAssignOpen(true);
+                        }}
+                        className="
+                          px-3 py-1.5
+                          rounded-md
+                          text-xs
+                          border border-[hsl(var(--border))]
+                          hover:bg-[hsl(var(--muted))]
+                        "
+                      >
+                        Assign Vessel
+                      </button>
+                    )}
+                  </td>
+
                   <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
                     {new Date(row.created_at).toLocaleDateString()}
                   </td>
+
                 </tr>
               ))}
           </tbody>
@@ -230,6 +352,18 @@ export function AdminCadetsPage() {
         onCommitted={async () => {
           // Refresh list after successful import or no-op success
           await loadCadets();
+        }}
+      />
+      {/* ============================ ASSIGN VESSEL MODAL ============================ */}
+      <AssignCadetToVesselModal
+        open={assignOpen}
+        cadet={selectedCadet}
+        onClose={() => {
+          setAssignOpen(false);
+          setSelectedCadet(null);
+        }}
+        onSuccess={async () => {
+          await loadTraineeAssignments();
         }}
       />
     </div>

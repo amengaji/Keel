@@ -1,7 +1,9 @@
 import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/database.js";
 
-class CadetVesselAssignment extends Model {}
+class CadetVesselAssignment extends Model {
+    id: any;
+}
 
 CadetVesselAssignment.init(
   {

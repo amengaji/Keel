@@ -20,6 +20,10 @@ import {
   PenTool,
   Upload,
   Monitor,
+  ShieldAlert,
+  Bell,
+  Database,
+  AlertOctagon,
 } from "lucide-react";
 
 function Section({
@@ -71,7 +75,7 @@ function ToggleRow({ label, value }: { label: string; value: string }) {
 
 export function AdminSystemSettingsPage() {
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="space-y-8 max-w-4xl pb-12">
       {/* ============================ HEADER ============================ */}
       <div>
         <h1 className="text-xl font-semibold flex items-center gap-2">
@@ -84,7 +88,19 @@ export function AdminSystemSettingsPage() {
         </p>
       </div>
 
-      {/* ============================ AUDIT MODE ============================ */}
+      {/* ============================ 1. SECURITY & SESSION (NEW) ============================ */}
+      <Section
+        title="Security & Session Policy"
+        icon={<ShieldAlert size={18} />}
+        description="Enforce access controls and session strictness for administrators."
+      >
+        <ToggleRow label="Admin Session Timeout" value="30 Minutes" />
+        <ToggleRow label="Enforce MFA for Admins" value="Enabled" />
+        <ToggleRow label="Bind Session to IP Address" value="Disabled" />
+        <ToggleRow label="Max Login Attempts" value="5 attempts" />
+      </Section>
+
+      {/* ============================ 2. AUDIT MODE (EXISTING) ============================ */}
       <Section
         title="Audit Mode Policy"
         icon={<ShieldCheck size={18} />}
@@ -95,7 +111,18 @@ export function AdminSystemSettingsPage() {
         <ToggleRow label="Audit sessions are time-bound" value="Disabled" />
       </Section>
 
-      {/* ============================ TRB FINALIZATION ============================ */}
+      {/* ============================ 3. NOTIFICATION ROUTING (NEW) ============================ */}
+      <Section
+        title="Notification Routing"
+        icon={<Bell size={18} />}
+        description="Configure automated alerts for critical system events."
+      >
+        <ToggleRow label="Notify CTO on TRB Lock" value="Enabled" />
+        <ToggleRow label="Alert on Failed Imports (Batch)" value="Enabled" />
+        <ToggleRow label="Weekly Digest Emails" value="Disabled" />
+      </Section>
+
+      {/* ============================ 4. TRB FINALIZATION (EXISTING) ============================ */}
       <Section
         title="TRB Finalization Rules"
         icon={<Lock size={18} />}
@@ -103,13 +130,10 @@ export function AdminSystemSettingsPage() {
       >
         <ToggleRow label="Finalization allowed by Master" value="Enabled" />
         <ToggleRow label="Finalization allowed by CTO" value="Enabled" />
-        <ToggleRow
-          label="Reopening finalized TRB"
-          value="Not Permitted"
-        />
+        <ToggleRow label="Reopening finalized TRB" value="Not Permitted" />
       </Section>
 
-      {/* ============================ SIGNATURE AUTHORITY ============================ */}
+      {/* ============================ 5. SIGNATURE AUTHORITY (EXISTING) ============================ */}
       <Section
         title="Signature Authority"
         icon={<PenTool size={18} />}
@@ -120,7 +144,18 @@ export function AdminSystemSettingsPage() {
         <ToggleRow label="Dual-signature required" value="Disabled" />
       </Section>
 
-      {/* ============================ IMPORT CONTROLS ============================ */}
+      {/* ============================ 6. DATA RETENTION (NEW) ============================ */}
+      <Section
+        title="Data Retention & Archival"
+        icon={<Database size={18} />}
+        description="Governance rules for data lifecycle and compliance."
+      >
+        <ToggleRow label="Audit Log Retention" value="7 Years (Maritime)" />
+        <ToggleRow label="Soft-Delete Grace Period" value="30 Days" />
+        <ToggleRow label="Auto-archive Inactive Cadets" value="After 6 Months" />
+      </Section>
+
+      {/* ============================ 7. IMPORT CONTROLS (EXISTING) ============================ */}
       <Section
         title="Import Controls"
         icon={<Upload size={18} />}
@@ -131,7 +166,18 @@ export function AdminSystemSettingsPage() {
         <ToggleRow label="Import actions logged" value="Enabled" />
       </Section>
 
-      {/* ============================ SYSTEM BEHAVIOUR ============================ */}
+      {/* ============================ 8. MAINTENANCE (NEW) ============================ */}
+      <Section
+        title="Maintenance & Operations"
+        icon={<AlertOctagon size={18} />}
+        description="Operational controls for system availability."
+      >
+        <ToggleRow label="Maintenance Mode" value="Disabled" />
+        <ToggleRow label="Global System Banner" value="None" />
+        <ToggleRow label="Block Mobile App Sync" value="Disabled" />
+      </Section>
+
+      {/* ============================ 9. SYSTEM BEHAVIOUR (EXISTING) ============================ */}
       <Section
         title="System Behaviour"
         icon={<Monitor size={18} />}

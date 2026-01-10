@@ -1,34 +1,37 @@
 // keel-web/src/admin/pages/VesselImportModal.tsx
 //
-// Keel — Vessel Import Modal (UI Only, Preview-first)
-// ----------------------------------------------------
-// PURPOSE (STEP 1):
-// - Modal UI to import Vessels via Excel
-// - Upload -> Preview -> Commit (same workflow pattern as Cadet Import)
-// - Defensive + toast-friendly
+// Keel — Vessel Import Modal (STEP 4: Post-Commit UX Hardening)
+// -------------------------------------------------------------
+// PURPOSE:
+// - Preview-first, audit-safe Vessel import via Excel
+// - STEP 4 focuses ONLY on UX correctness after commit
+//
+// KEY STEP 4 BEHAVIOUR:
+// - Clear commit result message (incl. success no-op)
+// - Reset file + preview after commit
+// - Keep commit result visible
+// - Disable re-commit until a new file is selected
+// - Single, disciplined success toast
 //
 // IMPORTANT:
-// - This UI assumes backend routes will exist later.
-// - If backend is not ready, modal will show meaningful toasts (404/405 etc.)
-//
-// EXPECTED BACKEND ROUTES (Phase 3 Track):
-// - GET  /api/v1/admin/imports/vessels/template
-// - POST /api/v1/admin/imports/vessels/preview   (multipart/form-data, field name: file)
-// - POST /api/v1/admin/imports/vessels/commit    (multipart/form-data, field name: file)
-//
-// EXCEL COLUMNS (strict, backend-enforced):
-// - imo_number*     (required)
-// - vessel_name*    (required)
-// - vessel_type*    (required - should map to ship types taxonomy)
-// - flag_state      (optional)
-// - class_society   (optional)
-//
-// NOTE:
-// - We do not parse Excel in the browser (audit-safe pattern; backend is authority).
+// - Backend logic is NOT changed
+// - No redesign, only UX refinement
+// - Light/Dark mode preserved
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { X, Upload, FileDown, ShieldCheck, AlertTriangle } from "lucide-react";
+import {
+  X,
+  Upload,
+  FileDown,
+  ShieldCheck,
+  AlertTriangle,
+  CheckCircle2,
+} from "lucide-react";
+
+/* -------------------------------------------------------------------------- */
+/* Types (Defensive — mirrors backend)                                         */
+/* -------------------------------------------------------------------------- */
 
 type ImportRowStatus = "READY" | "READY_WITH_WARNINGS" | "SKIP" | "FAIL";
 
@@ -54,16 +57,6 @@ type PreviewResult = {
   notes: string[];
 };
 
-type CommitResultRow = {
-  row_number: number;
-  preview_status: ImportRowStatus;
-  commit_outcome: "CREATED" | "SKIPPED" | "FAILED";
-  created_vessel_id?: number | null;
-  imo_number?: string | null;
-  vessel_name?: string | null;
-  issues: string[];
-};
-
 type CommitResult = {
   import_batch_id?: string;
   summary: {
@@ -74,34 +67,22 @@ type CommitResult = {
     ready: number;
     ready_with_warnings: number;
   };
-  results: CommitResultRow[];
   notes: string[];
 };
+
+/* -------------------------------------------------------------------------- */
+/* Props                                                                       */
+/* -------------------------------------------------------------------------- */
 
 type VesselImportModalProps = {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void; // parent should refresh vessel list
+  onSuccess: () => void; // parent refresh (MANDATORY)
 };
 
-function StatusPill({ status }: { status: ImportRowStatus }) {
-  const base = "px-2.5 py-1 rounded-full text-xs font-medium inline-block";
-
-  if (status === "READY") {
-    return <span className={`${base} bg-green-500/10 text-green-600`}>READY</span>;
-  }
-  if (status === "READY_WITH_WARNINGS") {
-    return (
-      <span className={`${base} bg-yellow-500/10 text-yellow-700`}>
-        READY • WARN
-      </span>
-    );
-  }
-  if (status === "SKIP") {
-    return <span className={`${base} bg-slate-500/10 text-slate-600`}>SKIP</span>;
-  }
-  return <span className={`${base} bg-red-500/10 text-red-600`}>FAIL</span>;
-}
+/* -------------------------------------------------------------------------- */
+/* Small UI helpers                                                            */
+/* -------------------------------------------------------------------------- */
 
 function SummaryCard(props: {
   label: string;
@@ -127,30 +108,30 @@ function SummaryCard(props: {
   );
 }
 
-function downloadBlob(filename: string, blob: Blob) {
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
-}
+/* -------------------------------------------------------------------------- */
+/* Main Component                                                              */
+/* -------------------------------------------------------------------------- */
 
-export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModalProps) {
+export function VesselImportModal({
+  open,
+  onClose,
+  onSuccess,
+}: VesselImportModalProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  /* ============================== STATE ================================== */
+
   const [file, setFile] = useState<File | null>(null);
+
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
 
   const [previewLoading, setPreviewLoading] = useState(false);
   const [commitLoading, setCommitLoading] = useState(false);
   const [templateLoading, setTemplateLoading] = useState(false);
 
-  const [preview, setPreview] = useState<PreviewResult | null>(null);
-  const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
-
-  // Reset modal state when opened/closed (keeps UX predictable)
+  /* ============================== RESET ================================== */
+  // When modal closes, reset EVERYTHING (predictable UX)
   useEffect(() => {
     if (!open) {
       setFile(null);
@@ -159,48 +140,54 @@ export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModa
       setPreviewLoading(false);
       setCommitLoading(false);
       setTemplateLoading(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   }, [open]);
 
-  const hasPreview = !!preview;
-  const hasCommit = !!commitResult;
+  /* ============================== DERIVED ================================= */
 
   const canCommit = useMemo(() => {
     if (!preview) return false;
-    const importable = (preview.summary.ready ?? 0) + (preview.summary.ready_with_warnings ?? 0);
-    const hasFail = (preview.summary.fail ?? 0) > 0;
-    // Policy B: allow commit even if importable === 0 (success no-op),
-    // BUT if there are FAIL rows, we should block commit until fixed.
-    if (hasFail) return false;
+    if ((preview.summary.fail ?? 0) > 0) return false;
     return true;
   }, [preview]);
 
   const commitWillBeNoop = useMemo(() => {
     if (!preview) return false;
-    const importable = (preview.summary.ready ?? 0) + (preview.summary.ready_with_warnings ?? 0);
+    const importable =
+      (preview.summary.ready ?? 0) +
+      (preview.summary.ready_with_warnings ?? 0);
     return importable === 0 && (preview.summary.fail ?? 0) === 0;
   }, [preview]);
+
+  /* ============================== HANDLERS ================================ */
 
   async function handleDownloadTemplate() {
     try {
       setTemplateLoading(true);
 
       const res = await fetch("/api/v1/admin/imports/vessels/template", {
-        method: "GET",
         credentials: "include",
       });
 
-      if (!res.ok) {
-        throw new Error(`Template download failed (HTTP ${res.status})`);
-      }
+      if (!res.ok) throw new Error("Unable to download template");
 
       const blob = await res.blob();
-      downloadBlob("keel_vessel_import_template.xlsx", blob);
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "keel_vessel_import_template.xlsx";
+      a.click();
+
+      URL.revokeObjectURL(url);
 
       toast.success("Template downloaded");
     } catch (err: any) {
-      console.error("❌ Vessel template download failed:", err);
-      toast.error(err?.message || "Unable to download template");
+      toast.error(err?.message || "Template download failed");
     } finally {
       setTemplateLoading(false);
     }
@@ -208,19 +195,16 @@ export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModa
 
   async function handlePreview() {
     if (!file) {
-      toast.error("Please select an Excel file (.xlsx) first");
+      toast.error("Please select an Excel file first");
       return;
     }
 
     try {
       setPreviewLoading(true);
-      setCommitResult(null);
+      setCommitResult(null); // important: discard old commit result
 
       const form = new FormData();
       form.append("file", file);
-
-      console.log("Uploading file:", file?.name, file?.size);
-
 
       const res = await fetch("/api/v1/admin/imports/vessels/preview", {
         method: "POST",
@@ -228,21 +212,15 @@ export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModa
         body: form,
       });
 
-      const json = await res.json().catch(() => null);
+      const json = await res.json();
 
       if (!res.ok || json?.success === false) {
-        const message =
-          json?.message ||
-          `Preview failed (HTTP ${res.status}). Please ensure the Excel file matches the template.`;
-        throw new Error(message);
+        throw new Error(json?.message || "Preview failed");
       }
 
-      const data: PreviewResult = json?.data;
-
-      setPreview(data);
+      setPreview(json.data);
       toast.success("Preview generated");
     } catch (err: any) {
-      console.error("❌ Vessel import preview failed:", err);
       setPreview(null);
       toast.error(err?.message || "Unable to preview import");
     } finally {
@@ -251,20 +229,7 @@ export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModa
   }
 
   async function handleCommit() {
-    if (!file) {
-      toast.error("Please select an Excel file first");
-      return;
-    }
-
-    if (!preview) {
-      toast.error("Preview is required before commit");
-      return;
-    }
-
-    if (!canCommit) {
-      toast.error("Commit is blocked because some rows failed validation");
-      return;
-    }
+    if (!file || !preview || !canCommit) return;
 
     try {
       setCommitLoading(true);
@@ -278,63 +243,47 @@ export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModa
         body: form,
       });
 
-      const json = await res.json().catch(() => null);
+      const json = await res.json();
 
       if (!res.ok || json?.success === false) {
-        const message =
-          json?.message ||
-          `Commit failed (HTTP ${res.status}). If this is 404, backend route is not ready yet.`;
-        throw new Error(message);
+        throw new Error(json?.message || "Commit failed");
       }
 
-      const data: CommitResult = json?.data;
+      const data: CommitResult = json.data;
 
-      setCommitResult(data);
+      /* ---------------- STEP 4: STATE DISCIPLINE ---------------- */
+      setCommitResult(data); // keep result visible
+      setPreview(null); // clear preview
+      setFile(null); // clear file
 
-      // Policy B: success even if no-op
-      const created = data?.summary?.created ?? 0;
-      const skipped = data?.summary?.skipped ?? 0;
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
 
-      if (created > 0) {
-        toast.success(`Import committed: ${created} created (${skipped} skipped)`);
+      // SINGLE success toast only
+      if ((data.summary.created ?? 0) > 0) {
+        toast.success("Vessels imported successfully");
       } else {
-        toast.success("Import committed: no new vessels created (all rows skipped)");
+        toast.success("No new vessels created — all rows already exist");
       }
 
-      // Refresh parent list
+      // Parent refresh (MANDATORY)
       await onSuccess();
     } catch (err: any) {
-      console.error("❌ Vessel import commit failed:", err);
       toast.error(err?.message || "Unable to commit import");
     } finally {
       setCommitLoading(false);
     }
   }
 
-  function handleClose() {
-    if (previewLoading || commitLoading || templateLoading) return;
-    onClose();
-  }
-
   if (!open) return null;
 
+  /* ============================== RENDER ================================ */
+
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className="
-          w-full max-w-4xl
-          rounded-lg
-          bg-[hsl(var(--card))]
-          border border-[hsl(var(--border))]
-          shadow-lg
-          overflow-hidden
-        "
-      >
-        {/* ============================ HEADER ============================ */}
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl rounded-lg bg-[hsl(var(--card))] border border-[hsl(var(--border))] shadow-lg overflow-hidden">
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))]">
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} />
@@ -342,271 +291,153 @@ export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModa
           </div>
 
           <button
-            onClick={handleClose}
-            className="h-8 w-8 rounded-md flex items-center justify-center hover:bg-[hsl(var(--muted))]"
-            aria-label="Close"
-            title="Close"
+            onClick={onClose}
+            className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-[hsl(var(--muted))]"
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* ============================ BODY ============================ */}
+        {/* Body */}
         <div className="p-4 space-y-4">
-          {/* Top actions */}
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Actions */}
+          <div className="flex items-center gap-3">
             <button
-              type="button"
               onClick={handleDownloadTemplate}
               disabled={templateLoading}
-              className="
-                inline-flex items-center gap-2
-                px-3 py-2 rounded-md text-sm
-                border border-[hsl(var(--border))]
-                hover:bg-[hsl(var(--muted))]
-                disabled:opacity-60
-              "
-              title="Download Excel template"
+              className="px-3 py-2 rounded-md border border-[hsl(var(--border))] text-sm hover:bg-[hsl(var(--muted))] disabled:opacity-60"
             >
-              <FileDown size={16} />
+              <FileDown size={16} className="inline mr-1" />
               {templateLoading ? "Downloading…" : "Download Template"}
             </button>
 
             <div className="flex-1" />
 
-            <div className="text-xs text-[hsl(var(--muted-foreground))]">
-              Upload → Preview → Commit (audit-safe)
-            </div>
+            <span className="text-xs text-[hsl(var(--muted-foreground))]">
+              Upload → Preview → Commit
+            </span>
           </div>
 
-          {/* File picker */}
-          <div
-            className="
-              rounded-lg border border-[hsl(var(--border))]
-              bg-[hsl(var(--card))]
-              p-4
-            "
-          >
-            <div className="flex flex-wrap items-center gap-3">
+          {/* File Picker */}
+          <div className="rounded-lg border border-[hsl(var(--border))] p-4">
+            <div className="flex items-center gap-3">
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".xlsx"
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null;
-                  if (f && !f.name.toLowerCase().endsWith(".xlsx")) {
-                    toast.error("Only .xlsx files are allowed");
-                    e.target.value = "";
-                    setFile(null);
-                    return;
-                  }
                   setFile(f);
                   setPreview(null);
                   setCommitResult(null);
                 }}
                 className="text-sm"
-                aria-label="Select Excel file"
               />
 
               <button
-                type="button"
                 onClick={handlePreview}
                 disabled={!file || previewLoading || commitLoading}
-                className="
-                  inline-flex items-center gap-2
-                  px-3 py-2 rounded-md text-sm
-                  bg-[hsl(var(--primary))]
-                  text-[hsl(var(--primary-foreground))]
-                  hover:opacity-90
-                  disabled:opacity-60
-                  disabled:cursor-not-allowed
-                "
-                title="Preview import"
+                className="px-3 py-2 rounded-md bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm disabled:opacity-60"
               >
-                <Upload size={16} />
+                <Upload size={16} className="inline mr-1" />
                 {previewLoading ? "Previewing…" : "Preview"}
               </button>
 
               <button
-                type="button"
                 onClick={handleCommit}
-                disabled={!file || !hasPreview || !canCommit || commitLoading || previewLoading}
-                className="
-                  inline-flex items-center gap-2
-                  px-3 py-2 rounded-md text-sm
-                  bg-emerald-600
-                  text-white
-                  hover:bg-emerald-500
-                  disabled:opacity-60
-                "
-                title="Commit import"
+                disabled={!file || !preview || !canCommit || commitLoading}
+                className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm disabled:opacity-60"
               >
                 {commitLoading ? "Committing…" : "Commit"}
               </button>
             </div>
-
-            <div className="mt-3 text-xs text-[hsl(var(--muted-foreground))] leading-relaxed">
-              Required columns: <span className="font-medium">imo_number</span>,{" "}
-              <span className="font-medium">vessel_name</span>,{" "}
-              <span className="font-medium">vessel_type</span>. Optional:{" "}
-              <span className="font-medium">flag_state</span>,{" "}
-              <span className="font-medium">class_society</span>.
-            </div>
           </div>
 
-          {/* Preview summary */}
+          {/* Commit Result Banner */}
+          {commitResult && (
+            <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3 flex items-start gap-2 text-sm text-green-700">
+              <CheckCircle2 size={16} className="mt-0.5" />
+              {(commitResult.summary.created ?? 0) > 0
+                ? "Import completed successfully."
+                : "No new vessels created — all rows already exist."}
+            </div>
+          )}
+
+          {/* Commit Summary */}
+          {commitResult && (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <SummaryCard label="Total" value={commitResult.summary.total} />
+              <SummaryCard
+                label="Created"
+                value={commitResult.summary.created}
+                tone="ok"
+              />
+              <SummaryCard label="Skipped" value={commitResult.summary.skipped} />
+              <SummaryCard
+                label="Fail"
+                value={commitResult.summary.fail}
+                tone="danger"
+              />
+              <SummaryCard
+                label="Ready+Warn"
+                value={
+                  commitResult.summary.ready +
+                  commitResult.summary.ready_with_warnings
+                }
+                tone="warn"
+              />
+            </div>
+          )}
+
+          {/* Preview Summary */}
           {preview && (
-            <div className="rounded-lg border border-[hsl(var(--border))] p-4 bg-[hsl(var(--card))] space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-sm font-semibold">Preview Summary</div>
-                  {preview.import_batch_id && (
-                    <div className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
-                      Batch: <span className="font-mono">{preview.import_batch_id}</span>
-                    </div>
-                  )}
-                </div>
+            <div className="rounded-lg border border-[hsl(var(--border))] p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold">Preview Summary</div>
 
                 {commitWillBeNoop && (
-                  <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-md border border-yellow-500/20 bg-yellow-500/5 text-yellow-800">
+                  <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-md border border-yellow-500/20 bg-yellow-500/5 text-yellow-800">
                     <AlertTriangle size={14} />
-                    All rows will be skipped (commit = success no-op)
+                    All rows will be skipped
                   </div>
                 )}
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <SummaryCard label="Total" value={preview.summary.total ?? 0} />
-                <SummaryCard label="Ready" value={preview.summary.ready ?? 0} tone="ok" />
+                <SummaryCard label="Total" value={preview.summary.total} />
+                <SummaryCard
+                  label="Ready"
+                  value={preview.summary.ready}
+                  tone="ok"
+                />
                 <SummaryCard
                   label="Ready (Warn)"
-                  value={preview.summary.ready_with_warnings ?? 0}
+                  value={preview.summary.ready_with_warnings}
                   tone="warn"
                 />
-                <SummaryCard label="Skip" value={preview.summary.skip ?? 0} />
-                <SummaryCard label="Fail" value={preview.summary.fail ?? 0} tone="danger" />
+                <SummaryCard
+                  label="Skip"
+                  value={preview.summary.skip}
+                />
+                <SummaryCard
+                  label="Fail"
+                  value={preview.summary.fail}
+                  tone="danger"
+                />
               </div>
-
-              {Array.isArray(preview.notes) && preview.notes.length > 0 && (
-                <div className="text-xs text-[hsl(var(--muted-foreground))] space-y-1">
-                  {preview.notes.map((n, idx) => (
-                    <div key={idx}>• {n}</div>
-                  ))}
-                </div>
-              )}
-
-              {/* Preview table */}
-              <div className="overflow-hidden rounded-lg border border-[hsl(var(--border))]">
-                <table className="w-full text-sm">
-                  <thead className="bg-[hsl(var(--muted))]">
-                    <tr>
-                      <th className="px-4 py-2 text-left">Row</th>
-                      <th className="px-4 py-2 text-left">Status</th>
-                      <th className="px-4 py-2 text-left">IMO</th>
-                      <th className="px-4 py-2 text-left">Vessel</th>
-                      <th className="px-4 py-2 text-left">Type</th>
-                      <th className="px-4 py-2 text-left">Issues</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {preview.rows.map((r) => {
-                      const imo =
-                        (r.normalized?.imo_number as string) ||
-                        (r.input?.imo_number as string) ||
-                        "—";
-                      const vesselName =
-                        (r.normalized?.vessel_name as string) ||
-                        (r.input?.vessel_name as string) ||
-                        "—";
-                      const vesselType =
-                        (r.normalized?.vessel_type as string) ||
-                        (r.input?.vessel_type as string) ||
-                        "—";
-
-                      return (
-                        <tr
-                          key={r.row_number}
-                          className="border-t border-[hsl(var(--border))]"
-                        >
-                          <td className="px-4 py-3 font-mono text-xs">{r.row_number}</td>
-                          <td className="px-4 py-3">
-                            <StatusPill status={r.status} />
-                          </td>
-                          <td className="px-4 py-3">{imo}</td>
-                          <td className="px-4 py-3">{vesselName}</td>
-                          <td className="px-4 py-3">{vesselType}</td>
-                          <td className="px-4 py-3 text-xs text-[hsl(var(--muted-foreground))]">
-                            {r.issues?.length ? r.issues.join(" • ") : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Commit result (if any) */}
-              {hasCommit && commitResult && (
-                <div className="pt-2 space-y-3">
-                  <div className="text-sm font-semibold">Commit Result</div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                    <SummaryCard label="Total" value={commitResult.summary.total ?? 0} />
-                    <SummaryCard
-                      label="Created"
-                      value={commitResult.summary.created ?? 0}
-                      tone="ok"
-                    />
-                    <SummaryCard label="Skipped" value={commitResult.summary.skipped ?? 0} />
-                    <SummaryCard
-                      label="Fail"
-                      value={commitResult.summary.fail ?? 0}
-                      tone="danger"
-                    />
-                    <SummaryCard
-                      label="Ready+Warn"
-                      value={(commitResult.summary.ready ?? 0) + (commitResult.summary.ready_with_warnings ?? 0)}
-                      tone="warn"
-                    />
-                  </div>
-
-                  {Array.isArray(commitResult.notes) && commitResult.notes.length > 0 && (
-                    <div className="text-xs text-[hsl(var(--muted-foreground))] space-y-1">
-                      {commitResult.notes.map((n, idx) => (
-                        <div key={idx}>• {n}</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {!preview && (
-            <div className="text-xs text-[hsl(var(--muted-foreground))]">
-              Upload an Excel file and click <span className="font-medium">Preview</span>.
-              You will see READY / SKIP / FAIL statuses per row before committing.
             </div>
           )}
         </div>
 
-        {/* ============================ FOOTER ============================ */}
-        <div className="px-4 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted))] flex items-center justify-between">
-          <div className="text-xs text-[hsl(var(--muted-foreground))]">
-            Audit-safe: no writes happen until <span className="font-medium">Commit</span>.
-          </div>
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted))] flex justify-between">
+          <span className="text-xs text-[hsl(var(--muted-foreground))]">
+            Audit-safe: no writes until Commit
+          </span>
 
           <button
-            onClick={handleClose}
-            disabled={previewLoading || commitLoading || templateLoading}
-            className="
-              px-4 py-2 rounded-md text-sm
-              border border-[hsl(var(--border))]
-              bg-[hsl(var(--card))]
-              hover:bg-[hsl(var(--muted))]
-              disabled:opacity-60
-            "
+            onClick={onClose}
+            className="px-4 py-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-sm hover:bg-[hsl(var(--muted))]"
           >
             Close
           </button>

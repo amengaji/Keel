@@ -29,10 +29,12 @@
 ¦   ¦   ¦   ¦   +-- adminTrainees.controller.ts
 ¦   ¦   ¦   ¦   +-- adminTrb.controller.ts
 ¦   ¦   ¦   ¦   +-- adminUsersRoles.controller.ts
+¦   ¦   ¦   ¦   +-- adminVesselImports.controller.ts
 ¦   ¦   ¦   ¦   +-- adminVessels.controller.ts
 ¦   ¦   ¦   ¦   +-- trbReview.controller.ts
 ¦   ¦   ¦   +-- imports
 ¦   ¦   ¦   ¦   +-- cadetImportHeaders.ts
+¦   ¦   ¦   +-- policies
 ¦   ¦   ¦   +-- routes
 ¦   ¦   ¦   ¦   +-- adminCadetProfiles.routes.ts
 ¦   ¦   ¦   ¦   +-- adminImports.routes.ts
@@ -40,6 +42,7 @@
 ¦   ¦   ¦   ¦   +-- adminTrainees.routes.ts
 ¦   ¦   ¦   ¦   +-- adminTrb.routes.ts
 ¦   ¦   ¦   ¦   +-- adminUsersRoles.routes.ts
+¦   ¦   ¦   ¦   +-- adminVesselImports.routes.ts
 ¦   ¦   ¦   ¦   +-- adminVessels.routes.ts
 ¦   ¦   ¦   ¦   +-- trbReview.routes.ts
 ¦   ¦   ¦   +-- services
@@ -50,6 +53,7 @@
 ¦   ¦   ¦       +-- adminTrainees.service.ts
 ¦   ¦   ¦       +-- adminTrb.service.ts
 ¦   ¦   ¦       +-- adminUsersRoles.service.ts
+¦   ¦   ¦       +-- adminVesselImports.service.ts
 ¦   ¦   ¦       +-- adminVessels.service.ts
 ¦   ¦   ¦       +-- trbReviewWorkflow.service.ts
 ¦   ¦   +-- config
@@ -132,7 +136,6 @@
 ¦   ¦   +-- keel-logo.png
 ¦   ¦   +-- splash-icon.png
 ¦   +-- src
-¦   ¦   +-- assets
 ¦   ¦   +-- auth
 ¦   ¦   ¦   +-- AuthContext.tsx
 ¦   ¦   +-- components
@@ -282,7 +285,8 @@
 ¦   ¦   ¦   ¦   +-- AdminAuthGate.tsx
 ¦   ¦   ¦   +-- components
 ¦   ¦   ¦   ¦   +-- ui
-¦   ¦   ¦   ¦       +-- Card.tsx
+¦   ¦   ¦   ¦   ¦   +-- Card.tsx
+¦   ¦   ¦   ¦   +-- CadetImportModal.tsx
 ¦   ¦   ¦   +-- layout
 ¦   ¦   ¦   ¦   +-- AdminLayout.tsx
 ¦   ¦   ¦   ¦   +-- AdminSidebar.tsx
@@ -314,6 +318,7 @@
 ¦   ¦   ¦   ¦   +-- AdminVesselDetailPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminVesselsPage.tsx
 ¦   ¦   ¦   ¦   +-- AdminVesselTypesPage.tsx
+¦   ¦   ¦   ¦   +-- VesselImportModal.tsx
 ¦   ¦   ¦   ¦   +-- VesselUpsertModal.tsx
 ¦   ¦   ¦   +-- security
 ¦   ¦   ¦       +-- auditData.ts
