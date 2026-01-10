@@ -233,7 +233,7 @@ export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModa
       if (!res.ok || json?.success === false) {
         const message =
           json?.message ||
-          `Preview failed (HTTP ${res.status}). If this is 404, backend route is not ready yet.`;
+          `Preview failed (HTTP ${res.status}). Please ensure the Excel file matches the template.`;
         throw new Error(message);
       }
 
@@ -394,6 +394,12 @@ export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModa
                 accept=".xlsx"
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null;
+                  if (f && !f.name.toLowerCase().endsWith(".xlsx")) {
+                    toast.error("Only .xlsx files are allowed");
+                    e.target.value = "";
+                    setFile(null);
+                    return;
+                  }
                   setFile(f);
                   setPreview(null);
                   setCommitResult(null);
@@ -413,6 +419,7 @@ export function VesselImportModal({ open, onClose, onSuccess }: VesselImportModa
                   text-[hsl(var(--primary-foreground))]
                   hover:opacity-90
                   disabled:opacity-60
+                  disabled:cursor-not-allowed
                 "
                 title="Preview import"
               >
