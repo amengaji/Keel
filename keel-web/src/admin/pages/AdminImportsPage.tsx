@@ -1,53 +1,48 @@
-// keel-web/src/admin/pages/AdminImportsPage.tsx
-//
-// Keel — Imports (Controlled Intake Gateway)
-// ----------------------------------------------------
-// PURPOSE:
-// - Single entry point for all bulk data imports
-// - Explicit scope definition (what can be imported)
-// - Preview-first, audit-safe UX
-//
-// IMPORTANT:
-// - No silent imports
-// - No background mutations
-// - Every import is intentional, visible, and reversible
-//
-// PHASE 2.5 STATUS:
-// - UI only
-// - No backend calls
-// - No actual file processing
-
+import { useState } from "react";
 import {
   Upload,
   FileSpreadsheet,
   AlertTriangle,
   ShieldCheck,
 } from "lucide-react";
-import { toast } from "sonner";
+import { CadetImportModal } from "../components/CadetImportModal";
+import { VesselImportModal } from "./VesselImportModal";
+import { TaskImportModal } from "../components/TaskImportModal";
+import { AssignmentsImportModal } from "../components/AssignmentsImportModal";
 
 /* -------------------------------------------------------------------------- */
-/* Import Registry — WHAT IS ALLOWED                                           */
+/* Import Registry                                                             */
 /* -------------------------------------------------------------------------- */
-const importTypes = [
+type ImportType = "vessels" | "cadets" | "assignments" | "tasks";
+
+const importTypes: {
+  id: ImportType;
+  title: string;
+  description: string;
+  restrictions: string;
+}[] = [
   {
     id: "vessels",
     title: "Vessels",
-    description:
-      "Bulk import of vessel master data (IMO, name, type, flag, class).",
+    description: "Bulk import of vessel master data (IMO, name, type, flag, class).",
     restrictions: "System validates IMO and vessel type mapping.",
   },
   {
     id: "cadets",
     title: "Cadets / Trainees",
-    description:
-      "Bulk onboarding of cadets and ratings with stream classification.",
+    description: "Bulk onboarding of cadets and ratings with stream classification.",
     restrictions: "No personal identity documents allowed.",
+  },
+  {
+    id: "tasks",
+    title: "TRB Tasks",
+    description: "Bulk import of training tasks with STCW references.",
+    restrictions: "Must map to valid Ship Types.",
   },
   {
     id: "assignments",
     title: "Cadet–Vessel Assignments",
-    description:
-      "Assignment history linking cadets to vessels with joining periods.",
+    description: "Assignment history linking cadets to vessels with joining periods.",
     restrictions: "Overlapping assignments are rejected.",
   },
 ];
@@ -56,31 +51,27 @@ const importTypes = [
 /* Main Page Component                                                         */
 /* -------------------------------------------------------------------------- */
 export function AdminImportsPage() {
+  const [activeModal, setActiveModal] = useState<ImportType | null>(null);
+
+  const handleOpen = (type: ImportType) => {
+    setActiveModal(type);
+  };
+
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* ============================ HEADER ============================ */}
+      {/* HEADER */}
       <div>
         <h1 className="text-xl font-semibold flex items-center gap-2">
           <Upload size={20} />
           Imports
         </h1>
-
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
           Controlled bulk data intake with validation and audit visibility.
         </p>
       </div>
 
-      {/* ============================ WARNING BANNER ============================ */}
-      <div
-        className="
-          flex items-start gap-3
-          rounded-lg
-          border border-yellow-500/30
-          bg-yellow-500/10
-          px-4 py-3
-          text-sm
-        "
-      >
+      {/* WARNING BANNER */}
+      <div className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm">
         <AlertTriangle size={18} className="text-yellow-600 mt-0.5" />
         <div>
           <div className="font-medium text-yellow-700">
@@ -93,50 +84,31 @@ export function AdminImportsPage() {
         </div>
       </div>
 
-      {/* ============================ IMPORT OPTIONS ============================ */}
+      {/* IMPORT OPTIONS */}
       <div className="space-y-4">
         {importTypes.map((imp) => (
           <div
             key={imp.id}
-            className="
-              rounded-lg
-              border border-[hsl(var(--border))] 
-              bg-[hsl(var(--card))]
-              p-4
-              flex items-start justify-between gap-4
-            "
+            className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 flex items-start justify-between gap-4"
           >
-            {/* Left — Description */}
+            {/* Left */}
             <div className="space-y-1">
               <div className="flex items-center gap-2 font-medium">
                 <FileSpreadsheet size={16} />
                 {imp.title}
               </div>
-
               <p className="text-sm text-[hsl(var(--muted-foreground))]">
                 {imp.description}
               </p>
-
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
                 <strong>Restrictions:</strong> {imp.restrictions}
               </p>
             </div>
 
-            {/* Right — Action */}
+            {/* Right */}
             <button
-              onClick={() =>
-                toast.message(
-                  "Import preview and templates will be enabled in Phase 3"
-                )
-              }
-              className="
-                px-4 py-2
-                rounded-md
-                border border-[hsl(var(--border))]
-                hover:bg-[hsl(var(--muted))]
-                text-sm
-                flex items-center gap-2
-              "
+              onClick={() => handleOpen(imp.id)}
+              className="px-4 py-2 rounded-md border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] text-sm flex items-center gap-2"
             >
               <ShieldCheck size={14} />
               Preview Import
@@ -145,11 +117,43 @@ export function AdminImportsPage() {
         ))}
       </div>
 
-      {/* ============================ FOOTNOTE ============================ */}
       <p className="text-xs text-[hsl(var(--muted-foreground))]">
         Keel enforces preview-first imports. No data enters the system without
-        human confirmation, validation, and traceability.
+        human confirmation.
       </p>
+
+      {/* MODALS - Fixed Props Mapping */}
+      {activeModal === "cadets" && (
+        <CadetImportModal
+          open={true}
+          onCancel={() => setActiveModal(null)}
+          onCommitted={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal === "vessels" && (
+        <VesselImportModal
+          open={true}
+          onClose={() => setActiveModal(null)}
+          onSuccess={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal === "tasks" && (
+        <TaskImportModal
+          open={true}
+          onClose={() => setActiveModal(null)}
+          onSuccess={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal === "assignments" && (
+        <AssignmentsImportModal 
+          open={true} 
+          onClose={() => setActiveModal(null)} 
+          onSuccess={() => setActiveModal(null)} 
+        />
+      )}
     </div>
   );
 }

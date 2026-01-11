@@ -1,6 +1,4 @@
-import { Request, Response } from "express";
-
-// Services
+﻿import { Request, Response } from "express";
 import {
   buildCadetImportTemplateXlsxBuffer,
   previewCadetImportXlsx,
@@ -45,7 +43,7 @@ function assertAdminOrThrow(req: Request) {
 }
 
 /* ======================================================================
- * 1. CADETS
+ * CADETS
  * ====================================================================== */
 
 export async function downloadCadetImportTemplate(req: Request, res: Response) {
@@ -83,7 +81,7 @@ export async function commitCadetImport(req: Request, res: Response) {
 }
 
 /* ======================================================================
- * 2. TASKS
+ * TASKS
  * ====================================================================== */
 
 export async function downloadTaskImportTemplate(req: Request, res: Response) {
@@ -121,7 +119,7 @@ export async function commitTaskImport(req: Request, res: Response) {
 }
 
 /* ======================================================================
- * 3. ASSIGNMENTS (This was missing)
+ * ASSIGNMENTS
  * ====================================================================== */
 
 export async function downloadAssignmentImportTemplate(req: Request, res: Response) {

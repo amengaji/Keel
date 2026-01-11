@@ -20,6 +20,12 @@ import {
   previewCadetImport,
   commitCadetImport,
 } from "../controllers/adminImports.controller.js";
+import {
+  // ... existing
+  downloadAssignmentImportTemplate,
+  previewAssignmentImport,
+  commitAssignmentImport
+} from "../controllers/adminImports.controller.js";
 
 const router = Router();
 
@@ -58,5 +64,10 @@ router.post(
   upload.single("file"),
   commitCadetImport
 );
+
+/* ASSIGNMENTS */
+router.get("/imports/assignments/template", authGuard, downloadAssignmentImportTemplate);
+router.post("/imports/assignments/preview", authGuard, upload.single("file"), previewAssignmentImport);
+router.post("/imports/assignments/commit", authGuard, upload.single("file"), commitAssignmentImport);
 
 export default router;
