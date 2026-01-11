@@ -73,6 +73,12 @@ export function AdminCadetsPage() {
     Record<number, string>
   >({});
 
+  // Authoritative ACTIVE assignment lookup: cadet_id → assignment
+  const [activeAssignmentMap, setActiveAssignmentMap] = useState<
+    Record<number, { vessel_id: number; vessel_name: string }>
+  >({});
+
+
   // Assign Vessel modal state
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedCadet, setSelectedCadet] = useState<{
@@ -149,6 +155,44 @@ async function loadTraineeAssignments() {
   }
 }
 
+/**
+ * Loads ACTIVE cadet-vessel assignments.
+ * This is the ONLY authoritative source for assignment eligibility.
+ */
+async function loadActiveAssignments() {
+  try {
+    const res = await fetch("/api/v1/admin/vessel-assignments", {
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to load assignments (${res.status})`);
+    }
+
+    const json = await res.json();
+    const rows = Array.isArray(json?.data) ? json.data : [];
+
+    const map: Record<number, { vessel_id: number; vessel_name: string }> = {};
+
+    for (const r of rows) {
+      if (r.status === "ACTIVE") {
+        map[r.cadet_id] = {
+          vessel_id: r.vessel_id,
+          vessel_name: r.vessel_name,
+        };
+      }
+    }
+
+    setActiveAssignmentMap(map);
+  } catch (err: any) {
+    console.error("❌ Failed to load active assignments:", err);
+    toast.error(
+      err?.message || "Unable to determine assignment status"
+    );
+    setActiveAssignmentMap({});
+  }
+}
+
 
   useEffect(() => {
     let cancelled = false;
@@ -157,7 +201,7 @@ async function loadTraineeAssignments() {
       if (!cancelled) {
         await loadCadets();
         await loadTraineeAssignments(); // read-only vessel visibility
-
+        await loadActiveAssignments();  // authoritative
       }
     }
 
@@ -287,9 +331,9 @@ async function loadTraineeAssignments() {
                   </td>
 
                   <td className="px-4 py-3 text-sm">
-                    {traineeVesselMap[row.cadet_id] ? (
+                    {activeAssignmentMap[row.cadet_id] ? (
                       <span className="font-medium">
-                        {traineeVesselMap[row.cadet_id]}
+                        {activeAssignmentMap[row.cadet_id].vessel_name}
                       </span>
                     ) : (
                       <span className="text-[hsl(var(--muted-foreground))]">
@@ -299,7 +343,7 @@ async function loadTraineeAssignments() {
                   </td>
 
                   <td className="px-4 py-3 text-center">
-                    {traineeVesselMap[row.cadet_id] ? (
+                    {activeAssignmentMap[row.cadet_id] ? (
                       <span className="text-xs text-[hsl(var(--muted-foreground))]">
                         Assigned
                       </span>
@@ -327,6 +371,7 @@ async function loadTraineeAssignments() {
                       </button>
                     )}
                   </td>
+
 
                   <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
                     {new Date(row.created_at).toLocaleDateString()}
@@ -363,8 +408,10 @@ async function loadTraineeAssignments() {
           setSelectedCadet(null);
         }}
         onSuccess={async () => {
-          await loadTraineeAssignments();
+          await loadTraineeAssignments(); // optional
+          await loadActiveAssignments();  // REQUIRED
         }}
+
       />
     </div>
   );

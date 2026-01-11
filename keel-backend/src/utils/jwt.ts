@@ -9,7 +9,7 @@ function normalizeOptions(expiresIn: string): SignOptions {
 }
 
 export function generateAccessToken(payload: object) {
-  const options = normalizeOptions(process.env.ACCESS_TOKEN_EXPIRES_IN || "15m");
+  const options = normalizeOptions(process.env.ACCESS_TOKEN_EXPIRES_IN || "150m");
   return jwt.sign(payload as JwtPayload, accessSecret, options);
 }
 

@@ -227,6 +227,18 @@ export function AdminCadetDetailPage() {
     };
   }, [cadetIdNum]);
 
+  /* ------------------------------ Derived ------------------------------ */
+
+/**
+ * Maritime rule (authoritative):
+ * Cadet is "currently assigned" ONLY if an ACTIVE assignment exists.
+ * We DO NOT trust /trainees for assignment truth because it can be denormalized/stale.
+ */
+const activeAssignment = useMemo(() => {
+  return assignments.find((a) => a.status === "ACTIVE") ?? null;
+}, [assignments]);
+
+
   /* ---------------------------------------------------------------------- */
 
   if (loading) {
@@ -296,27 +308,38 @@ export function AdminCadetDetailPage() {
           Training / TRB Snapshot
         </h2>
 
-        {!training ? (
+        {/* 
+          IMPORTANT (Phase 4E consistency):
+          Assignment truth comes ONLY from /vessel-assignments (ACTIVE row).
+          /trainees may lag or be denormalized, so we do not use it to decide "Assigned".
+        */}
+        {!activeAssignment ? (
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
-            No assignment or training activity recorded yet for this cadet.
+            Not currently assigned to any vessel. Cadet is eligible for a new assignment.
           </p>
         ) : (
           <>
-            <InfoRow label="Assigned Vessel" value={training.vessel_name} />
-            <InfoRow label="Ship Type" value={training.ship_type_name} />
+            <InfoRow label="Assigned Vessel" value={activeAssignment.vessel_name} />
             <InfoRow
               label="Assignment Period"
-              value={
-                training.assignment_start_date
-                  ? `${training.assignment_start_date} → ${
-                      training.assignment_end_date || "Present"
-                    }`
-                  : null
-              }
+              value={`${activeAssignment.start_date} → ${
+                activeAssignment.end_date || "Present"
+              }`}
             />
+            <InfoRow label="Assignment Status" value={activeAssignment.status} />
           </>
         )}
+
+        {/* Optional training metrics can still be shown later without affecting assignment truth */}
+        {!training ? null : (
+          <div className="pt-2 border-t">
+            <p className="text-xs text-[hsl(var(--muted-foreground))] mt-2">
+              Training metrics are loaded from the trainee snapshot and may not represent assignment status.
+            </p>
+          </div>
+        )}
       </div>
+
 
       {/* ============================ ASSIGNMENT HISTORY ============================ */}
       <div className="rounded-lg border bg-[hsl(var(--card))] p-4 space-y-3">

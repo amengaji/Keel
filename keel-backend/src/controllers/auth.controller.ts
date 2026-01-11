@@ -127,7 +127,7 @@ class AuthController {
         httpOnly: true,
         sameSite: "lax",
         secure: false, // localhost ONLY
-        maxAge: 15 * 60 * 1000, // 15 minutes
+        maxAge: 150 * 60 * 1000, // 150 minutes
       });
 
       res.cookie("refresh_token", refreshToken, {

@@ -133,6 +133,18 @@ export function AdminVesselDetailPage() {
   const [vessel, setVessel] = useState<VesselUiRow | null>(null);
   const [assignments, setAssignments] = useState<ApiAssignmentRow[]>([]);
 
+  /* ---------------- Close Assignment (Phase 4E) ---------------- */
+
+  // Holds assignment selected for closing
+  const [pendingClose, setPendingClose] =
+    useState<ApiAssignmentRow | null>(null);
+
+  // Selected end date for closing assignment (YYYY-MM-DD)
+  const [closeEndDate, setCloseEndDate] = useState<string>("");
+
+  // Prevent double-submit
+  const [closing, setClosing] = useState(false);
+
   /* ------------------------------ Load Data ------------------------------ */
   useEffect(() => {
     let cancelled = false;
@@ -365,29 +377,82 @@ export function AdminVesselDetailPage() {
                 <th className="px-3 py-2 text-left">Cadet</th>
                 <th className="px-3 py-2 text-left">Period</th>
                 <th className="px-3 py-2 text-center">Status</th>
+                <th className="px-3 py-2 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
-              {sortedAssignments.map((a) => (
-                <tr
-                  key={a.assignment_id}
-                  className={[
-                    "border-t cursor-pointer",
-                    getRowTone(a.status),
-                  ].join(" ")}
-                  onClick={() => navigate(`/admin/cadets/${a.cadet_id}`)}
-                >
-                  <td className="px-3 py-2 font-medium">{a.cadet_name}</td>
-                  <td className="px-3 py-2">
-                    {formatIsoDate(a.start_date)} →{" "}
-                    {a.end_date ? formatIsoDate(a.end_date) : "Present"}
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <StatusPill value={a.status} />
-                  </td>
-                </tr>
-              ))}
+              {sortedAssignments.map((a) => {
+                const canClose =
+                  a.status === "ACTIVE" && isArchived === false;
+
+                return (
+                  <tr
+                    key={a.assignment_id}
+                    className={[
+                      "border-t",
+                      canClose ? "cursor-pointer" : "",
+                      getRowTone(a.status),
+                    ].join(" ")}
+                    onClick={() => {
+                      // Only allow navigation when clicking the row itself
+                      // Action button will explicitly stop propagation
+                      navigate(`/admin/cadets/${a.cadet_id}`);
+                    }}
+                  >
+                    {/* Cadet */}
+                    <td className="px-3 py-2 font-medium">
+                      {a.cadet_name}
+                    </td>
+
+                    {/* Period */}
+                    <td className="px-3 py-2">
+                      {formatIsoDate(a.start_date)} →{" "}
+                      {a.end_date ? formatIsoDate(a.end_date) : "Present"}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-3 py-2 text-center">
+                      <StatusPill value={a.status} />
+                    </td>
+
+                    {/* Action */}
+                    <td className="px-3 py-2 text-right">
+                      {canClose ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            // Prevent row navigation
+                            e.stopPropagation();
+
+                            // Default end date = today (explicit but editable)
+                            const today = new Date().toISOString().slice(0, 10);
+
+                            setCloseEndDate(today);
+                            setPendingClose(a);
+                          }}
+                          className="
+                            inline-flex items-center
+                            rounded-md border
+                            px-3 py-1.5 text-xs
+                            font-medium
+                            text-[hsl(var(--foreground))]
+                            hover:bg-[hsl(var(--muted))]
+                          "
+                        >
+                          Close Assignment
+                        </button>
+                      ) : (
+                        // Maintain table alignment for non-active rows
+                        <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                          —
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
+
           </table>
         )}
 
@@ -405,6 +470,145 @@ export function AdminVesselDetailPage() {
           staffing and sea-time verification.
         </p>
       </div>
+      {/* ------------------------------------------------------------------ */}
+      {/* CLOSE ASSIGNMENT CONFIRMATION (Phase 4E)                            */}
+      {/* ------------------------------------------------------------------ */}
+
+      {pendingClose && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-md rounded-lg border bg-[hsl(var(--card))] p-6 space-y-4">
+            <h3 className="text-sm font-semibold">
+              Close Cadet Assignment
+            </h3>
+
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              This will close the cadet’s assignment to this vessel and
+              lock further TRB activity.
+              <br />
+              <strong>This action cannot be undone.</strong>
+            </p>
+
+            <div className="rounded-md border bg-[hsl(var(--muted))] p-3 text-sm space-y-2">
+              <div>
+                <span className="font-medium">Cadet:</span>{" "}
+                {pendingClose.cadet_name}
+              </div>
+
+              <div>
+                <span className="font-medium">Start Date:</span>{" "}
+                {formatIsoDate(pendingClose.start_date)}
+              </div>
+
+              {/* End Date Selection — REQUIRED */}
+              <div className="pt-2">
+                <label className="block text-xs font-medium mb-1">
+                  Assignment End Date
+                </label>
+
+                <input
+                  type="date"
+                  required
+                  value={closeEndDate}
+                  min={formatIsoDate(pendingClose.start_date)}
+                  onChange={(e) => setCloseEndDate(e.target.value)}
+                  className="
+                    w-full rounded-md border px-2 py-1.5 text-sm
+                    bg-[hsl(var(--background))]
+                  "
+                />
+
+                <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+                  End date cannot be earlier than the start date.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              {/* Cancel */}
+              <button
+                type="button"
+                disabled={closing}
+                onClick={() => setPendingClose(null)}
+                className="px-4 py-2 text-sm rounded-md border hover:bg-[hsl(var(--muted))]"
+              >
+                Cancel
+              </button>
+
+              {/* Confirm */}
+              <button
+                type="button"
+                disabled={closing  || !closeEndDate}
+                onClick={async () => {
+                  if (!pendingClose) return;
+
+                  try {
+                    setClosing(true);
+
+                    if (!closeEndDate) {
+                      toast.error("End date is required to close assignment");
+                      return;
+                    }
+
+                    const res = await fetch(
+                      `/api/v1/admin/vessel-assignments/${pendingClose.assignment_id}/close`,
+                      {
+                        method: "POST",
+                        credentials: "include",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          end_date: closeEndDate,
+                        }),
+                      }
+                    );
+
+
+                    if (!res.ok) {
+                      const err = await res.json().catch(() => null);
+                      throw new Error(
+                        err?.message || "Failed to close assignment"
+                      );
+                    }
+
+                    toast.success("Assignment closed successfully");
+
+                    // Explicit refresh (single, safe reload)
+                    const assignRes = await fetch(
+                      `/api/v1/admin/vessel-assignments?vessel_id=${vesselId}`,
+                      { credentials: "include" }
+                    );
+
+                    if (assignRes.ok) {
+                      const json = await assignRes.json();
+                      setAssignments(
+                        Array.isArray(json?.data) ? json.data : []
+                      );
+                    }
+
+                    setPendingClose(null);
+                  } catch (err: any) {
+                    console.error("❌ Close assignment failed:", err);
+                    toast.error(
+                      err?.message || "Unable to close assignment"
+                    );
+                  } finally {
+                    setClosing(false);
+                  }
+                }}
+                className="
+                  px-4 py-2 text-sm rounded-md
+                  bg-red-600 text-white
+                  hover:bg-red-700
+                  disabled:opacity-60
+                "
+              >
+                Confirm Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
