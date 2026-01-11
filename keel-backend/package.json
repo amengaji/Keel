@@ -4,7 +4,8 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "node --loader ts-node/esm src/index.ts"
+    "dev": "node --loader ts-node/esm src/index.ts",
+    "setup-db": "node --loader ts-node/esm src/scripts/setupDatabase.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -19,7 +20,7 @@
     "pg-hstore": "^2.3.4",
     "react-native-paper": "^5.14.5",
     "sequelize": "^6.35.1",
-    "uuid": "^13.0.0",
+    "uuid": "^9.0.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
