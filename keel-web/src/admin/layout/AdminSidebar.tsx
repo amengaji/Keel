@@ -26,7 +26,6 @@ import {
   Archive,
   BarChart3,
   Settings,
-  Upload,
   UserCog,
   Layers,
   LogOut,
@@ -158,11 +157,6 @@ const sections: NavSection[] = [
         to: "/admin/vessel-types",
         label: "Vessel Types",
         icon: <Layers size={18} />,
-      },
-      {
-        to: "/admin/imports",
-        label: "Imports",
-        icon: <Upload size={18} />,
       },
       {
         to: "/admin/settings",

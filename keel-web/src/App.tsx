@@ -30,7 +30,6 @@ import { AdminAuditReadinessReportPage } from "./admin/pages/reports/AdminAuditR
 import { AdminEvidenceCompletenessReportPage } from "./admin/pages/reports/AdminEvidenceCompletenessReportPage";
 import { AdminUsersRolesPage } from "./admin/pages/AdminUsersRolesPage";
 import { AdminVesselTypesPage } from "./admin/pages/AdminVesselTypesPage"
-import { AdminImportsPage } from "./admin/pages/AdminImportsPage";
 import { AdminSystemSettingsPage } from "./admin/pages/AdminSystemSettingsPage";
 import { AdminLoginPage } from "./admin/pages/AdminLoginPage";
 import { AdminAuthGate } from "./admin/auth/AdminAuthGate";
@@ -159,10 +158,6 @@ export default function App() {
           <Route
             path="vessel-types"
             element={<AdminVesselTypesPage/>}
-          />
-          <Route
-            path="imports"
-            element={<AdminImportsPage/>}
           />
           <Route
             path="settings"
