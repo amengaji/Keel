@@ -11,7 +11,6 @@ import {
   Users,
   LayoutList,
   RefreshCw,
-  PenTool,
 } from "lucide-react";
 
 type DashboardStats = {
