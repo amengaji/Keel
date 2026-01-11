@@ -22,9 +22,19 @@ export const getAllTasks = async (req: Request, res: Response) => {
       id: t.id,
       task_code: t.stcw_reference || `TASK-${t.id}`,
       task_description: t.title,
-      // MAPPING: Use the new 'department' column for 'cadet_category'
+      
+      // Mapped Fields
       cadet_category: t.department || "General", 
       is_mandatory: t.mandatory_for_all,
+      
+      // NEW FIELDS (These were missing!)
+      trainee_type: t.trainee_type || "All",
+      instructions: t.instructions || "",
+      safety_requirements: t.safety_requirements || "None",
+      evidence_type: t.evidence_type || "NONE",
+      verification_method: t.verification_method || "OBSERVATION",
+      frequency: t.frequency || "ONCE",
+
       section: {
         name: t.section_name || "Uncategorized",
         shipType: t.shipType ? { name: t.shipType.name } : null
