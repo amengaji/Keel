@@ -30,6 +30,7 @@
 �   �   �   �   +-- adminImports.controller.ts
 �   �   �   �   +-- adminShipTypes.controller.ts
 �   �   �   �   +-- adminTaskImports.controller.ts
+�   �   �   �   +-- adminTasks.controller.ts
 �   �   �   �   +-- adminTrainees.controller.ts
 �   �   �   �   +-- adminTrb.controller.ts
 �   �   �   �   +-- adminUsersRoles.controller.ts
@@ -48,6 +49,7 @@
 �   �   �   �   +-- adminImports.routes.ts
 �   �   �   �   +-- adminShipTypes.routes.ts
 �   �   �   �   +-- adminTaskImports.routes.ts
+�   �   �   �   +-- adminTasks.routes.ts
 �   �   �   �   +-- adminTrainees.routes.ts
 �   �   �   �   +-- adminTrb.routes.ts
 �   �   �   �   +-- adminUsersRoles.routes.ts
@@ -134,18 +136,23 @@
 �   �   �   +-- vessel.routes.ts
 �   �   �   +-- vesselAssignment.routes.ts
 �   �   +-- scripts
+�   �   �   +-- add_department_col.cjs
 �   �   �   +-- emergencyFix.ts
 �   �   �   +-- fixSync.ts
 �   �   �   +-- manual_db_fix.js
 �   �   �   +-- seedUsers.ts
+�   �   �   +-- setupDatabase.ts
 �   �   �   +-- syncTables.ts
 �   �   +-- utils
 �   �   �   +-- jwt.ts
 �   �   +-- index.ts
 �   +-- .env
+�   +-- add_column_fix.cjs
 �   +-- generate-hash.cjs
 �   +-- package.json
 �   +-- tsconfig.json
+�   +-- upgrade_tasks_schema_v3.cjs
+�   +-- upgrade_tasks_schema.cjs
 +-- keel-docs
 �   +-- backend-architecture.md
 �   +-- domain-model.md
@@ -357,10 +364,12 @@
 �   �   �   +-- react.svg
 �   �   +-- components
 �   �   �   +-- common
-�   �   �       +-- CheckboxBox.tsx
-�   �   �       +-- ConfirmDeleteModal.tsx
-�   �   �       +-- DatePickerInput.tsx
-�   �   �       +-- YesNoCapsule.tsx
+�   �   �   �   +-- CheckboxBox.tsx
+�   �   �   �   +-- ConfirmDeleteModal.tsx
+�   �   �   �   +-- DatePickerInput.tsx
+�   �   �   �   +-- YesNoCapsule.tsx
+�   �   �   +-- ui
+�   �   �       +-- Dialog.tsx
 �   �   +-- App.css
 �   �   +-- App.tsx
 �   �   +-- index.css
@@ -378,7 +387,9 @@
 �   +-- vite.config.ts
 +-- .gitignore
 +-- cadets.xlsx
++-- fix-dashboard-clickable.ps1
 +-- keel_cadet_import_template.xlsx
++-- keel_task_import_template.xlsx
 +-- keel_vessel_import_template.xlsx
 +-- package.json
 +-- project_structure.txt
