@@ -26,8 +26,10 @@
 �   �   �   +-- controllers
 �   �   �   �   +-- adminCadetAssignments.controller.ts
 �   �   �   �   +-- adminCadetProfiles.controller.ts
+�   �   �   �   +-- adminDashboard.controller.ts
 �   �   �   �   +-- adminImports.controller.ts
 �   �   �   �   +-- adminShipTypes.controller.ts
+�   �   �   �   +-- adminTaskImports.controller.ts
 �   �   �   �   +-- adminTrainees.controller.ts
 �   �   �   �   +-- adminTrb.controller.ts
 �   �   �   �   +-- adminUsersRoles.controller.ts
@@ -42,8 +44,10 @@
 �   �   �   +-- routes
 �   �   �   �   +-- adminCadetAssignments.routes.ts
 �   �   �   �   +-- adminCadetProfiles.routes.ts
+�   �   �   �   +-- adminDashboard.routes.ts
 �   �   �   �   +-- adminImports.routes.ts
 �   �   �   �   +-- adminShipTypes.routes.ts
+�   �   �   �   +-- adminTaskImports.routes.ts
 �   �   �   �   +-- adminTrainees.routes.ts
 �   �   �   �   +-- adminTrb.routes.ts
 �   �   �   �   +-- adminUsersRoles.routes.ts
@@ -55,9 +59,15 @@
 �   �   �   +-- services
 �   �   �       +-- adminCadetAssignments.service.ts
 �   �   �       +-- adminCadetProfiles.service.ts
+�   �   �       +-- adminDashboard.service.ts
 �   �   �       +-- adminImports.service.ts
+�   �   �       +-- adminImportsAssignments.service.ts
+�   �   �       +-- adminImportsAssignmentsCommit.service.ts
 �   �   �       +-- adminImportsCadetsCommit.service.ts
+�   �   �       +-- adminImportsTasks.service.ts
+�   �   �       +-- adminImportsTasksCommit.service.ts
 �   �   �       +-- adminShipTypes.service.ts
+�   �   �       +-- adminTaskImports.service.ts
 �   �   �       +-- adminTrainees.service.ts
 �   �   �       +-- adminTrb.service.ts
 �   �   �       +-- adminUsersRoles.service.ts
@@ -101,6 +111,7 @@
 �   �   �   +-- index.ts
 �   �   �   +-- Role.ts
 �   �   �   +-- ShipType.ts
+�   �   �   +-- TaskTemplate.ts
 �   �   �   +-- User.ts
 �   �   �   +-- Vessel.ts
 �   �   +-- routes
@@ -123,7 +134,11 @@
 �   �   �   +-- vessel.routes.ts
 �   �   �   +-- vesselAssignment.routes.ts
 �   �   +-- scripts
+�   �   �   +-- emergencyFix.ts
+�   �   �   +-- fixSync.ts
+�   �   �   +-- manual_db_fix.js
 �   �   �   +-- seedUsers.ts
+�   �   �   +-- syncTables.ts
 �   �   +-- utils
 �   �   �   +-- jwt.ts
 �   �   +-- index.ts
@@ -297,7 +312,9 @@
 �   �   �   �   +-- ui
 �   �   �   �   �   +-- Card.tsx
 �   �   �   �   +-- AssignCadetToVesselModal.tsx
+�   �   �   �   +-- AssignmentsImportModal.tsx
 �   �   �   �   +-- CadetImportModal.tsx
+�   �   �   �   +-- TaskImportModal.tsx
 �   �   �   +-- layout
 �   �   �   �   +-- AdminLayout.tsx
 �   �   �   �   +-- AdminSidebar.tsx
@@ -322,6 +339,7 @@
 �   �   �   �   +-- AdminPlaceholderPage.tsx
 �   �   �   �   +-- AdminReportsPage.tsx
 �   �   �   �   +-- AdminSystemSettingsPage.tsx
+�   �   �   �   +-- AdminTasksPage.tsx
 �   �   �   �   +-- AdminTraineeCreatePage.tsx
 �   �   �   �   +-- AdminTrainingProgressPage.tsx
 �   �   �   �   +-- AdminUsersRolesPage.tsx
@@ -341,6 +359,7 @@
 �   �   �   +-- common
 �   �   �       +-- CheckboxBox.tsx
 �   �   �       +-- ConfirmDeleteModal.tsx
+�   �   �       +-- DatePickerInput.tsx
 �   �   �       +-- YesNoCapsule.tsx
 �   �   +-- App.css
 �   �   +-- App.tsx
@@ -360,11 +379,13 @@
 +-- .gitignore
 +-- cadets.xlsx
 +-- keel_cadet_import_template.xlsx
++-- keel_vessel_import_template.xlsx
 +-- package.json
 +-- project_structure.txt
 +-- service.conf.lock
 +-- step-fix-tailwind-postcss-v4.ps1
 +-- step-fix-tailwind-postcss.ps1
 +-- step3-admin-shell.ps1
++-- step4-admin-tasks.ps1
 +-- system.conf.lock
 +-- tree.ps1

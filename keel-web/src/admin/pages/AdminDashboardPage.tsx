@@ -8,14 +8,10 @@ import {
 import {
   Ship,
   Users,
-  FileCheck,
   LayoutList,
   RefreshCw,
 } from "lucide-react";
 
-/* -------------------------------------------------------------------------- */
-/* TYPES                                                                      */
-/* -------------------------------------------------------------------------- */
 type DashboardStats = {
   vessels: { active: number };
   cadets: { total: number; onboard: number; shore: number };
@@ -48,7 +44,6 @@ export function AdminDashboardPage() {
 
   return (
     <div className="space-y-10">
-      {/* ============================ HEADER ============================ */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Shore Command Center</h1>
@@ -65,7 +60,6 @@ export function AdminDashboardPage() {
         </button>
       </div>
 
-      {/* ============================ LIVE METRICS ============================ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         <StatCard
           label="Active Vessels"
@@ -97,9 +91,6 @@ export function AdminDashboardPage() {
         />
       </div>
 
-      {/* ============================ PHASE 4 PLACEHOLDERS ============================ */}
-      {/* These sections will be wired up in Phase 4 (Sign-offs) */}
-      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-60">
         <Card>
           <CardHeader 
