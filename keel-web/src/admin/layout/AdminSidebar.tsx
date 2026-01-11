@@ -29,6 +29,7 @@ import {
   UserCog,
   Layers,
   LogOut,
+  LayoutList, // <--- ADDED THIS IMPORT
 } from "lucide-react";
 import { adminLogout } from "../auth/AdminAuthGate";
 
@@ -61,8 +62,6 @@ const sections: NavSection[] = [
     ],
   },
 
-  
-
   /* ======================== OPERATIONS ========================= */
   {
     title: "Operations",
@@ -87,6 +86,12 @@ const sections: NavSection[] = [
         label: "Assignments",
         icon: <Users size={18} />,
       },
+      // <--- ADDED TRB TASKS LINK HERE
+      {
+        to: "/admin/tasks",
+        label: "TRB Tasks",
+        icon: <LayoutList size={18} />,
+      },
     ],
   },
 
@@ -105,7 +110,6 @@ const sections: NavSection[] = [
         label: "Rejected / Returned",
         icon: <XCircle size={18} />,
         badge: 3, // mock count for Phase 2
-
       },
     ],
   },
@@ -170,13 +174,14 @@ const sections: NavSection[] = [
 export function AdminSidebar({ collapsed }: AdminSidebarProps) {
 
   const sectionTone: Record<string, string> = {
-  "Command": "",
-  "Fleet": "",
-  "Training": "",
-  "Approvals": "border-l-2 border-yellow-500/50 pl-2",
-  "Audit & Compliance": "border-l-2 border-red-500/50 pl-2",
-  "Settings": "opacity-70",
-};
+    "Command": "",
+    "Fleet": "",
+    "Training": "",
+    "Approvals": "border-l-2 border-yellow-500/50 pl-2",
+    "Audit & Compliance": "border-l-2 border-red-500/50 pl-2",
+    "Settings": "opacity-70",
+  };
+
   return (
     <aside
       className={[
@@ -204,7 +209,7 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
       {/* ========================== NAVIGATION ========================= */}
       <nav className="p-3 space-y-6">
         {sections.map((section) => (
-          <div key={section.title}className={sectionTone[section.title] ?? ""}>
+          <div key={section.title} className={sectionTone[section.title] ?? ""}>
             {!collapsed && (
               <div className="px-3 mb-2 text-xs uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                 {section.title}
@@ -213,46 +218,46 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
 
             <div className="space-y-1">
               {section.items.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  [
-                    "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm",
-                    "transition-colors",
-                    isActive
-                      ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-                      : item.label === "Audit Mode"
-                        ? "hover:bg-red-500/10 text-[hsl(var(--foreground))]"
-                        : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]"
-                  ].join(" ")
-                }
-                aria-label={item.label}
-              >
-                {item.icon}
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    [
+                      "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm",
+                      "transition-colors",
+                      isActive
+                        ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
+                        : item.label === "Audit Mode"
+                          ? "hover:bg-red-500/10 text-[hsl(var(--foreground))]"
+                          : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]"
+                    ].join(" ")
+                  }
+                  aria-label={item.label}
+                >
+                  {item.icon}
 
-                {!collapsed && <span>{item.label=== "Audit Mode" ? "Audit Mode (Read-only)": item.label}</span>}
+                  {!collapsed && <span>{item.label === "Audit Mode" ? "Audit Mode (Read-only)" : item.label}</span>}
 
-                {/* Badge */}
-                {item.badge !== undefined && (
-                  <span
-                    className="
-                      ml-auto
-                      min-w-4.5
-                      h-4.5
-                      px-1
-                      rounded-full
-                      bg-yellow-500/20
-                      text-yellow-600
-                      text-[10px]
-                      font-semibold
-                      flex items-center justify-center
-                    "
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </NavLink>
+                  {/* Badge */}
+                  {item.badge !== undefined && (
+                    <span
+                      className="
+                        ml-auto
+                        min-w-4.5
+                        h-4.5
+                        px-1
+                        rounded-full
+                        bg-yellow-500/20
+                        text-yellow-600
+                        text-[10px]
+                        font-semibold
+                        flex items-center justify-center
+                      "
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </NavLink>
               ))}
             </div>
           </div>

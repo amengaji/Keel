@@ -33,7 +33,7 @@ import { AdminVesselTypesPage } from "./admin/pages/AdminVesselTypesPage"
 import { AdminSystemSettingsPage } from "./admin/pages/AdminSystemSettingsPage";
 import { AdminLoginPage } from "./admin/pages/AdminLoginPage";
 import { AdminAuthGate } from "./admin/auth/AdminAuthGate";
-
+import { AdminTasksPage } from "./admin/pages/AdminTasksPage";
 
 function applyThemeFromStorage() {
   const saved = localStorage.getItem("keel_theme");
@@ -121,7 +121,10 @@ export default function App() {
             path="training-progress"
             element={<AdminTrainingProgressPage/>}
           />
-
+          <Route
+            path="tasks"
+            element={<AdminTasksPage />} 
+          />
           {/* Compliance register (Phase 2.5) */}
           <Route
             path="locked-trbs"
