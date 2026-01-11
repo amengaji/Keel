@@ -9,16 +9,15 @@
 //
 // IMPORTANT (PHASE 2.5):
 // - Read-only UI
-// - No backend calls
+// - Backend integration ENABLED
 // - No edits / reassignments
-// - No drag & drop
 //
 // UX PHILOSOPHY:
 // - This is NOT an action screen
 // - This is an authoritative register
 // - Calm, factual, traceable presentation for audits
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Link2,
@@ -29,6 +28,7 @@ import {
   Filter,
   Search,
   Info,
+  Loader2,
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
@@ -37,58 +37,13 @@ import {
 type AssignmentRecord = {
   id: string;
   cadetName: string;
-  cadetStream:
-    | "Deck Cadet"
-    | "Engine Cadet"
-    | "ETO Cadet"
-    | "Deck Rating"
-    | "Engine Rating";
+  cadetStream: string; // Backend defaults to "Cadet" for now
   vesselName: string;
   imo: string;
   assignedBy: "SHORE_ADMIN" | "MASTER";
   assignedOn: string; // ISO-like date string
   isCurrent: boolean;
 };
-
-/* -------------------------------------------------------------------------- */
-/* Mock Assignment History — READ ONLY                                        */
-/* -------------------------------------------------------------------------- */
-/* NOTE:
-   Replace with backend data in Phase 3.
-   Data structure matches expected audit questioning.
-*/
-const assignments: AssignmentRecord[] = [
-  {
-    id: "a1",
-    cadetName: "Rahul Sharma",
-    cadetStream: "Deck Cadet",
-    vesselName: "MV Ocean Pioneer",
-    imo: "IMO 9876543",
-    assignedBy: "SHORE_ADMIN",
-    assignedOn: "2026-01-05",
-    isCurrent: true,
-  },
-  {
-    id: "a2",
-    cadetName: "Amit Verma",
-    cadetStream: "Engine Cadet",
-    vesselName: "MT Blue Horizon",
-    imo: "IMO 9123456",
-    assignedBy: "MASTER",
-    assignedOn: "2025-11-18",
-    isCurrent: true,
-  },
-  {
-    id: "a3",
-    cadetName: "Kunal Mehta",
-    cadetStream: "Deck Cadet",
-    vesselName: "MV Coastal Star",
-    imo: "IMO 9001122",
-    assignedBy: "SHORE_ADMIN",
-    assignedOn: "2025-07-01",
-    isCurrent: false,
-  },
-];
 
 /* -------------------------------------------------------------------------- */
 /* Helper UI Components                                                       */
@@ -132,6 +87,40 @@ export function AdminAssignmentHistoryPage() {
   // ---------------- UI-only state ----------------
   const [search, setSearch] = useState("");
   const [currentOnly, setCurrentOnly] = useState(false);
+  const [assignments, setAssignments] = useState<AssignmentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // ---------------- Fetch Data ----------------
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/v1/admin/cadet-assignments", {
+          signal: abortController.signal,
+          credentials: "include",
+        });
+
+        if (!res.ok) throw new Error("Failed to load history");
+
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setAssignments(json.data);
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          console.error(err);
+          toast.error("Unable to load assignment history");
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+    return () => abortController.abort();
+  }, []);
 
   // ---------------- Derived list ----------------
   const filtered = useMemo(() => {
@@ -149,7 +138,7 @@ export function AdminAssignmentHistoryPage() {
 
       return matchesSearch && matchesCurrent;
     });
-  }, [search, currentOnly]);
+  }, [search, currentOnly, assignments]);
 
   return (
     <div className="space-y-6">
@@ -255,54 +244,16 @@ export function AdminAssignmentHistoryPage() {
           </thead>
 
           <tbody>
-            {filtered.map((row) => (
-              <tr
-                key={row.id}
-                className="border-t border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]"
-              >
-                {/* Cadet */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <User size={14} />
-                    <span className="font-medium">{row.cadetName}</span>
+            {loading ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-center text-[hsl(var(--muted-foreground))]">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" size={16} />
+                    Loading records...
                   </div>
-                  <div className="text-xs text-[hsl(var(--muted-foreground))]">
-                    {row.cadetStream}
-                  </div>
-                </td>
-
-                {/* Vessel */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Ship size={14} />
-                    <span className="font-medium">{row.vesselName}</span>
-                  </div>
-                  <div className="text-xs text-[hsl(var(--muted-foreground))]">
-                    {row.imo}
-                  </div>
-                </td>
-
-                {/* Assigned by */}
-                <td className="px-4 py-3">
-                  <AuthorityPill role={row.assignedBy} />
-                </td>
-
-                {/* Date */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={14} />
-                    {row.assignedOn}
-                  </div>
-                </td>
-
-                {/* Status */}
-                <td className="px-4 py-3 text-center">
-                  {row.isCurrent && <CurrentBadge />}
                 </td>
               </tr>
-            ))}
-
-            {filtered.length === 0 && (
+            ) : filtered.length === 0 ? (
               <tr>
                 <td
                   colSpan={5}
@@ -311,6 +262,53 @@ export function AdminAssignmentHistoryPage() {
                   No assignment records match the current filters.
                 </td>
               </tr>
+            ) : (
+              filtered.map((row) => (
+                <tr
+                  key={row.id}
+                  className="border-t border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]"
+                >
+                  {/* Cadet */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <User size={14} />
+                      <span className="font-medium">{row.cadetName}</span>
+                    </div>
+                    <div className="text-xs text-[hsl(var(--muted-foreground))]">
+                      {row.cadetStream}
+                    </div>
+                  </td>
+
+                  {/* Vessel */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Ship size={14} />
+                      <span className="font-medium">{row.vesselName}</span>
+                    </div>
+                    <div className="text-xs text-[hsl(var(--muted-foreground))]">
+                      {row.imo}
+                    </div>
+                  </td>
+
+                  {/* Assigned by */}
+                  <td className="px-4 py-3">
+                    <AuthorityPill role={row.assignedBy} />
+                  </td>
+
+                  {/* Date */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} />
+                      {row.assignedOn}
+                    </div>
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-4 py-3 text-center">
+                    {row.isCurrent && <CurrentBadge />}
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

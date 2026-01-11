@@ -2,7 +2,7 @@
 //
 // PURPOSE:
 // - Vessel Excel Import (Admin)
-// - Template generation
+// - Template generation (with Dropdown Validation from DB + Static Lists)
 // - Preview (NO WRITES)
 // - Commit (Policy B: success no-op if nothing to create)
 //
@@ -18,12 +18,40 @@ import sequelize from "../../config/database.js";
 import Vessel from "../../models/Vessel.js";
 import ShipType from "../../models/ShipType.js";
 
+// Common IACS members and recognized societies
+const CLASS_SOCIETIES = [
+  "ABS (American Bureau of Shipping)",
+  "BV (Bureau Veritas)",
+  "CCS (China Classification Society)",
+  "CRS (Croatian Register of Shipping)",
+  "DNV (Det Norske Veritas)",
+  "IRS (Indian Register of Shipping)",
+  "KR (Korean Register)",
+  "LR (Lloyd's Register)",
+  "NK (Nippon Kaiji Kyokai)",
+  "PRS (Polish Register of Shipping)",
+  "RINA (Registro Italiano Navale)",
+  "Other"
+];
+
 /* ======================================================================
  * TEMPLATE GENERATION
  * ====================================================================== */
 
 export async function buildVesselImportTemplateXlsxBuffer(): Promise<Buffer> {
+  // 1. Fetch valid Ship Types from DB for the dropdown
+  const allShipTypes = await ShipType.findAll({
+    attributes: ["name"],
+    order: [["name", "ASC"]],
+  });
+  
+  const shipTypeNames = allShipTypes.length > 0 
+    ? allShipTypes.map((st) => st.name)
+    : ["Bulk Carrier", "Container Ship", "Oil Tanker", "Gas Carrier"];
+
   const workbook = new ExcelJS.Workbook();
+
+  /* ------------------ Main Sheet ------------------ */
   const sheet = workbook.addWorksheet("Vessels");
 
   sheet.columns = [
@@ -31,18 +59,63 @@ export async function buildVesselImportTemplateXlsxBuffer(): Promise<Buffer> {
     { header: "vessel_name", key: "vessel_name", width: 28 },
     { header: "vessel_type", key: "vessel_type", width: 24 },
     { header: "flag_state", key: "flag_state", width: 20 },
-    { header: "class_society", key: "class_society", width: 28 },
+    { header: "class_society", key: "class_society", width: 35 },
   ];
 
   sheet.addRow({
     imo_number: "IMO 9876543",
     vessel_name: "MV Ocean Pioneer",
-    vessel_type: "Bulk Carrier",
+    vessel_type: "", // Blank to force user selection
     flag_state: "Panama",
-    class_society: "DNV",
+    class_society: "", // Blank to force user selection
   });
 
+  /* ------------------ Meta Sheet (Hidden Lists) ------------------ */
+  const metaSheet = workbook.addWorksheet("_meta", { state: "hidden" });
+  
+  // Column A: Ship Types
+  shipTypeNames.forEach((name, index) => {
+    metaSheet.getCell(`A${index + 1}`).value = name;
+  });
+
+  // Column B: Class Societies
+  CLASS_SOCIETIES.forEach((name, index) => {
+    metaSheet.getCell(`B${index + 1}`).value = name;
+  });
+
+  /* ------------------ Data Validation ------------------ */
+  
+  // 1. Ship Type Validation (Column C)
+  const shipTypeRef = `_meta!$A$1:$A$${shipTypeNames.length}`;
+
+  // 2. Class Society Validation (Column E)
+  const classSocietyRef = `_meta!$B$1:$B$${CLASS_SOCIETIES.length}`;
+
+  // Apply validations to rows 2 to 1000
+  for (let i = 2; i <= 1000; i++) {
+    // Vessel Type (Col C)
+    sheet.getCell(`C${i}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [shipTypeRef],
+      showErrorMessage: true,
+      errorTitle: "Invalid Vessel Type",
+      error: "Please select a valid Vessel Type from the dropdown list.",
+    };
+
+    // Class Society (Col E)
+    sheet.getCell(`E${i}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [classSocietyRef],
+      showErrorMessage: true,
+      errorTitle: "Invalid Class Society",
+      error: "Please select a valid Class Society from the dropdown list.",
+    };
+  }
+
   const buffer = await workbook.xlsx.writeBuffer();
+  // Safe cast for strict TS configs
   return buffer as unknown as Buffer;
 }
 
@@ -145,7 +218,7 @@ export async function previewVesselImportXlsx(file: ExcelBinary) {
         total: rows.length,
         ready: countReady,
         ready_with_warnings: countReadyWarn,
-        skip: countSkip, // Now this will accurately reflect duplicates!
+        skip: countSkip,
         fail: countFail
     },
     rows,
@@ -247,6 +320,6 @@ export async function commitVesselImportXlsx(file: ExcelBinary) {
         ready_with_warnings: 0
     },
     results,
-    notes // Now contains clear reasons!
+    notes 
   };
 }

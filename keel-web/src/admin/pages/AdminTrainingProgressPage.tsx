@@ -5,21 +5,10 @@
 // PURPOSE:
 // - Fleet-wide visibility of cadet training compliance
 // - Audit-first, read-only coverage dashboard
-// - Designed for Shore Admin / DPA / Auditors
+// - Live data aggregation from Admin TRB View AND Vessel Registry
 //
-// IMPORTANT:
-// - Phase 2 UI/UX only
-// - Mock data only
-// - No backend calls
-// - No mutations
-// - Safe for audits and demos
-//
-// FUTURE PHASES (NOT IN THIS FILE):
-// - Live backend aggregation
-// - Vessel-level grouping
-// - Risk scoring & alerts
-// - Export / reporting
 
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   Users,
@@ -27,64 +16,54 @@ import {
   BookCheck,
   ShieldCheck,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/* Mock Training Progress Data                                                 */
+/* Types                                                                       */
 /* -------------------------------------------------------------------------- */
-/* NOTE:
-   This data represents aggregated training posture.
-   Replace with API response in Phase 3 without altering UI.
-*/
-const trainingProgress = [
-  {
-    id: "c1",
-    cadet: "Rahul Sharma",
-    stream: "Deck",
-    vessel: "MV Ocean Pioneer",
-    trbType: "Deck — Operational",
-    completion: 92,
-    missingEvidence: 3,
-    pendingSignatures: 1,
-    auditReady: false,
-  },
-  {
-    id: "c2",
-    cadet: "Amit Verma",
-    stream: "Engine",
-    vessel: "MT Blue Horizon",
-    trbType: "Engine — Operational",
-    completion: 100,
-    missingEvidence: 0,
-    pendingSignatures: 0,
-    auditReady: true,
-  },
-  {
-    id: "c3",
-    cadet: "Neha Singh",
-    stream: "Deck",
-    vessel: "MV Eastern Light",
-    trbType: "Deck — Operational",
-    completion: 78,
-    missingEvidence: 6,
-    pendingSignatures: 2,
-    auditReady: false,
-  },
-];
+type TraineeProgress = {
+  assignment_id: number | null;
+  cadet_id: number;
+  cadet_email: string;
+  cadet_name: string | null;
+  vessel_id: number | null;
+  vessel_name: string | null;
+  ship_type_name: string | null;
+  assignment_start_date: string | null;
+  assignment_end_date: string | null;
+  total_tasks: number;
+  tasks_master_approved: number;
+  completion_percentage: number; 
+  last_activity_at: string | null;
+  overall_status: "Unassigned" | "Not Started" | "In Progress" | "Completed";
+};
+
+type VesselSummary = {
+  id: number;
+  name: string;
+  is_active: boolean;
+};
 
 /* -------------------------------------------------------------------------- */
 /* Helper — Completion Bar                                                     */
 /* -------------------------------------------------------------------------- */
-function CompletionBar({ value }: { value: number }) {
+function CompletionBar({ value, status }: { value: number, status: string }) {
+  if (status === "Unassigned") {
+    return <div className="text-xs text-[hsl(var(--muted-foreground))] italic">N/A</div>;
+  }
+
+  const safeValue = isNaN(value) ? 0 : Math.round(value);
+  
   return (
-    <div className="w-full">
+    <div className="w-full min-w-[120px]">
       <div className="h-2 rounded-full bg-[hsl(var(--muted))] overflow-hidden">
         <div
           className="h-2 bg-[hsl(var(--primary))]"
-          style={{ width: `${value}%` }}
+          style={{ width: `${safeValue}%` }}
         />
       </div>
-      <div className="text-xs mt-1 text-right">{value}%</div>
+      <div className="text-xs mt-1 text-right">{safeValue}%</div>
     </div>
   );
 }
@@ -92,14 +71,17 @@ function CompletionBar({ value }: { value: number }) {
 /* -------------------------------------------------------------------------- */
 /* Helper — Audit Status Badge                                                 */
 /* -------------------------------------------------------------------------- */
-function AuditStatus({ ready }: { ready: boolean }) {
+function AuditStatus({ percentage, status }: { percentage: number, status: string }) {
+  if (status === "Unassigned") return <span className="text-xs opacity-50">—</span>;
+
+  const ready = percentage === 100;
   return ready ? (
-    <span className="text-xs px-2 py-1 rounded-md bg-green-500/10 text-green-600">
+    <span className="text-xs px-2 py-1 rounded-md bg-green-500/10 text-green-600 border border-green-500/20">
       Audit Ready
     </span>
   ) : (
-    <span className="text-xs px-2 py-1 rounded-md bg-red-500/10 text-red-600">
-      Not Ready
+    <span className="text-xs px-2 py-1 rounded-md bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
+      In Progress
     </span>
   );
 }
@@ -108,6 +90,92 @@ function AuditStatus({ ready }: { ready: boolean }) {
 /* Main Page Component                                                         */
 /* -------------------------------------------------------------------------- */
 export function AdminTrainingProgressPage() {
+  const [trainees, setTrainees] = useState<TraineeProgress[]>([]);
+  const [vesselCount, setVesselCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // FETCH DATA
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    async function loadData() {
+      try {
+        setLoading(true);
+        
+        // 1. Fetch Trainees (Training Progress)
+        const resTrainees = await fetch("/api/v1/admin/trainees", {
+          signal: abortController.signal,
+          credentials: "include",
+        });
+
+        // 2. Fetch Vessels (Fleet Count) - NEW
+        const resVessels = await fetch("/api/v1/admin/vessels", {
+          signal: abortController.signal,
+          credentials: "include",
+        });
+
+        if (!resTrainees.ok || !resVessels.ok) {
+          throw new Error("Failed to fetch dashboard data");
+        }
+
+        const jsonTrainees = await resTrainees.json();
+        const jsonVessels = await resVessels.json();
+
+        // Update State
+        if (jsonTrainees.success && Array.isArray(jsonTrainees.data)) {
+          setTrainees(jsonTrainees.data);
+        }
+        
+        if (jsonVessels.success && Array.isArray(jsonVessels.data)) {
+          // Count active vessels in fleet
+          const active = jsonVessels.data.filter((v: any) => v.is_active !== false).length;
+          setVesselCount(active);
+        }
+
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          console.error(err);
+          setError("Unable to load dashboard data");
+          toast.error("Unable to load dashboard data");
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+    return () => abortController.abort();
+  }, []);
+
+  // CALCULATE SUMMARY STATS
+  const totalCadets = trainees.length;
+  
+  // Completed TRBs (100% progress)
+  const completedTRBs = trainees.filter((t) => Number(t.completion_percentage) === 100).length;
+  const auditReadyCount = completedTRBs;
+  
+  // "Not Started" includes explicitly not started AND unassigned
+  const notStarted = trainees.filter((t) => 
+    t.overall_status === "Not Started" || t.overall_status === "Unassigned"
+  ).length;
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center text-[hsl(var(--muted-foreground))]">
+        <Loader2 className="animate-spin mr-2" /> Loading fleet analytics...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 rounded-lg border border-red-200 bg-red-50 text-red-700">
+        Error: {error}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* ============================ PAGE HEADER ============================ */}
@@ -123,10 +191,9 @@ export function AdminTrainingProgressPage() {
           </p>
         </div>
 
-        {/* UX-only info */}
         <button
           onClick={() =>
-            toast.message("Training analytics will expand in Phase 3")
+            toast.message("Data is live from Admin TRB View")
           }
           className="
             h-9 w-9
@@ -135,26 +202,27 @@ export function AdminTrainingProgressPage() {
             border border-[hsl(var(--border))]
             hover:bg-[hsl(var(--muted))]
           "
-          aria-label="Training progress info"
+          title="System Info"
         >
           <ShieldCheck size={18} />
         </button>
       </div>
 
       {/* ============================ SUMMARY STRIP ============================ */}
-      <div className="grid grid-cols-5 gap-4">
-        <SummaryCard icon={<Users size={18} />} label="Total Cadets" value="3" />
-        <SummaryCard icon={<Ship size={18} />} label="Active Vessels" value="3" />
-        <SummaryCard icon={<BookCheck size={18} />} label="TRBs Completed" value="1" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <SummaryCard icon={<Users size={18} />} label="Total Cadets" value={String(totalCadets)} />
+        {/* Now shows Actual Fleet Size */}
+        <SummaryCard icon={<Ship size={18} />} label="Active Vessels" value={String(vesselCount)} />
+        <SummaryCard icon={<BookCheck size={18} />} label="TRBs Completed" value={String(completedTRBs)} />
         <SummaryCard
           icon={<AlertTriangle size={18} />}
-          label="Pending Issues"
-          value="2"
+          label="Not Started"
+          value={String(notStarted)}
         />
         <SummaryCard
           icon={<ShieldCheck size={18} />}
           label="Audit Ready"
-          value="1"
+          value={String(auditReadyCount)}
         />
       </div>
 
@@ -174,64 +242,101 @@ export function AdminTrainingProgressPage() {
               <th className="px-4 py-3 text-left font-medium">Vessel</th>
               <th className="px-4 py-3 text-left font-medium">TRB Type</th>
               <th className="px-4 py-3 text-left font-medium">Completion</th>
-              <th className="px-4 py-3 text-center font-medium">Missing Evidence</th>
-              <th className="px-4 py-3 text-center font-medium">Pending Signatures</th>
-              <th className="px-4 py-3 text-center font-medium">Audit Status</th>
+              <th className="px-4 py-3 text-center font-medium">Task Progress</th>
+              <th className="px-4 py-3 text-center font-medium">Status</th>
+              <th className="px-4 py-3 text-center font-medium">Audit</th>
             </tr>
           </thead>
 
           <tbody>
-            {trainingProgress.map((row) => (
-              <tr
-                key={row.id}
-                className="
-                  border-t border-[hsl(var(--border))]
-                  hover:bg-[hsl(var(--muted))]
-                "
-              >
-                <td className="px-4 py-3">
-                  <div className="font-medium">{row.cadet}</div>
-                  <div className="text-xs text-[hsl(var(--muted-foreground))]">
-                    {row.stream} Cadet
-                  </div>
-                </td>
-
-                <td className="px-4 py-3">{row.vessel}</td>
-                <td className="px-4 py-3">{row.trbType}</td>
-
-                <td className="px-4 py-3">
-                  <CompletionBar value={row.completion} />
-                </td>
-
-                <td className="px-4 py-3 text-center">
-                  {row.missingEvidence}
-                </td>
-
-                <td className="px-4 py-3 text-center">
-                  {row.pendingSignatures}
-                </td>
-
-                <td className="px-4 py-3 text-center">
-                  <AuditStatus ready={row.auditReady} />
+            {trainees.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--muted-foreground))]">
+                  No cadets found.
                 </td>
               </tr>
-            ))}
+            ) : (
+              trainees.map((row) => (
+                <tr
+                  key={row.cadet_id} 
+                  className="
+                    border-t border-[hsl(var(--border))]
+                    hover:bg-[hsl(var(--muted))]
+                  "
+                >
+                  {/* CADET */}
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{row.cadet_name || row.cadet_email}</div>
+                    <div className="text-xs text-[hsl(var(--muted-foreground))]">
+                      {row.cadet_email}
+                    </div>
+                  </td>
+
+                  {/* VESSEL */}
+                  <td className="px-4 py-3">
+                    {row.vessel_name ? (
+                      <div className="font-medium">{row.vessel_name}</div>
+                    ) : (
+                      <span className="text-[hsl(var(--muted-foreground))] opacity-50">—</span>
+                    )}
+                  </td>
+
+                  {/* TRB TYPE */}
+                  <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
+                    {row.ship_type_name || "—"}
+                  </td>
+
+                  {/* COMPLETION */}
+                  <td className="px-4 py-3">
+                    <CompletionBar value={Number(row.completion_percentage)} status={row.overall_status} />
+                  </td>
+
+                  {/* TASK PROGRESS */}
+                  <td className="px-4 py-3 text-center font-mono text-xs">
+                    {row.overall_status === 'Unassigned' ? "—" : `${row.tasks_master_approved} / ${row.total_tasks}`}
+                  </td>
+
+                  {/* OVERALL STATUS */}
+                  <td className="px-4 py-3 text-center">
+                    <StatusPill status={row.overall_status} />
+                  </td>
+
+                  {/* AUDIT STATUS */}
+                  <td className="px-4 py-3 text-center">
+                    <AuditStatus percentage={Number(row.completion_percentage)} status={row.overall_status} />
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {/* ============================ FOOTNOTE ============================ */}
       <p className="text-xs text-[hsl(var(--muted-foreground))]">
-        This view is read-only. Detailed inspection and final verification are
-        performed through Cadet Detail and Audit Mode.
+        This view shows all registered cadets. 'Unassigned' cadets have no active vessel assignment and therefore no active TRB progress.
       </p>
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Summary Card Component                                                      */
-/* -------------------------------------------------------------------------- */
+function StatusPill({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    "Unassigned": "bg-slate-100 text-slate-500 border-slate-200",
+    "Not Started": "bg-orange-50 text-orange-600 border-orange-100",
+    "In Progress": "bg-blue-50 text-blue-600 border-blue-100",
+    "Completed": "bg-green-50 text-green-600 border-green-100",
+  };
+
+  const defaultStyle = "bg-slate-100 text-slate-500 border-slate-200";
+
+  return (
+    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold border ${styles[status] || defaultStyle}`}>
+      {status}
+    </span>
+  );
+}
+
 function SummaryCard({
   icon,
   label,
@@ -251,7 +356,7 @@ function SummaryCard({
         space-y-2
       "
     >
-      <div className="flex items-center gap-2 text-sm font-medium">
+      <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--muted-foreground))]">
         {icon}
         {label}
       </div>

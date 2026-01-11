@@ -5,8 +5,15 @@
 //
 
 import { Request, Response } from "express";
-import { assignCadetToVessel } from "../services/adminCadetAssignments.service.js";
+import {
+  assignCadetToVessel,
+  fetchAssignmentHistory,
+} from "../services/adminCadetAssignments.service.js";
 
+/**
+ * POST /api/v1/admin/cadet-assignments
+ * Assign a cadet to a vessel
+ */
 export async function postAdminCadetAssignment(
   req: Request,
   res: Response
@@ -35,6 +42,25 @@ export async function postAdminCadetAssignment(
     res.status(400).json({
       success: false,
       message: error.message || "Unable to assign cadet",
+    });
+  }
+}
+
+/**
+ * GET /api/v1/admin/cadet-assignments
+ * Fetch assignment history
+ */
+export async function getAdminAssignmentHistory(
+  req: Request,
+  res: Response
+) {
+  try {
+    const data = await fetchAssignmentHistory();
+    res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Unable to fetch assignment history",
     });
   }
 }

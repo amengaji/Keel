@@ -3,11 +3,7 @@
 // PURPOSE:
 // - Admin-only Cadet → Vessel assignment
 // - Audit-safe, transactional
-//
-// RULES:
-// - One ACTIVE assignment per cadet
-// - No silent overwrite
-// - No deletes
+// - READ History & WRITE Assignment
 //
 
 import sequelize from "../../config/database.js";
@@ -15,6 +11,10 @@ import CadetVesselAssignment from "../../models/CadetVesselAssignment.js";
 import User from "../../models/User.js";
 import Vessel from "../../models/Vessel.js";
 import Role from "../../models/Role.js";
+
+/* ======================================================================
+ * WRITE: ASSIGN CADET
+ * ====================================================================== */
 
 export async function assignCadetToVessel(
   cadetId: number,
@@ -43,21 +43,27 @@ export async function assignCadetToVessel(
       throw new Error("Vessel not found");
     }
 
-// ------------------ CHECK TRAINING ON ACTIVE ASSIGNMENT ONLY ------------------
-//
-// AUTHORITATIVE RULE (Phase 4E+):
-// - Training history MUST NOT block reassignment
-// - Reassignment is blocked ONLY if there is an ACTIVE assignment
-// - Training tied to COMPLETED assignments is historical evidence
-//
-// We therefore DO NOT query admin_trb_cadets_v blindly.
-//
-// ACTIVE assignment check is sufficient and audit-correct.
+    // ------------------ CHECK TRB ACTIVITY (PHASE 4A-4 LOCK) ------------------
+    const [trbRows] = await sequelize.query(
+      `
+        SELECT 1
+        FROM admin_trb_cadets_v
+        WHERE cadet_id = :cadetId
+        LIMIT 1
+      `,
+      {
+        replacements: { cadetId },
+        transaction,
+      }
+    );
 
+    if (Array.isArray(trbRows) && trbRows.length > 0) {
+      throw new Error(
+        "Cadet has existing training activity and cannot be reassigned"
+      );
+    }
 
     // ------------------ CHECK EXISTING ACTIVE ASSIGNMENT ------------------
-    // RULE:
-    // - A cadet cannot have more than one ACTIVE assignment at any time.
     const existing = await CadetVesselAssignment.findOne({
       where: {
         cadet_id: cadetId,
@@ -83,7 +89,6 @@ export async function assignCadetToVessel(
       { transaction }
     );
 
-
     await transaction.commit();
 
     return {
@@ -94,6 +99,45 @@ export async function assignCadetToVessel(
   } catch (error) {
     await transaction.rollback();
     console.error("❌ Admin assignment failed:", error);
+    throw error;
+  }
+}
+
+/* ======================================================================
+ * READ: ASSIGNMENT HISTORY
+ * ====================================================================== */
+
+export async function fetchAssignmentHistory() {
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT
+        cva.id              AS id,
+        u.full_name         AS "cadetName",
+        u.email             AS "cadetEmail",
+        v.name              AS "vesselName",
+        v.imo_number        AS "imo",
+        cva.start_date      AS "assignedOn",
+        cva.status          AS "status",
+        cva."createdAt"     AS "createdAt"
+      FROM cadet_vessel_assignments cva
+      JOIN users u ON u.id = cva.cadet_id
+      JOIN vessels v ON v.id = cva.vessel_id
+      ORDER BY cva."createdAt" DESC
+    `);
+
+    // Map to UI-friendly structure
+    return (rows as any[]).map((row) => ({
+      id: String(row.id),
+      cadetName: row.cadetName || row.cadetEmail, // Fallback if name empty
+      cadetStream: "Cadet", // Default (Schema update required for Rank)
+      vesselName: row.vesselName,
+      imo: `IMO ${row.imo}`,
+      assignedBy: "SHORE_ADMIN", // Default (Identity logging in Phase 3)
+      assignedOn: row.assignedOn,
+      isCurrent: row.status === "ACTIVE",
+    }));
+  } catch (error) {
+    console.error("❌ Fetch assignment history failed:", error);
     throw error;
   }
 }
