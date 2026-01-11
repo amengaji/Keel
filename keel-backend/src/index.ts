@@ -1,4 +1,4 @@
-//keel-backend/src/index.ts
+﻿//keel-backend/src/index.ts
 console.log("🔥 KEEL BACKEND STARTED FROM SRC 🔥");
 import express, { Application } from "express";
 import cors from "cors";
@@ -33,7 +33,7 @@ import adminVesselImportsRoutes from "./admin/routes/adminVesselImports.routes.j
 import adminCadetAssignmentsRoutes from "./admin/routes/adminCadetAssignments.routes.js";
 import adminVesselAssignmentsRoutes from "./admin/routes/adminVesselAssignments.routes.js";
 import adminVesselAssignmentCloseRoutes from "./admin/routes/adminVesselAssignmentClose.routes.js";
-
+import { Role, User } from "./models/index.js";
 /* -------------------------------------------------------------------------- */
 /* ADMIN — AUDIT EXPORT ROUTES (READ-ONLY)                                     */
 /* -------------------------------------------------------------------------- */
@@ -43,14 +43,6 @@ import cookieParser from "cookie-parser";
 dotenv.config();
 
 import sequelize from "./config/database.js";
-import Role from "./models/Role.js";
-import User from "./models/User.js";
-
-// Associations
-User.belongsTo(Role, { foreignKey: "role_id", as: "role" });
-Role.hasMany(User, { foreignKey: "role_id" });
-
-export { User, Role };
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;

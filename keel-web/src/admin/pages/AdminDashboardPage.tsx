@@ -1,263 +1,126 @@
-﻿// keel-web/src/admin/pages/AdminDashboardPage.tsx
-//
-// Keel Shore Admin — Command Center Dashboard
-// ----------------------------------------------------
-// PURPOSE:
-// - Fleet-wide situational awareness
-// - Audit readiness at a glance
-// - Ghost Signature status visibility (Module 2.2C)
-// - Shore-side control room UX
-//
-// NOTES:
-// - Uses shared Card primitives
-// - Static mock data ONLY
-// - No backend / no sync logic yet
-
+﻿import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   Card,
   CardHeader,
   StatCard,
 } from "../components/ui/Card";
-
 import {
   Ship,
   Users,
   FileCheck,
-  PenTool,
+  LayoutList,
+  RefreshCw,
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/* Mock Ghost Signature Status Data                                            */
+/* TYPES                                                                      */
 /* -------------------------------------------------------------------------- */
-const mockSignatureStatus = [
-  {
-    vessel: "MV Ocean Pioneer",
-    cadet: "Rahul Sharma",
-    task: "1.1 Maintain a safe navigational watch",
-    status: "AWAITING_BOTH",
-  },
-  {
-    vessel: "MV Ocean Pioneer",
-    cadet: "Amit Verma",
-    task: "3.2 Engine room familiarisation",
-    status: "CTO_SIGNED",
-  },
-  {
-    vessel: "MT Blue Horizon",
-    cadet: "Suresh Iyer",
-    task: "2.4 Cargo watchkeeping",
-    status: "MASTER_SIGNED",
-  },
-  {
-    vessel: "MT Blue Horizon",
-    cadet: "Nikhil Rao",
-    task: "4.1 Safety rounds",
-    status: "VERIFIED",
-  },
-];
-
-/* -------------------------------------------------------------------------- */
-/* Status label helper (UX CONTRACT COMPLIANT)                                 */
-/* -------------------------------------------------------------------------- */
-function renderStatus(status: string) {
-  switch (status) {
-    case "AWAITING_BOTH":
-      return (
-        <span className="text-yellow-500 text-sm">
-          Awaiting Officer Signatures
-        </span>
-      );
-
-    case "CTO_SIGNED":
-      return (
-        <span className="text-green-500 text-sm">
-          Signed by CTO · Awaiting Master
-        </span>
-      );
-
-    case "MASTER_SIGNED":
-      return (
-        <span className="text-green-500 text-sm">
-          Signed by Master · Awaiting CTO
-        </span>
-      );
-
-    case "VERIFIED":
-      return (
-        <span className="text-green-600 font-medium text-sm">
-          ✔ Verified
-        </span>
-      );
-
-    default:
-      return null;
-  }
-}
+type DashboardStats = {
+  vessels: { active: number };
+  cadets: { total: number; onboard: number; shore: number };
+  tasks: { total_templates: number };
+  signatures: { pending: number; ready_to_lock: number };
+};
 
 export function AdminDashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/v1/admin/dashboard", { credentials: "include" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "Failed to load stats");
+      setStats(json.data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not load Command Center stats");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
   return (
     <div className="space-y-10">
-      {/* ==========================================================
-         PAGE HEADER
-         ========================================================== */}
-      <div>
-        <h1 className="text-2xl font-semibold">
-          Shore Command Center
-        </h1>
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">
-          Fleet-wide training status, audit readiness, and operational health.
-        </p>
+      {/* ============================ HEADER ============================ */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Shore Command Center</h1>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            Fleet-wide training status, operational health, and live statistics.
+          </p>
+        </div>
+        <button 
+          onClick={fetchStats}
+          disabled={loading}
+          className="p-2 rounded-md hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+        >
+          <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+        </button>
       </div>
 
-      {/* ==========================================================
-         SUMMARY METRICS (TOP KPIs)
-         ========================================================== */}
+      {/* ============================ LIVE METRICS ============================ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         <StatCard
           label="Active Vessels"
-          value={18}
+          value={loading ? "-" : stats?.vessels.active ?? 0}
           icon={<Ship size={20} />}
           onClick={() => {}}
         />
 
         <StatCard
           label="Cadets Onboard"
-          value={64}
+          value={loading ? "-" : stats?.cadets.onboard ?? 0}
+          icon={<Users size={20} />}
+          tone={stats?.cadets.onboard ? "success" : "neutral"}
+          onClick={() => {}}
+        />
+
+        <StatCard
+          label="Total Trainees"
+          value={loading ? "-" : stats?.cadets.total ?? 0}
           icon={<Users size={20} />}
           onClick={() => {}}
         />
 
         <StatCard
-          label="TRBs Ready for Lock"
-          value={21}
-          tone="success"
-          icon={<FileCheck size={20} />}
-          onClick={() => {}}
-        />
-
-        <StatCard
-          label="Pending Signatures"
-          value={9}
-          tone="warning"
-          icon={<PenTool size={20} />}
+          label="TRB Tasks Defined"
+          value={loading ? "-" : stats?.tasks.total_templates ?? 0}
+          icon={<LayoutList size={20} />}
           onClick={() => {}}
         />
       </div>
 
-      {/* ==========================================================
-         OFFICER SIGNATURE STATUS (MODULE 2.2C — RESTORED)
-         ========================================================== */}
-      <Card>
-        <CardHeader
-          title="Officer Signature Status"
-          subtitle="Who is waiting on whom (offline-aware)"
-        />
-
-        <div className="space-y-3">
-          {mockSignatureStatus.map((item, index) => (
-            <div
-              key={index}
-              className="
-                flex flex-col sm:flex-row sm:items-center
-                sm:justify-between
-                gap-1 sm:gap-4
-                px-3 py-2
-                rounded-md
-                bg-[hsl(var(--muted))]
-              "
-            >
-              <div className="text-sm">
-                <strong>{item.cadet}</strong> · {item.vessel}
-                <div className="text-xs text-[hsl(var(--muted-foreground))]">
-                  {item.task}
-                </div>
-              </div>
-
-              <div>
-                {renderStatus(item.status)}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* ==========================================================
-         AUDIT READINESS SECTION
-         ========================================================== */}
-      <Card>
-        <CardHeader
-          title="Audit Readiness"
-          subtitle="DG Shipping / MMD compliance snapshot"
-        />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          <StatCard
-            label="Fully Compliant TRBs"
-            value={42}
-            tone="success"
+      {/* ============================ PHASE 4 PLACEHOLDERS ============================ */}
+      {/* These sections will be wired up in Phase 4 (Sign-offs) */}
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-60">
+        <Card>
+          <CardHeader 
+            title="Signature Status (Phase 4)" 
+            subtitle="Pending implementation of Officer Sign-off logic"
           />
+          <div className="p-4 flex items-center justify-center h-32 text-sm text-[hsl(var(--muted-foreground))] italic border border-dashed rounded m-4 bg-[hsl(var(--muted))]/30">
+            No live signature data available yet.
+          </div>
+        </Card>
 
-          <StatCard
-            label="Missing Evidence"
-            value={6}
-            tone="warning"
+        <Card>
+           <CardHeader 
+            title="Audit Readiness (Phase 4)" 
+            subtitle="Pending implementation of Evidence Verification"
           />
-
-          <StatCard
-            label="Rejected Tasks"
-            value={3}
-            tone="danger"
-          />
-
-          <StatCard
-            label="Signatures > 7 Days"
-            value={4}
-            tone="warning"
-          />
-        </div>
-      </Card>
-
-      {/* ==========================================================
-         FLEET TRAINING ACTIVITY
-         ========================================================== */}
-      <Card>
-        <CardHeader
-          title="Fleet Training Activity"
-          subtitle="Recent sync and onboard training intensity"
-        />
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[hsl(var(--border))]">
-                <th className="text-left py-2">Vessel</th>
-                <th className="text-left py-2">Type</th>
-                <th className="text-left py-2">Cadets</th>
-                <th className="text-left py-2">Last Sync</th>
-                <th className="text-left py-2">Activity</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              <tr className="border-b border-[hsl(var(--border))]">
-                <td className="py-2">MV Ocean Pioneer</td>
-                <td className="py-2">Bulk Carrier</td>
-                <td className="py-2">4</td>
-                <td className="py-2 text-green-500">Online</td>
-                <td className="py-2">High</td>
-              </tr>
-
-              <tr>
-                <td className="py-2">MT Blue Horizon</td>
-                <td className="py-2">Oil Tanker</td>
-                <td className="py-2">3</td>
-                <td className="py-2 text-yellow-400">Offline</td>
-                <td className="py-2">Medium</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </Card>
+          <div className="p-4 flex items-center justify-center h-32 text-sm text-[hsl(var(--muted-foreground))] italic border border-dashed rounded m-4 bg-[hsl(var(--muted))]/30">
+             Compliance metrics will appear here.
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
