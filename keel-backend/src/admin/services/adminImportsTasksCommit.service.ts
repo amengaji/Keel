@@ -1,9 +1,8 @@
-import sequelize from "../../config/database.js";
-import { TaskTemplate, ShipType } from "../../models/index.js";
+﻿import sequelize from "../../config/database.js";
+import { TaskTemplate } from "../../models/index.js";
 import { v4 as uuidv4 } from "uuid";
 import {
   previewTaskImportXlsx,
-  TaskImportPreviewRow,
 } from "./adminImportsTasks.service.js";
 
 export type TaskImportCommitResult = {
@@ -18,8 +17,7 @@ export async function commitTaskImportXlsx(
   buffer: Buffer
 ): Promise<TaskImportCommitResult> {
   const import_batch_id = uuidv4();
-  const notes: string[] = [];
-
+  
   // 1. Re-run Preview
   const preview = await previewTaskImportXlsx(buffer);
 
@@ -53,6 +51,7 @@ export async function commitTaskImportXlsx(
         description,
         stcw_reference,
         mandatory_for_all,
+        department, // <--- READ THIS
       } = row.normalized;
 
       const { ship_type_id } = row.derived;
@@ -68,7 +67,6 @@ export async function commitTaskImportXlsx(
 
       if (existing) {
         skipped++;
-        // Optional: Update existing record logic could go here
         continue;
       }
 
@@ -81,6 +79,7 @@ export async function commitTaskImportXlsx(
           stcw_reference,
           mandatory_for_all,
           ship_type_id,
+          department, // <--- SAVE THIS
         },
         { transaction }
       );

@@ -1,5 +1,4 @@
-﻿// keel-web/src/admin/pages/AdminTasksPage.tsx
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { 
   ClipboardList, Upload, Filter, Trash2, Loader2 
@@ -30,10 +29,13 @@ export function AdminTasksPage() {
   async function loadTasks() {
     try {
       setLoading(true);
-      const res = await fetch("/fam-tasks", { credentials: "include" }); 
+      // FIX: Use the new Admin API endpoint
+      const res = await fetch("/api/v1/admin/tasks", { credentials: "include" }); 
       const json = await res.json();
       if (json.success) setTasks(json.data);
+      else throw new Error(json.message);
     } catch (err) {
+      console.error(err);
       toast.error("Failed to load tasks");
     } finally {
       setLoading(false);
@@ -45,11 +47,14 @@ export function AdminTasksPage() {
   async function handleDelete(id: number) {
     if (!confirm("Delete this task?")) return;
     try {
-      // FIX: Corrected template string below
-      const res = await fetch(`/fam-tasks/${id}`, { method: "DELETE", credentials: "include" });
-      if (res.ok) {
+      // FIX: Use the new Admin API endpoint for delete
+      const res = await fetch(`/api/v1/admin/tasks/${id}`, { method: "DELETE", credentials: "include" });
+      const json = await res.json();
+      if (res.ok && json.success) {
         toast.success("Task deleted");
         loadTasks();
+      } else {
+        toast.error("Failed to delete");
       }
     } catch {
       toast.error("Failed to delete");

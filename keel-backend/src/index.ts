@@ -1,4 +1,4 @@
-﻿console.log("ðŸ”¥ KEEL BACKEND STARTED FROM SRC ðŸ”¥");
+﻿console.log("🔥 KEEL BACKEND STARTED FROM SRC 🔥");
 import express, { Application } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -42,6 +42,9 @@ import adminCadetAssignmentsRoutes from "./admin/routes/adminCadetAssignments.ro
 import adminVesselAssignmentsRoutes from "./admin/routes/adminVesselAssignments.routes.js";
 import adminVesselAssignmentCloseRoutes from "./admin/routes/adminVesselAssignmentClose.routes.js";
 import adminDashboardRoutes from "./admin/routes/adminDashboard.routes.js";
+// NEW ROUTES
+import adminTasksRoutes from "./admin/routes/adminTasks.routes.js";
+import adminTaskImportsRoutes from "./admin/routes/adminTaskImports.routes.js"; 
 
 // 5. Audit Routes
 import adminAuditRoutes from "./admin/audit/routes/adminAudit.routes.js";
@@ -49,7 +52,6 @@ import adminAuditRoutes from "./admin/audit/routes/adminAudit.routes.js";
 dotenv.config();
 
 import sequelize from "./config/database.js";
-// FIX: Import directly from index to use centralized associations
 import { Role, User } from "./models/index.js";
 
 export { User, Role };
@@ -91,8 +93,7 @@ app.use("/api/v1/admin", adminUsersRolesRoutes);
 app.use("/api/v1/admin", adminShipTypesRoutes);
 app.use("/api/v1/admin", adminVesselsRoutes);
 app.use("/api/v1/admin", adminTrbRoutes);
-app.use("/api/v1/admin", adminTrbRoutes); // Also mount trbReviewRoutes logic if needed
-app.use("/api/v1/admin", trbReviewRoutes); // Separate mount to be safe
+app.use("/api/v1/admin/trb", trbReviewRoutes);
 app.use("/api/v1/admin/audit", adminAuditRoutes);
 app.use("/api/v1/admin", adminTraineesRoutes);
 app.use("/api/v1/admin", adminCadetProfilesRoutes);
@@ -102,9 +103,12 @@ app.use("/api/v1/admin", adminCadetAssignmentsRoutes);
 app.use("/api/v1/admin", adminVesselAssignmentsRoutes);
 app.use("/api/v1/admin", adminVesselAssignmentCloseRoutes);
 app.use("/api/v1/admin", adminDashboardRoutes);
+// REGISTER NEW ROUTES
+app.use("/api/v1/admin", adminTasksRoutes); 
+app.use("/api/v1/admin", adminTaskImportsRoutes); 
 
 app.get("/", (req, res) => {
-  res.json({ message: "Keel Backend Server is running ðŸš¢" });
+  res.json({ message: "Keel Backend Server is running 🚢" });
 });
 
 async function seedRoles() {
@@ -112,18 +116,18 @@ async function seedRoles() {
   for (let roleName of defaultRoles) {
     await Role.findOrCreate({ where: { role_name: roleName } });
   }
-  console.log("â­ Default roles ensured");
+  console.log("⭐ Default roles ensured");
 }
 
 sequelize
   .authenticate()
   .then(async () => {
-    console.log("ðŸŸ¢ Database connected");
+    console.log("🟢 Database connected");
     await seedRoles();
     app.listen(PORT, () => {
-      console.log(`ðŸš€ Keel backend running on port ${PORT}`);
+      console.log(`🚀 Keel backend running on port ${PORT}`);
     });
   })
   .catch((err) => {
-    console.error("ðŸ”´ Unable to connect:", err);
+    console.error("🔴 Unable to connect:", err);
   });
