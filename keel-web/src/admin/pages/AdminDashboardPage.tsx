@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Card,
@@ -10,6 +11,7 @@ import {
   Users,
   LayoutList,
   RefreshCw,
+  PenTool,
 } from "lucide-react";
 
 type DashboardStats = {
@@ -20,6 +22,7 @@ type DashboardStats = {
 };
 
 export function AdminDashboardPage() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +47,7 @@ export function AdminDashboardPage() {
 
   return (
     <div className="space-y-10">
+      {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Shore Command Center</h1>
@@ -60,37 +64,52 @@ export function AdminDashboardPage() {
         </button>
       </div>
 
+      {/* CLICKABLE METRIC CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard
-          label="Active Vessels"
-          value={loading ? "-" : stats?.vessels.active ?? 0}
-          icon={<Ship size={20} />}
-          onClick={() => {}}
-        />
+        
+        {/* 1. Active Vessels -> Go to Vessels List */}
+        <div className="cursor-pointer transition-opacity hover:opacity-80">
+          <StatCard
+            label="Active Vessels"
+            value={loading ? "-" : stats?.vessels.active ?? 0}
+            icon={<Ship size={20} />}
+            onClick={() => navigate("/admin/vessels")}
+          />
+        </div>
 
-        <StatCard
-          label="Cadets Onboard"
-          value={loading ? "-" : stats?.cadets.onboard ?? 0}
-          icon={<Users size={20} />}
-          tone={stats?.cadets.onboard ? "success" : "neutral"}
-          onClick={() => {}}
-        />
+        {/* 2. Cadets Onboard -> Go to Trainees List */}
+        <div className="cursor-pointer transition-opacity hover:opacity-80">
+          <StatCard
+            label="Cadets Onboard"
+            value={loading ? "-" : stats?.cadets.onboard ?? 0}
+            icon={<Users size={20} />}
+            tone={stats?.cadets.onboard ? "success" : "neutral"}
+            onClick={() => navigate("/admin/assignments")}
+          />
+        </div>
 
-        <StatCard
-          label="Total Trainees"
-          value={loading ? "-" : stats?.cadets.total ?? 0}
-          icon={<Users size={20} />}
-          onClick={() => {}}
-        />
+        {/* 3. Total Trainees -> Go to Trainees List */}
+        <div className="cursor-pointer transition-opacity hover:opacity-80">
+          <StatCard
+            label="Total Trainees"
+            value={loading ? "-" : stats?.cadets.total ?? 0}
+            icon={<Users size={20} />}
+            onClick={() => navigate("/admin/cadets")}
+          />
+        </div>
 
-        <StatCard
-          label="TRB Tasks Defined"
-          value={loading ? "-" : stats?.tasks.total_templates ?? 0}
-          icon={<LayoutList size={20} />}
-          onClick={() => {}}
-        />
+        {/* 4. TRB Tasks Defined -> Go to Tasks Management */}
+        <div className="cursor-pointer transition-opacity hover:opacity-80">
+          <StatCard
+            label="TRB Tasks Defined"
+            value={loading ? "-" : stats?.tasks.total_templates ?? 0}
+            icon={<LayoutList size={20} />}
+            onClick={() => navigate("/admin/tasks")}
+          />
+        </div>
       </div>
 
+      {/* PHASE 4 PLACEHOLDERS (Non-clickable for now) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-60">
         <Card>
           <CardHeader 

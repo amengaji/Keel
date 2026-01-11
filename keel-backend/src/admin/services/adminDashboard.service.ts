@@ -1,14 +1,8 @@
-import { Op } from "sequelize";
+﻿import { Op } from "sequelize";
 import { User, Role, Vessel, CadetVesselAssignment, TaskTemplate } from "../../models/index.js";
 
 export async function fetchDashboardStats() {
   console.log("📊 DASHBOARD: Starting stats fetch...");
-
-  // Debug Checks
-  if (!Vessel) console.error("❌ CRITICAL: Vessel model is UNDEFINED");
-  if (!User) console.error("❌ CRITICAL: User model is UNDEFINED");
-  if (!CadetVesselAssignment) console.error("❌ CRITICAL: CadetVesselAssignment model is UNDEFINED");
-  if (!TaskTemplate) console.error("❌ CRITICAL: TaskTemplate model is UNDEFINED");
 
   try {
     // 1. Active Vessels
@@ -30,8 +24,9 @@ export async function fetchDashboardStats() {
     console.log("📊 Stats: Total Cadets =", totalCadetsCount);
 
     // 3. Cadets Onboard (Active Assignment)
+    // FIX: Changed from { active: true } to { status: "ACTIVE" }
     const cadetsOnboardCount = await CadetVesselAssignment.count({
-      where: { active: true } 
+      where: { status: "ACTIVE" } 
     });
     console.log("📊 Stats: Cadets Onboard =", cadetsOnboardCount);
 

@@ -74,7 +74,7 @@ const sections: NavSection[] = [
       },
       {
         to: "/admin/cadets",
-        label: "Cadets",
+        label: "Trainees",
         icon: <Users size={18} />,
       },
       {

@@ -1,4 +1,4 @@
-﻿console.log("🔥 KEEL BACKEND STARTED FROM SRC 🔥");
+﻿console.log("ðŸ”¥ KEEL BACKEND STARTED FROM SRC ðŸ”¥");
 import express, { Application } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -41,7 +41,7 @@ import adminVesselImportsRoutes from "./admin/routes/adminVesselImports.routes.j
 import adminCadetAssignmentsRoutes from "./admin/routes/adminCadetAssignments.routes.js";
 import adminVesselAssignmentsRoutes from "./admin/routes/adminVesselAssignments.routes.js";
 import adminVesselAssignmentCloseRoutes from "./admin/routes/adminVesselAssignmentClose.routes.js";
-import adminDashboardRoutes from "./admin/routes/adminDashboard.routes.js"; // <--- ADDED
+import adminDashboardRoutes from "./admin/routes/adminDashboard.routes.js";
 
 // 5. Audit Routes
 import adminAuditRoutes from "./admin/audit/routes/adminAudit.routes.js";
@@ -49,7 +49,7 @@ import adminAuditRoutes from "./admin/audit/routes/adminAudit.routes.js";
 dotenv.config();
 
 import sequelize from "./config/database.js";
-// FIX: Import from models/index.js to prevent duplicate associations
+// FIX: Import directly from index to use centralized associations
 import { Role, User } from "./models/index.js";
 
 export { User, Role };
@@ -57,9 +57,6 @@ export { User, Role };
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
-// -----------------------------------------------------------------------------
-// GLOBAL MIDDLEWARE
-// -----------------------------------------------------------------------------
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -70,9 +67,6 @@ app.use(
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 
-// -----------------------------------------------------------------------------
-// ROUTE REGISTRATION
-// -----------------------------------------------------------------------------
 app.use("/auth", authRoutes);
 app.use("/me", meRoutes);
 app.use("/ship-types", shipTypeRoutes);
@@ -97,7 +91,8 @@ app.use("/api/v1/admin", adminUsersRolesRoutes);
 app.use("/api/v1/admin", adminShipTypesRoutes);
 app.use("/api/v1/admin", adminVesselsRoutes);
 app.use("/api/v1/admin", adminTrbRoutes);
-app.use("/api/v1/admin/trb", trbReviewRoutes);
+app.use("/api/v1/admin", adminTrbRoutes); // Also mount trbReviewRoutes logic if needed
+app.use("/api/v1/admin", trbReviewRoutes); // Separate mount to be safe
 app.use("/api/v1/admin/audit", adminAuditRoutes);
 app.use("/api/v1/admin", adminTraineesRoutes);
 app.use("/api/v1/admin", adminCadetProfilesRoutes);
@@ -106,38 +101,29 @@ app.use("/api/v1/admin", adminVesselImportsRoutes);
 app.use("/api/v1/admin", adminCadetAssignmentsRoutes);
 app.use("/api/v1/admin", adminVesselAssignmentsRoutes);
 app.use("/api/v1/admin", adminVesselAssignmentCloseRoutes);
-app.use("/api/v1/admin", adminDashboardRoutes); // <--- ADDED
+app.use("/api/v1/admin", adminDashboardRoutes);
 
-// Health check
 app.get("/", (req, res) => {
-  res.json({ message: "Keel Backend Server is running 🚢" });
+  res.json({ message: "Keel Backend Server is running ðŸš¢" });
 });
 
-// Role Seeder
 async function seedRoles() {
   const defaultRoles = ["CADET", "CTO", "MASTER", "SHORE", "ADMIN"];
   for (let roleName of defaultRoles) {
     await Role.findOrCreate({ where: { role_name: roleName } });
   }
-  console.log("⭐ Default roles ensured");
+  console.log("â­ Default roles ensured");
 }
 
-// -----------------------------------------------------------------------------
-// DATABASE STARTUP
-// -----------------------------------------------------------------------------
 sequelize
   .authenticate()
   .then(async () => {
-    console.log("🟢 Database connected (no schema alterations)");
-    console.log("🔍 DB NAME:", process.env.DB_NAME);
-    
+    console.log("ðŸŸ¢ Database connected");
     await seedRoles();
-
     app.listen(PORT, () => {
-      console.log(`🚀 Keel backend running on port ${PORT}`);
+      console.log(`ðŸš€ Keel backend running on port ${PORT}`);
     });
   })
   .catch((err) => {
-    console.error("🔴 Unable to connect:", err);
+    console.error("ðŸ”´ Unable to connect:", err);
   });
-  
