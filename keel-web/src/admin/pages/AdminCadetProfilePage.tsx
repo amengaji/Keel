@@ -29,7 +29,35 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, Save, User2, IdCard, Phone, MapPin, ShieldAlert } from "lucide-react";
 
+import { DatePickerInput } from "../../components/common/DatePickerInput";
 import { CheckboxBox } from "../../components/common/CheckboxBox";
+import { Country, State, City } from "country-state-city";
+
+
+/* -------------------------------------------------------------------------- */
+/* Trainee → Rank / Category Derivation (UI mirror of backend)                 */
+/* -------------------------------------------------------------------------- */
+
+type TraineeType =
+  | "DECK_CADET"
+  | "ENGINE_CADET"
+  | "ETO_CADET"
+  | "DECK_RATING"
+  | "ENGINE_RATING";
+
+const TRAINEE_DERIVATION: Record<
+  TraineeType,
+  { rank_label: string; category: string; trb_applicable: boolean }
+> = {
+  DECK_CADET: { rank_label: "Deck Cadet", category: "Cadet", trb_applicable: true },
+  ENGINE_CADET: { rank_label: "Engine Cadet", category: "Cadet", trb_applicable: true },
+  ETO_CADET: { rank_label: "ETO Cadet", category: "Cadet", trb_applicable: true },
+  DECK_RATING: { rank_label: "Deck Rating", category: "Rating", trb_applicable: false },
+  ENGINE_RATING: { rank_label: "Engine Rating", category: "Rating", trb_applicable: false },
+};
+
+
+
 
 type CadetProfile = {
   cadet_id: number;
@@ -505,13 +533,15 @@ export function AdminCadetProfilePage() {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="Date of Birth" required hint = "As per passport.">
-            <Input
-              type="date"
+          <Field label="Date of Birth" required hint="As per passport.">
+            <DatePickerInput
               value={asText(form.date_of_birth)}
-              onChange={(v) => setForm((p) => ({ ...p, date_of_birth: v }))}
+              onChange={(v) =>
+                setForm((p) => ({ ...p, date_of_birth: v }))
+              }
             />
           </Field>
+
 
           <Field label="Nationality" required hint="As per passport. Example: Indian">
             <Input
@@ -591,28 +621,68 @@ export function AdminCadetProfilePage() {
           </Field>
 
           <Field label="City" required>
-            <Input
+            <Select
               value={asText(form.city)}
-              onChange={(v) => setForm((p) => ({ ...p, city: v }))}
-              placeholder="Mumbai"
+              onChange={(cityName) =>
+                setForm((p) => ({ ...p, city: cityName || null }))
+              }
+              options={[
+                { value: "", label: "— Select City —" },
+                ...(form.country && form.state
+                  ? City.getCitiesOfState(form.country, form.state).map((c) => ({
+                      value: c.name,
+                      label: c.name,
+                    }))
+                  : []),
+              ]}
             />
           </Field>
+
 
           <Field label="State" required>
-            <Input
+            <Select
               value={asText(form.state)}
-              onChange={(v) => setForm((p) => ({ ...p, state: v }))}
-              placeholder="Maharashtra"
+              onChange={(stateCode) =>
+                setForm((p) => ({
+                  ...p,
+                  state: stateCode || null,
+                  city: null,
+                }))
+              }
+              options={[
+                { value: "", label: "— Select State —" },
+                ...(form.country
+                  ? State.getStatesOfCountry(form.country).map((s) => ({
+                      value: s.isoCode,
+                      label: s.name,
+                    }))
+                  : []),
+              ]}
             />
           </Field>
 
+
           <Field label="Country" required>
-            <Input
+            <Select
               value={asText(form.country)}
-              onChange={(v) => setForm((p) => ({ ...p, country: v }))}
-              placeholder="India"
+              onChange={(countryCode) =>
+                setForm((p) => ({
+                  ...p,
+                  country: countryCode || null,
+                  state: null,
+                  city: null,
+                }))
+              }
+              options={[
+                { value: "", label: "— Select Country —" },
+                ...Country.getAllCountries().map((c) => ({
+                  value: c.isoCode,
+                  label: c.name,
+                })),
+              ]}
             />
           </Field>
+
 
           <Field label="Postal Code" required>
             <Input
@@ -643,19 +713,32 @@ export function AdminCadetProfilePage() {
               />
             </Field>
 
-            <Field label="Passport Country" required hint="Issuing country (example: India)">
-              <Input
+            <Field label="Passport Country" required>
+              <Select
                 value={asText(form.passport_country)}
-                onChange={(v) => setForm((p) => ({ ...p, passport_country: v }))}
-                placeholder="India"
+                onChange={(countryCode) =>
+                  setForm((p) => ({
+                    ...p,
+                    passport_country: countryCode || null,
+                  }))
+                }
+                options={[
+                  { value: "", label: "— Select Passport Issuing Country —" },
+                  ...Country.getAllCountries().map((c) => ({
+                    value: c.isoCode,
+                    label: c.name,
+                  })),
+                ]}
               />
             </Field>
 
+
             <Field label="Passport Expiry Date" required>
-              <Input
-                type="date"
+              <DatePickerInput
                 value={asText(form.passport_expiry_date)}
-                onChange={(v) => setForm((p) => ({ ...p, passport_expiry_date: v }))}
+                onChange={(v) =>
+                  setForm((p) => ({ ...p, passport_expiry_date: v }))
+                }
               />
             </Field>
           </div>
@@ -673,15 +756,27 @@ export function AdminCadetProfilePage() {
               />
             </Field>
 
-            <Field label="Seaman Book Country" required hint="Issuing country (example: India)">
-              <Input
+            <Field label="Seaman Book Country" required>
+              <Select
                 value={asText(form.seaman_book_country)}
-                onChange={(v) => setForm((p) => ({ ...p, seaman_book_country: v }))}
-                placeholder="India"
+                onChange={(countryCode) =>
+                  setForm((p) => ({
+                    ...p,
+                    seaman_book_country: countryCode || null,
+                  }))
+                }
+                options={[
+                  { value: "", label: "— Select Seaman Book Issuing Country —" },
+                  ...Country.getAllCountries().map((c) => ({
+                    value: c.isoCode,
+                    label: c.name,
+                  })),
+                ]}
               />
             </Field>
 
-            <Field label="INDOS Number" hint="Optional (but unique if provided)">
+
+            <Field label="INDOS Number (For Indian Trainees)" >
               <Input
                 value={asText(form.indos_number)}
                 onChange={(v) => setForm((p) => ({ ...p, indos_number: v }))}
@@ -708,7 +803,7 @@ export function AdminCadetProfilePage() {
             />
           </Field>
 
-          <Field label="Relation" required hint="Example: Father / Mother / Brother / Spouse">
+          <Field label="Relation" required>
             <Input
               value={asText(form.emergency_contact_relation)}
               onChange={(v) => setForm((p) => ({ ...p, emergency_contact_relation: v }))}
@@ -716,7 +811,7 @@ export function AdminCadetProfilePage() {
             />
           </Field>
 
-          <Field label="Phone" required hint="Include country code">
+          <Field label="Phone (Include '+' Country Code) " required>
             <Input
               value={asText(form.emergency_contact_phone)}
               onChange={(v) => setForm((p) => ({ ...p, emergency_contact_phone: v }))}
@@ -734,23 +829,49 @@ export function AdminCadetProfilePage() {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="Trainee Type" hint="Example: DECK_CADET / ENGINE_CADET">
-            <Input
+          <Field label="Trainee Type">
+            <Select
               value={asText(form.trainee_type)}
-              onChange={(v) => setForm((p) => ({ ...p, trainee_type: v }))}
-              placeholder="DECK_CADET"
+              onChange={(v) => {
+                const derived = v && (v in TRAINEE_DERIVATION)
+                  ? TRAINEE_DERIVATION[v as TraineeType]
+                  : null;
+
+                setForm((p) => ({
+                  ...p,
+                  trainee_type: v || null,
+                  rank_label: derived?.rank_label ?? null,
+                  category: derived?.category ?? p.category,
+                  trb_applicable: derived?.trb_applicable ?? p.trb_applicable,
+                }));
+              }}
+              options={[
+                { value: "", label: "— Select Trainee Type —" },
+                ...Object.keys(TRAINEE_DERIVATION).map((t) => ({
+                  value: t,
+                  label: t.replace("_", " "),
+                })),
+              ]}
             />
           </Field>
-
-          <Field label="Rank Label" hint="Example: Deck Cadet">
-            <Input
+          <Field label="Rank Label">
+            <Select
               value={asText(form.rank_label)}
-              onChange={(v) => setForm((p) => ({ ...p, rank_label: v }))}
-              placeholder="Deck Cadet"
+              onChange={(v) => setForm((p) => ({ ...p, rank_label: v || null }))}
+              options={[
+                { value: "", label: "— Auto Derived —" },
+                ...(form.trainee_type && form.trainee_type in TRAINEE_DERIVATION
+                  ? [
+                      {
+                        value: TRAINEE_DERIVATION[form.trainee_type as TraineeType].rank_label,
+                        label: TRAINEE_DERIVATION[form.trainee_type as TraineeType].rank_label,
+                      },
+                    ]
+                  : []),
+              ]}
             />
           </Field>
-
-          <Field label="Category" hint="Example: Cadet">
+          <Field label="Category (Optional)">
             <Input
               value={asText(form.category)}
               onChange={(v) => setForm((p) => ({ ...p, category: v }))}

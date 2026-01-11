@@ -1,17 +1,7 @@
 // keel-backend/src/admin/services/adminImports.service.ts
-//
-// PURPOSE:
-// - Cadet Excel Import (Preview-first, audit-safe)
-// - Parse XLSX buffer, validate headers, validate each row
-// - Derive rank_label/category/trb_applicable from trainee_type
-// - Return a preview payload for UI (no writes)
-//
-// SAFETY:
-// - NO DB writes
-// - Reads only: user existence check by email
-//
 
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx"; // Still used for reading/preview
+import ExcelJS from "exceljs"; // Used for writing template (better validation support)
 import sequelize from "../../config/database.js";
 
 export type TraineeType =
@@ -39,9 +29,8 @@ export type CadetImportPreviewRowStatus =
   | "FAIL";
 
 export type CadetImportPreviewRow = {
-  row_number: number; // Excel row number (1-based)
+  row_number: number;
   status: CadetImportPreviewRowStatus;
-
   input: Record<string, any>;
   normalized: {
     full_name: string | null;
@@ -49,19 +38,15 @@ export type CadetImportPreviewRow = {
     trainee_type: TraineeType | null;
     nationality: string | null;
     notes: string | null;
-
-    // Optional overrides from Excel (may be blank)
     rank_label: string | null;
     category: string | null;
     trb_applicable: boolean | null;
   };
-
   derived: {
     rank_label: string | null;
     category: string | null;
     trb_applicable: boolean | null;
   };
-
   issues: string[];
 };
 
@@ -86,19 +71,15 @@ type AllowedColumn = (typeof ALLOWED_COLUMNS)[number];
 
 const REQUIRED_COLUMNS: AllowedColumn[] = ["full_name", "email", "trainee_type"];
 
+/* ... Helpers (Keep existing ones) ... */
 function normalizeHeader(h: unknown): string {
-  return String(h ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_");
+  return String(h ?? "").trim().toLowerCase().replace(/\s+/g, "_");
 }
-
 function normalizeText(v: any): string | null {
   if (v === undefined || v === null) return null;
   const t = String(v).trim();
   return t.length ? t : null;
 }
-
 function normalizeBool(v: any): boolean | null {
   if (v === undefined || v === null || String(v).trim() === "") return null;
   const s = String(v).trim().toLowerCase();
@@ -106,63 +87,92 @@ function normalizeBool(v: any): boolean | null {
   if (["false", "no", "n", "0"].includes(s)) return false;
   return null;
 }
-
 function isValidEmail(email: string): boolean {
-  // pragmatic check (backend is authoritative; avoids user frustration)
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
-
 async function findExistingEmailsLower(emailsLower: string[]): Promise<Set<string>> {
   if (emailsLower.length === 0) return new Set();
-
   const [rows] = await sequelize.query(
-    `
-      SELECT LOWER(email) AS email_lower
-      FROM users
-      WHERE LOWER(email) IN (:emailsLower)
-    `,
+    `SELECT LOWER(email) AS email_lower FROM users WHERE LOWER(email) IN (:emailsLower)`,
     { replacements: { emailsLower } }
   );
-
   const set = new Set<string>();
   for (const r of rows as any[]) {
     if (r?.email_lower) set.add(String(r.email_lower));
   }
   return set;
 }
-
-export function buildCadetImportTemplateXlsxBuffer(): Buffer {
-  const headers = [
-    "full_name",
-    "email",
-    "trainee_type",
-    "nationality",
-    "notes",
-    "rank_label",
-    "category",
-    "trb_applicable",
-  ];
-
-  const example = [
-    "Anuj Mengaji",
-    "anuj@example.com",
-    "DECK_CADET",
-    "Indian",
-    "Onboarded via batch import",
-    "",
-    "",
-    "",
-  ];
-
-  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
-  ws["!cols"] = headers.map((h) => ({ wch: Math.max(18, h.length + 2) }));
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Cadets");
-
-  const out = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
-  return Buffer.isBuffer(out) ? out : Buffer.from(out as any);
+function normalizeProperCase(v: any): string | null {
+  if (v === undefined || v === null) return null;
+  const t = String(v).trim().replace(/\s+/g, " ");
+  if (!t.length) return null;
+  return t.toLowerCase().split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
+
+/* ======================================================================
+ * TEMPLATE GENERATION (UPDATED: Uses ExcelJS for Dropdowns)
+ * ====================================================================== */
+
+export async function buildCadetImportTemplateXlsxBuffer(): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+
+  // 1. MAIN SHEET
+  const sheet = workbook.addWorksheet("Cadets");
+
+  sheet.columns = [
+    { header: "full_name", key: "full_name", width: 25 },
+    { header: "email", key: "email", width: 30 },
+    { header: "trainee_type", key: "trainee_type", width: 25 },
+    { header: "nationality", key: "nationality", width: 20 },
+    { header: "notes", key: "notes", width: 30 },
+    { header: "rank_label", key: "rank_label", width: 20 },
+    { header: "category", key: "category", width: 15 },
+    { header: "trb_applicable", key: "trb_applicable", width: 15 },
+  ];
+
+  sheet.addRow({
+    full_name: "Anuj Mengaji",
+    email: "anuj@example.com",
+    trainee_type: "", // Blank to force selection
+    nationality: "Indian",
+    notes: "Onboarded via batch import",
+    rank_label: "",
+    category: "",
+    trb_applicable: "",
+  });
+
+  // 2. META SHEET (Hidden List)
+  const metaSheet = workbook.addWorksheet("_meta", { state: "hidden" });
+  const traineeTypes = Object.keys(TRAINEE_DERIVATION);
+
+  traineeTypes.forEach((type, index) => {
+    metaSheet.getCell(`A${index + 1}`).value = type;
+  });
+
+  // 3. DATA VALIDATION
+  const listRef = `_meta!$A$1:$A$${traineeTypes.length}`;
+
+  for (let i = 2; i <= 1000; i++) {
+    const cell = sheet.getCell(`C${i}`);
+    cell.dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [listRef],
+      showErrorMessage: true,
+      errorTitle: "Invalid Selection",
+      error: "Please select a valid Trainee Type from the dropdown.",
+    };
+  }
+
+  // 4. WRITE & RETURN (ASYNC)
+  const buffer = await workbook.xlsx.writeBuffer();
+  // Safe cast for strict TS configs that see ArrayBuffer
+  return buffer as unknown as Buffer;
+}
+
+/* ======================================================================
+ * PREVIEW (Keep Existing)
+ * ====================================================================== */
 
 export async function previewCadetImportXlsx(buffer: Buffer): Promise<CadetImportPreviewResult> {
   const notes: string[] = [];
@@ -205,7 +215,6 @@ export async function previewCadetImportXlsx(buffer: Buffer): Promise<CadetImpor
     };
   }
 
-  // Validate columns: unknown columns should fail the whole preview (explicit + strict)
   const allowed = new Set<string>(ALLOWED_COLUMNS);
   for (const h of headersNormalized) {
     if (!h) continue;
@@ -216,14 +225,12 @@ export async function previewCadetImportXlsx(buffer: Buffer): Promise<CadetImpor
     }
   }
 
-  // Validate required columns presence
   for (const req of REQUIRED_COLUMNS) {
     if (!headersNormalized.includes(req)) {
       throw new Error(`Missing required column "${req}".`);
     }
   }
 
-  // Build row objects (row-by-row)
   const dataRows = aoa.slice(1);
   if (dataRows.length === 0) {
     return {
@@ -234,8 +241,6 @@ export async function previewCadetImportXlsx(buffer: Buffer): Promise<CadetImpor
   }
 
   const rows: CadetImportPreviewRow[] = [];
-
-  // Collect emails for existence check
   const emailsLower: string[] = [];
   for (const r of dataRows) {
     const idxEmail = headersNormalized.indexOf("email");
@@ -246,10 +251,9 @@ export async function previewCadetImportXlsx(buffer: Buffer): Promise<CadetImpor
   const existingEmailSet = await findExistingEmailsLower([...new Set(emailsLower)]);
 
   for (let i = 0; i < dataRows.length; i++) {
-    const excelRowNumber = i + 2; // since headers are row 1
+    const excelRowNumber = i + 2; 
     const raw = dataRows[i] ?? [];
 
-    // Map allowed values from columns
     const get = (col: AllowedColumn) => {
       const idx = headersNormalized.indexOf(col);
       if (idx === -1) return null;
@@ -259,23 +263,19 @@ export async function previewCadetImportXlsx(buffer: Buffer): Promise<CadetImpor
     const full_name = normalizeText(get("full_name"));
     const email = normalizeText(get("email"));
     const trainee_type_raw = normalizeText(get("trainee_type"));
-
-    const nationality = normalizeText(get("nationality"));
+    const nationality = normalizeProperCase(get("nationality"));
     const notesText = normalizeText(get("notes"));
-
     const rank_label_override = normalizeText(get("rank_label"));
     const category_override = normalizeText(get("category"));
     const trb_applicable_override = normalizeBool(get("trb_applicable"));
 
     const issues: string[] = [];
 
-    // Required validations
     if (!full_name) issues.push("full_name is required");
     if (!email) issues.push("email is required");
     if (email && !isValidEmail(email)) issues.push("email is invalid format");
     if (!trainee_type_raw) issues.push("trainee_type is required");
 
-    // Validate trainee_type
     const trainee_type = (trainee_type_raw as TraineeType) ?? null;
     if (trainee_type_raw && !(trainee_type_raw in TRAINEE_DERIVATION)) {
       issues.push(
@@ -283,17 +283,14 @@ export async function previewCadetImportXlsx(buffer: Buffer): Promise<CadetImpor
       );
     }
 
-    // Determine derived
     const derived =
       trainee_type_raw && (trainee_type_raw in TRAINEE_DERIVATION)
         ? TRAINEE_DERIVATION[trainee_type_raw as TraineeType]
         : null;
 
-    // Existence check by email
     const emailLower = email ? email.toLowerCase() : null;
     const alreadyExists = emailLower ? existingEmailSet.has(emailLower) : false;
 
-    // Override mismatch warnings (non-blocking)
     let status: CadetImportPreviewRowStatus = "READY";
 
     if (issues.length > 0) {
@@ -302,9 +299,7 @@ export async function previewCadetImportXlsx(buffer: Buffer): Promise<CadetImpor
       status = "SKIP";
       issues.push("email already exists (row will be skipped)");
     } else {
-      // READY or READY_WITH_WARNINGS
       const warnings: string[] = [];
-
       if (derived) {
         if (rank_label_override && rank_label_override !== derived.rank_label) {
           warnings.push(`rank_label overridden: expected "${derived.rank_label}"`);
@@ -319,7 +314,6 @@ export async function previewCadetImportXlsx(buffer: Buffer): Promise<CadetImpor
           warnings.push(`trb_applicable overridden: expected ${derived.trb_applicable}`);
         }
       }
-
       if (warnings.length) {
         status = "READY_WITH_WARNINGS";
         issues.push(...warnings);
@@ -351,7 +345,6 @@ export async function previewCadetImportXlsx(buffer: Buffer): Promise<CadetImpor
     });
   }
 
-  // Summary
   const summary = {
     total: rows.length,
     ready: rows.filter((r) => r.status === "READY").length,

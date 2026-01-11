@@ -14,6 +14,7 @@
 // - No backend calls
 // - Officer-friendly, low friction
 
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   Sun,
@@ -40,7 +41,13 @@ function applyThemeClass(isDark: boolean) {
 }
 
 export function AdminTopbar({ onToggleSidebar }: AdminTopbarProps) {
-  const isDark = document.documentElement.classList.contains("dark");
+  // Theme state MUST be reactive (do not read directly from DOM)
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    // Initial load: sync from DOM or localStorage
+    if (document.documentElement.classList.contains("dark")) return true;
+    return localStorage.getItem("keel_theme") === "dark";
+  });
+
 
   /* ------------------------------------------------------------------------ */
   /* Signature Vault                                                          */
@@ -53,12 +60,23 @@ export function AdminTopbar({ onToggleSidebar }: AdminTopbarProps) {
     lockNow,
   } = useSignatureVault();
 
+
+
   function toggleTheme() {
-    const next = !isDark;
-    applyThemeClass(next);
-    localStorage.setItem("keel_theme", next ? "dark" : "light");
-    toast.success(`Theme switched to ${next ? "Dark" : "Light"} mode`);
+      const next = !isDark;
+
+      setIsDark(next);                // ← trigger React re-render
+      applyThemeClass(next);          // ← update <html> class
+      localStorage.setItem(
+        "keel_theme",
+        next ? "dark" : "light"
+      );
+
+      toast.success(
+        `Theme switched to ${next ? "Dark" : "Light"} mode`
+      );
   }
+
 
   return (
     <>

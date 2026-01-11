@@ -26,6 +26,7 @@ import { CadetImportModal } from "../components/CadetImportModal";
 import {
   AssignCadetToVesselModal,
 } from "../components/AssignCadetToVesselModal";
+import { DatePickerInput } from "../../components/common/DatePickerInput";
 
 
 /* -------------------------------------------------------------------------- */
@@ -73,10 +74,19 @@ export function AdminCadetsPage() {
     Record<number, string>
   >({});
 
-  // Authoritative ACTIVE assignment lookup: cadet_id → assignment
+  // Authoritative ACTIVE assignment lookup: cadet_id → ACTIVE assignment details
   const [activeAssignmentMap, setActiveAssignmentMap] = useState<
-    Record<number, { vessel_id: number; vessel_name: string }>
+    Record<
+      number,
+      {
+        assignment_id: number;
+        vessel_id: number;
+        vessel_name: string;
+        start_date: string;
+      }
+    >
   >({});
+
 
 
   // Assign Vessel modal state
@@ -86,6 +96,18 @@ export function AdminCadetsPage() {
     name: string;
     email: string;
   } | null>(null);
+
+  // Close Assignment (reuse Phase 4E behavior)
+  const [pendingClose, setPendingClose] = useState<{
+    assignment_id: number;
+    cadet_name: string;
+    vessel_name: string;
+    start_date: string;
+  } | null>(null);
+
+  const [closeEndDate, setCloseEndDate] = useState<string>("");
+  const [closing, setClosing] = useState(false);
+
 
 
 
@@ -155,43 +177,54 @@ async function loadTraineeAssignments() {
   }
 }
 
-/**
- * Loads ACTIVE cadet-vessel assignments.
- * This is the ONLY authoritative source for assignment eligibility.
- */
-async function loadActiveAssignments() {
-  try {
-    const res = await fetch("/api/v1/admin/vessel-assignments", {
-      credentials: "include",
-    });
+  /**
+   * Loads ACTIVE cadet-vessel assignments.
+   * This is the ONLY authoritative source for assignment eligibility.
+   */
+  async function loadActiveAssignments() {
+    try {
+      const res = await fetch("/api/v1/admin/vessel-assignments", {
+        credentials: "include",
+      });
 
-    if (!res.ok) {
-      throw new Error(`Failed to load assignments (${res.status})`);
-    }
-
-    const json = await res.json();
-    const rows = Array.isArray(json?.data) ? json.data : [];
-
-    const map: Record<number, { vessel_id: number; vessel_name: string }> = {};
-
-    for (const r of rows) {
-      if (r.status === "ACTIVE") {
-        map[r.cadet_id] = {
-          vessel_id: r.vessel_id,
-          vessel_name: r.vessel_name,
-        };
+      if (!res.ok) {
+        throw new Error(`Failed to load assignments (${res.status})`);
       }
-    }
 
-    setActiveAssignmentMap(map);
-  } catch (err: any) {
-    console.error("❌ Failed to load active assignments:", err);
-    toast.error(
-      err?.message || "Unable to determine assignment status"
-    );
-    setActiveAssignmentMap({});
+      const json = await res.json();
+      const rows = Array.isArray(json?.data) ? json.data : [];
+
+      const map: Record<
+        number,
+        {
+          assignment_id: number;
+          vessel_id: number;
+          vessel_name: string;
+          start_date: string;
+        }
+      > = {};
+
+      for (const r of rows) {
+        if (r.status === "ACTIVE") {
+          map[r.cadet_id] = {
+            assignment_id: r.assignment_id,
+            vessel_id: r.vessel_id,
+            vessel_name: r.vessel_name,
+            start_date: r.start_date,
+          };
+        }
+      }
+
+      setActiveAssignmentMap(map);
+    } catch (err: any) {
+      console.error("❌ Failed to load active assignments:", err);
+      toast.error(
+        err?.message || "Unable to determine assignment status"
+      );
+      setActiveAssignmentMap({});
+    }
   }
-}
+
 
 
   useEffect(() => {
@@ -281,10 +314,17 @@ async function loadActiveAssignments() {
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Email</th>
               <th className="px-4 py-2">Assigned Vessel</th>
+
+              {/* NEW: Assignment Status */}
+              <th className="px-4 py-2 text-center">Status</th>
+
+              {/* Actions (Assign / Close) */}
               <th className="px-4 py-2 text-center">Action</th>
+
               <th className="px-4 py-2">Created</th>
             </tr>
           </thead>
+
 
           <tbody>
             {loading && (
@@ -330,6 +370,7 @@ async function loadActiveAssignments() {
                     {row.cadet_email}
                   </td>
 
+                  {/* Assigned Vessel */}
                   <td className="px-4 py-3 text-sm">
                     {activeAssignmentMap[row.cadet_id] ? (
                       <span className="font-medium">
@@ -337,16 +378,57 @@ async function loadActiveAssignments() {
                       </span>
                     ) : (
                       <span className="text-[hsl(var(--muted-foreground))]">
-                        — Not Assigned —
+                        —
                       </span>
                     )}
                   </td>
 
+                  {/* Status */}
                   <td className="px-4 py-3 text-center">
                     {activeAssignmentMap[row.cadet_id] ? (
-                      <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-700">
                         Assigned
                       </span>
+                    ) : (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-600">
+                        Not Assigned
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Action */}
+                  <td className="px-4 py-3 text-center">
+                    {activeAssignmentMap[row.cadet_id] ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+
+                          const active = activeAssignmentMap[row.cadet_id];
+                          if (!active) return;
+
+                          // Default end date = today (explicit, editable)
+                          const today = new Date().toISOString().slice(0, 10);
+
+                          setCloseEndDate(today);
+                          setPendingClose({
+                            assignment_id: active.assignment_id,
+                            cadet_name: row.cadet_name,
+                            vessel_name: active.vessel_name,
+                            start_date: active.start_date,
+                          });
+                        }}
+                        className="
+                          px-3 py-1.5
+                          rounded-md
+                          text-xs
+                          border border-[hsl(var(--border))]
+                          hover:bg-[hsl(var(--muted))]
+                        "
+                      >
+                        Close Assignment
+                      </button>
+
                     ) : (
                       <button
                         type="button"
@@ -371,6 +453,7 @@ async function loadActiveAssignments() {
                       </button>
                     )}
                   </td>
+
 
 
                   <td className="px-4 py-3 text-[hsl(var(--muted-foreground))]">
@@ -413,6 +496,123 @@ async function loadActiveAssignments() {
         }}
 
       />
+
+      {/* ------------------------------------------------------------------ */}
+      {/* CLOSE ASSIGNMENT — Cadets Page (Phase 5B)                           */}
+      {/* ------------------------------------------------------------------ */}
+
+      {pendingClose && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-md rounded-lg border bg-[hsl(var(--card))] p-6 space-y-4">
+            <h3 className="text-sm font-semibold">
+              Close Cadet Assignment
+            </h3>
+
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              This will close the cadet’s assignment to the vessel and lock
+              further TRB activity.
+              <br />
+              <strong>This action cannot be undone.</strong>
+            </p>
+
+            <div className="rounded-md border bg-[hsl(var(--muted))] p-3 text-sm space-y-1">
+              <div>
+                <span className="font-medium">Cadet:</span>{" "}
+                {pendingClose.cadet_name}
+              </div>
+              <div>
+                <span className="font-medium">Vessel:</span>{" "}
+                {pendingClose.vessel_name}
+              </div>
+              <div>
+                <span className="font-medium">Start Date:</span>{" "}
+                {pendingClose.start_date}
+              </div>
+            </div>
+
+            {/* End Date */}
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                Assignment End Date
+              </label>
+
+              {/* Custom calendar icon overlay — native icon hidden */}
+              <DatePickerInput
+                value={closeEndDate}
+                min={pendingClose.start_date}
+                onChange={setCloseEndDate}
+              />
+
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={closing}
+                onClick={() => setPendingClose(null)}
+                className="px-4 py-2 text-sm rounded-md border hover:bg-[hsl(var(--muted))]"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={closing || !closeEndDate}
+                onClick={async () => {
+                  try {
+                    setClosing(true);
+
+                    const res = await fetch(
+                      `/api/v1/admin/vessel-assignments/${pendingClose.assignment_id}/close`,
+                      {
+                        method: "POST",
+                        credentials: "include",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          end_date: closeEndDate,
+                        }),
+                      }
+                    );
+
+                    if (!res.ok) {
+                      const err = await res.json().catch(() => null);
+                      throw new Error(
+                        err?.message || "Failed to close assignment"
+                      );
+                    }
+
+                    toast.success("Assignment closed successfully");
+
+                    // Refresh authoritative state
+                    await loadActiveAssignments();
+                    await loadTraineeAssignments();
+
+                    setPendingClose(null);
+                  } catch (err: any) {
+                    console.error("❌ Close assignment failed:", err);
+                    toast.error(
+                      err?.message || "Unable to close assignment"
+                    );
+                  } finally {
+                    setClosing(false);
+                  }
+                }}
+                className="
+                  px-4 py-2 text-sm rounded-md
+                  bg-red-600 text-white
+                  hover:bg-red-700
+                  disabled:opacity-60
+                "
+              >
+                Confirm Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

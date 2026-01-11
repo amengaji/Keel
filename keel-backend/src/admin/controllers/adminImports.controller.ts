@@ -1,15 +1,4 @@
 // keel-backend/src/admin/controllers/adminImports.controller.ts
-//
-// PURPOSE:
-// - Imports controller (Preview-first, audit-safe)
-// - Preview parses + validates only (no writes)
-// - Commit performs strict transactional writes (admin-only)
-//
-// ROUTES:
-// - GET  /api/v1/admin/imports/cadets/template
-// - POST /api/v1/admin/imports/cadets/preview
-// - POST /api/v1/admin/imports/cadets/commit
-//
 
 import { Request, Response } from "express";
 import {
@@ -19,13 +8,9 @@ import {
 import { commitCadetImportXlsx } from "../services/adminImportsCadetsCommit.service.js";
 
 /* ======================================================================
- * SMALL HELPERS (kept here to avoid auth shape guessing elsewhere)
+ * SMALL HELPERS
  * ====================================================================== */
 
-/**
- * Extract role name from req.user across common shapes.
- * This avoids fragile assumptions about how authGuard attaches the user.
- */
 function getRoleNameFromRequest(req: Request): string | null {
   const u = (req as any)?.user;
   if (!u) return null;
@@ -41,11 +26,6 @@ function getRoleNameFromRequest(req: Request): string | null {
   return role ? String(role).toUpperCase() : null;
 }
 
-/**
- * Strict admin gate for COMMIT.
- * Preview can remain available to any authenticated admin user if you later decide so,
- * but commit must be ADMIN-only for safety.
- */
 function assertAdminOrThrow(req: Request) {
   const roleName = getRoleNameFromRequest(req);
   if (roleName !== "ADMIN") {
@@ -60,7 +40,8 @@ function assertAdminOrThrow(req: Request) {
 
 export async function downloadCadetImportTemplate(req: Request, res: Response) {
   try {
-    const buffer = buildCadetImportTemplateXlsxBuffer();
+    // FIX: Added 'await' because ExcelJS generation is asynchronous
+    const buffer = await buildCadetImportTemplateXlsxBuffer();
 
     res.setHeader(
       "Content-Type",
@@ -117,10 +98,8 @@ export async function previewCadetImport(req: Request, res: Response) {
 
 export async function commitCadetImport(req: Request, res: Response) {
   try {
-    // ---------- ADMIN GATE ----------
     assertAdminOrThrow(req);
 
-    // ---------- FILE ----------
     const file = (req as any).file;
     if (!file?.buffer) {
       return res.status(400).json({
@@ -129,7 +108,6 @@ export async function commitCadetImport(req: Request, res: Response) {
       });
     }
 
-    // ---------- COMMIT ----------
     const result = await commitCadetImportXlsx(file.buffer);
 
     return res.json({
@@ -139,7 +117,6 @@ export async function commitCadetImport(req: Request, res: Response) {
   } catch (err: any) {
     console.error("❌ Import commit failed:", err);
 
-    // For forbidden, return 403
     const msg = err?.message || "Unable to commit import";
     if (String(msg).toLowerCase().includes("forbidden")) {
       return res.status(403).json({ success: false, message: msg });
@@ -148,7 +125,6 @@ export async function commitCadetImport(req: Request, res: Response) {
     return res.status(400).json({
       success: false,
       message: msg,
-      // If service attached structured details, include them for UI visibility
       ...(err?.data ? { data: err.data } : {}),
     });
   }
