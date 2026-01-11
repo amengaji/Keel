@@ -41,7 +41,7 @@ export async function buildTaskImportTemplateBuffer(): Promise<Buffer> {
  * ====================================================================== */
 export async function previewTaskImportXlsx(file: Buffer) {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(file);
+  await workbook.xlsx.load(file as any);
   const sheet = workbook.worksheets[0];
   
   if (!sheet) throw new Error("No sheet found");
@@ -104,55 +104,99 @@ export async function commitTaskImportXlsx(file: Buffer) {
 
   let createdCount = 0;
 
-  // Use transaction to ensure integrity
   await sequelize.transaction(async (tx) => {
     for (const row of preview.rows) {
       if (row.status !== "READY") continue;
 
-      const { department, ship_type, section_name, task_code, description, is_mandatory } = row.data;
+      const {
+        department,
+        ship_type,
+        section_name,
+        task_code,
+        description,
+        is_mandatory,
+      } = row.data;
 
-      // 1. Find or Create Ship Type
-      let shipType = await ShipType.findOne({ where: { name: ship_type }, transaction: tx });
-      
+      /* -------------------------------------------------------------- */
+      /* 1. Ship Type                                                   */
+      /* -------------------------------------------------------------- */
+
+      let shipType = await ShipType.findOne({
+        where: { name: ship_type },
+        transaction: tx,
+      });
+
       if (!shipType) {
-        const typeCode = ship_type.toUpperCase().replace(/[^A-Z0-9]/g, "_").slice(0, 20);
-        shipType = await ShipType.create({ name: ship_type, type_code: typeCode }, { transaction: tx });
+        const typeCode = ship_type
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "_")
+          .slice(0, 20);
+
+        shipType = await ShipType.create(
+          { name: ship_type, type_code: typeCode },
+          { transaction: tx }
+        );
       }
 
-      // 2. Find or Create Section (Linked to Ship Type)
+      /* -------------------------------------------------------------- */
+      /* 2. Section Template                                           */
+      /* -------------------------------------------------------------- */
+
       let section = await FamiliarisationSectionTemplate.findOne({
-        where: { name: section_name, ship_type_id: shipType.id },
-        transaction: tx
+        where: {
+          title: section_name,
+          ship_type_id: shipType.id,
+        },
+        transaction: tx,
       });
 
       if (!section) {
-        const count = await FamiliarisationSectionTemplate.count({ where: { ship_type_id: shipType.id }, transaction: tx });
-        section = await FamiliarisationSectionTemplate.create({
-          ship_type_id: shipType.id,
-          name: section_name,
-          order_number: count + 1,
-        }, { transaction: tx });
+        const count = await FamiliarisationSectionTemplate.count({
+          where: { ship_type_id: shipType.id },
+          transaction: tx,
+        });
+
+        section = await FamiliarisationSectionTemplate.create(
+          {
+            ship_type_id: shipType.id,
+            cadet_category: department,
+            section_code: `S${count + 1}`,
+            title: section_name,
+            order_number: count + 1,
+          },
+          { transaction: tx }
+        );
       }
 
-      // 3. Create Task
-      const taskCount = await FamiliarisationTaskTemplate.count({ where: { section_template_id: section.id }, transaction: tx });
-      
-      await FamiliarisationTaskTemplate.create({
-        section_template_id: section.id,
-        cadet_category: department,
-        task_code: task_code || T-,
-        task_description: description,
-        order_number: taskCount + 1,
-        is_mandatory
-      }, { transaction: tx });
+      /* -------------------------------------------------------------- */
+      /* 3. Task Template                                              */
+      /* -------------------------------------------------------------- */
+
+      const taskCount = await FamiliarisationTaskTemplate.count({
+        where: { section_template_id: section.id },
+        transaction: tx,
+      });
+
+      await FamiliarisationTaskTemplate.create(
+        {
+          section_template_id: section.id,
+          cadet_category: department,
+          task_code: task_code || "T-PENDING",
+          task_description: description,
+          order_number: taskCount + 1,
+          is_mandatory,
+        },
+        { transaction: tx }
+      );
 
       createdCount++;
     }
   });
 
-  return { 
-    success: true, 
-    message: Imported  tasks successfully,
-    created: createdCount 
+  return {
+    success: true,
+    message: "Imported tasks successfully",
+    created: createdCount,
   };
 }
+

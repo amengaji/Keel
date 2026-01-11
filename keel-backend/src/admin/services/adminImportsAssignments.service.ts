@@ -78,8 +78,8 @@ export async function previewAssignmentImportXlsx(buffer: Buffer): Promise<Assig
   });
   const vessels = await Vessel.findAll({ attributes: ["id", "imo_number"] });
 
-  const userMap = new Map(users.map(u => [u.email.toLowerCase(), u.id]));
-  const vesselMap = new Map(vessels.map(v => [v.imo_number, v.id]));
+  const userMap = new Map<string, number>(users.map((u: any) => [u.email?.toLowerCase(), u.id]));
+  const vesselMap = new Map<string, number>(vessels.map((v: any) => [v.vessel_name?.toLowerCase(), v.id]));
 
   const rows: AssignImportPreviewRow[] = [];
   const dataRows = aoa.slice(1);

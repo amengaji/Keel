@@ -31,7 +31,7 @@ FamiliarisationTaskTemplate.init(
 
     // e.g. "A.1", "A.2", "B.3"
     task_code: {
-      type: DataTypes.STRING(10),
+      type: DataTypes.STRING(50),
       allowNull: false,
     },
 

@@ -51,8 +51,12 @@ import adminAuditRoutes from "./admin/audit/routes/adminAudit.routes.js";
 
 dotenv.config();
 
+// CALL THE SETUP FUNCTION HERE:
+setupAssociations();
+
 import sequelize from "./config/database.js";
 import { Role, User } from "./models/index.js";
+import { setupAssociations } from "./models/associations.js";
 
 export { User, Role };
 

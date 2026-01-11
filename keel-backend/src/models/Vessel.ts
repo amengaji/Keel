@@ -69,7 +69,7 @@ Vessel.init(
     imo_number: {
       type: DataTypes.STRING(10), // string to preserve leading zeros
       allowNull: false,
-      unique: true,
+      //unique: true,
       comment: "IMO number (unique, immutable after creation)",
     },
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, UploadCloud, Download, AlertCircle, CheckCircle, FileSpreadsheet } from "lucide-react";
+import { X, UploadCloud, Download, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 type AssignmentsImportModalProps = {

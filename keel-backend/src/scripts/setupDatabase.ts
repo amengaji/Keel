@@ -1,3 +1,4 @@
+// keel-backend/src/scripts/setupDatabase.ts
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -11,36 +12,54 @@ const __dirname = path.dirname(__filename);
 
 async function setupDatabase() {
   try {
-    console.log("🚀 Starting Database Setup...");
-    
-    // 1. Authenticate
+    console.log("🚀 Starting Robust Database Setup...");
     await sequelize.authenticate();
     console.log("✅ Database Connected.");
 
-    // 2. Drop Views (to prevent locking/dependency issues during table sync)
+    // 1. Drop Views (CRITICAL: Prevents locks during table alteration)
     console.log("🗑️  Dropping existing views...");
     const viewsToDrop = [
-      "admin_roles_v",
-      "admin_users_v",
-      "admin_ship_types_v",
-      "admin_vessels_v",
-      "admin_trb_cadets_v",
-      "admin_trb_section_progress_v",
-      "admin_trb_task_evidence_v",
+      "admin_roles_v", "admin_users_v", "admin_ship_types_v", "admin_vessels_v",
+      "admin_trb_cadets_v", "admin_trb_section_progress_v", "admin_trb_task_evidence_v",
       "admin_audit_timeline_v"
     ];
     for (const view of viewsToDrop) {
-      await sequelize.query(`DROP VIEW IF EXISTS public.${view} CASCADE`);
+      await sequelize.query(`DROP VIEW IF EXISTS public.${view} CASCADE`).catch(() => {});
     }
 
-    // 3. Sync All Tables
+    // 2. PRE-SYNC MANUAL FIXES (Prevents "Value too long" errors)
+    console.log("🩹 Applying pre-sync column length fixes...");
+    
+    // Fix for Section Templates
+    await sequelize.query(`
+        ALTER TABLE IF EXISTS "fam_section_templates" 
+        ALTER COLUMN "section_code" TYPE VARCHAR(100);
+    `).catch(() => {});
+
+    // Fix for Task Templates (The error you just faced)
+    await sequelize.query(`
+        ALTER TABLE IF EXISTS "fam_task_templates" 
+        ALTER COLUMN "task_code" TYPE VARCHAR(100);
+    `).catch(() => {});
+
+    // 3. Sync Tables (Safety Alter Mode)
     console.log("🛠️  Syncing database tables...");
-    // This creates tables if they don't exist, and alters columns if they changed
     await sequelize.sync({ alter: true });
     console.log("✅ Tables Synced.");
 
-    // 4. Run SQL Migrations (Views & Fixes)
-    console.log("📜 Applying SQL Migrations...");
+    // 4. Post-Sync Manual Constraints
+    console.log("⚓ Applying manual constraints...");
+    try {
+      await sequelize.query(`
+        ALTER TABLE "vessels" 
+        ADD CONSTRAINT "vessels_imo_number_key" UNIQUE ("imo_number");
+      `);
+    } catch (e: any) {
+      console.log("ℹ️  Constraint already exists or skipped.");
+    }
+
+    // 5. Run SQL Migrations
+    console.log("📜 Applying SQL Migrations from files...");
     const migrationDirs = [
       path.join(__dirname, '../../db/migrations'),
       path.join(__dirname, '../db/migrations')
@@ -53,34 +72,33 @@ async function setupDatabase() {
           console.log(`   Executing ${file}...`);
           const sql = fs.readFileSync(path.join(dir, file), 'utf8');
           try {
-            await sequelize.query(sql);
+            const cleanSql = sql.replace(/\\\n/g, '\n');
+            await sequelize.query(cleanSql);
           } catch (err: any) {
-            console.warn(`   ⚠️ Error in ${file} (might be okay if replacing):`, err.message);
+            if (!err.message.includes("already exists")) {
+               console.warn(`      ⚠️ Error in ${file}:`, err.message);
+            }
           }
         }
       }
     }
     console.log("✅ Migrations Applied.");
 
-    // 5. Seed Roles
+    // 6. Seed Roles
     console.log("🌱 Seeding Roles...");
     const defaultRoles = ["CADET", "CTO", "MASTER", "SHORE", "ADMIN"];
     const roleMap: Record<string, number> = {};
-    
     for (const roleName of defaultRoles) {
       const [role] = await Role.findOrCreate({ where: { role_name: roleName } });
       roleMap[roleName] = role.id;
     }
 
-    // 6. Seed Users
+    // 7. Seed Default Users
     console.log("🌱 Seeding Default Users...");
     const users = [
       { email: "admin@keel.com", name: "Admin User", pass: "admin123!", role: "ADMIN" },
-      { email: "cadet@keel.com", name: "Cadet User", pass: "cadet123", role: "CADET" },
-      { email: "master@keel.com", name: "Master User", pass: "master123", role: "MASTER" },
-      { email: "shore@keel.com", name: "Shore User", pass: "shore123", role: "SHORE" }
+      { email: "cadet@keel.com", name: "Cadet User", pass: "cadet123", role: "CADET" }
     ];
-
     for (const u of users) {
       const existing = await User.findOne({ where: { email: u.email } });
       if (!existing) {
@@ -91,15 +109,15 @@ async function setupDatabase() {
           password_hash: hash,
           role_id: roleMap[u.role]
         });
-        console.log(`   Created ${u.role}: ${u.email}`);
+        console.log(`   ✅ Created ${u.role}: ${u.email}`);
       }
     }
 
-    console.log("🎉 Database Setup Complete! You can now run 'npm run dev'.");
+    console.log("\n🎉🎉 DATABASE SETUP SUCCESSFUL! 🎉🎉");
     process.exit(0);
 
   } catch (error) {
-    console.error("❌ Setup Failed:", error);
+    console.error("\n❌ FATAL SETUP ERROR:", error);
     process.exit(1);
   }
 }

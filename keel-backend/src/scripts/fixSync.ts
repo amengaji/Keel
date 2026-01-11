@@ -15,7 +15,7 @@ async function fixAndSync() {
     await CadetVesselAssignment.sync({ alter: true });
 
     console.log("🔄 Recreating view (admin_trb_cadets_v)...");
-    await sequelize.query(\
+    await sequelize.query(`
       CREATE VIEW public.admin_trb_cadets_v AS
       SELECT
         cva.id                                    AS assignment_id,
@@ -88,7 +88,7 @@ async function fixAndSync() {
         cva.start_date,
         cva.end_date
       ORDER BY u.full_name ASC;
-    \);
+    `);
 
     console.log("✅ Database fixed and synced successfully.");
     process.exit(0);

@@ -12,7 +12,7 @@ async function emergencyDbFix() {
 
     // 2. Create the missing 'task_templates' table
     console.log("🛠  Creating 'task_templates' table...");
-    await sequelize.query(\
+    await sequelize.query(`
       CREATE TABLE IF NOT EXISTS "task_templates" (
         "id" SERIAL,
         "part_number" INTEGER NOT NULL,
@@ -27,15 +27,15 @@ async function emergencyDbFix() {
         PRIMARY KEY ("id"),
         UNIQUE ("title", "ship_type_id")
       );
-    \);
+    `);
 
     // 3. Fix 'cadet_vessel_assignments' (Handle column type change safely)
     console.log("🛠  Updating 'cadet_vessel_assignments'...");
     // We attempt to cast start_date to DATE. If it's already compatible, this works.
-    await sequelize.query(\
+    await sequelize.query(`
       ALTER TABLE "cadet_vessel_assignments" 
       ALTER COLUMN "start_date" TYPE DATE USING "start_date"::DATE;
-    \);
+    `);
     // Ensure it's not null (as per model definition)
     // Wrapped in try/catch in case data violates it, but usually safe for new dev DB
     try {
@@ -45,7 +45,7 @@ async function emergencyDbFix() {
 
     // 4. Recreate the View
     console.log("🔄 Recreating 'admin_trb_cadets_v' view...");
-    await sequelize.query(\
+    await sequelize.query(`
       CREATE OR REPLACE VIEW public.admin_trb_cadets_v AS
       SELECT
         cva.id                                    AS assignment_id,
@@ -118,7 +118,7 @@ async function emergencyDbFix() {
         cva.start_date,
         cva.end_date
       ORDER BY u.full_name ASC;
-    \);
+    `);
 
     console.log("✅ DATABASE REPAIRED SUCCESSFULLY.");
     process.exit(0);

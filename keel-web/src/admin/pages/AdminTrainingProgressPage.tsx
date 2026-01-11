@@ -39,11 +39,6 @@ type TraineeProgress = {
   overall_status: "Unassigned" | "Not Started" | "In Progress" | "Completed";
 };
 
-type VesselSummary = {
-  id: number;
-  name: string;
-  is_active: boolean;
-};
 
 /* -------------------------------------------------------------------------- */
 /* Helper — Completion Bar                                                     */

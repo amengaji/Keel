@@ -70,7 +70,7 @@ export function AdminCadetsPage() {
   const [importOpen, setImportOpen] = useState(false);
 
   // Read-only assignment lookup: cadet_id → vessel_name
-  const [traineeVesselMap, setTraineeVesselMap] = useState<
+  const [_traineeVesselMap, setTraineeVesselMap] = useState<
     Record<number, string>
   >({});
 

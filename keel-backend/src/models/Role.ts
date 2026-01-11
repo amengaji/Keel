@@ -2,7 +2,8 @@ import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/database.js";
 
 class Role extends Model {
-    id: number;
+  declare id: number;
+  declare role_name: string;
 }
 
 Role.init(
@@ -16,7 +17,7 @@ Role.init(
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: true,
-    }
+    },
   },
   {
     sequelize,

@@ -1,8 +1,55 @@
-//keel-backend/src/models/FamiliarisationSectionTemplate.ts
-import { DataTypes, Model } from "sequelize";
+// keel-backend/src/models/FamiliarisationSectionTemplate.ts
+
+import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database.js";
 
-class FamiliarisationSectionTemplate extends Model {}
+/* ======================================================================
+ * Attribute Types
+ * ====================================================================== */
+
+export interface FamiliarisationSectionTemplateAttributes {
+  id: number;
+  ship_type_id: number;
+  cadet_category: string;
+  section_code: string;
+  title: string;
+  order_number: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/* ======================================================================
+ * Creation Attributes
+ * ====================================================================== */
+
+type FamiliarisationSectionTemplateCreationAttributes =
+  Optional<FamiliarisationSectionTemplateAttributes, "id">;
+
+/* ======================================================================
+ * Model Class
+ * ====================================================================== */
+
+class FamiliarisationSectionTemplate
+  extends Model<
+    FamiliarisationSectionTemplateAttributes,
+    FamiliarisationSectionTemplateCreationAttributes
+  >
+  implements FamiliarisationSectionTemplateAttributes
+{
+  declare id: number;
+  declare ship_type_id: number;
+  declare cadet_category: string;
+  declare section_code: string;
+  declare title: string;
+  declare order_number: number;
+
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
+}
+
+/* ======================================================================
+ * Init
+ * ====================================================================== */
 
 FamiliarisationSectionTemplate.init(
   {
@@ -12,7 +59,6 @@ FamiliarisationSectionTemplate.init(
       primaryKey: true,
     },
 
-    // Which ship type this section belongs to (OIL, BULK, LNG, etc.)
     ship_type_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -22,26 +68,21 @@ FamiliarisationSectionTemplate.init(
       },
     },
 
-    // Which cadet category this section is for
-    // DECK | ENGINE | ETO | CATERING | RATING
     cadet_category: {
       type: DataTypes.STRING(20),
       allowNull: false,
     },
 
-    // Section code like A, B, C, D, E, F
     section_code: {
-      type: DataTypes.STRING(5),
+      type: DataTypes.STRING(20),
       allowNull: false,
     },
 
-    // Section title, e.g. "Safety Familiarisation"
     title: {
       type: DataTypes.STRING(200),
       allowNull: false,
     },
 
-    // For ordering in UI (1, 2, 3…)
     order_number: {
       type: DataTypes.INTEGER,
       allowNull: false,
