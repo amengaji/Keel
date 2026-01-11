@@ -87,7 +87,12 @@ export function AdminTasksPage() {
               className="w-full pl-9 pr-8 py-2 bg-muted border border-input rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none appearance-none cursor-pointer"
             >
               <option value="">All Ranks</option>
-              {traineeTypes.map(t => <option key={t} value={t}>{RANK_LABELS[t] || t}</option>)}
+              {/* Replace the .map inside your select with this */}
+              {traineeTypes.map(t => (
+                <option key={t} value={t}>
+                  {RANK_LABELS[t] || t.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                </option>
+              ))}
             </select>
           </div>
 
