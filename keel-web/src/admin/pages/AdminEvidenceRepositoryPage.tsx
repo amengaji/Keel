@@ -27,13 +27,10 @@ import {
   FileText,
   Image,
   Video,
-  ShieldCheck,
   Lock,
   Info,
   Calendar,
-  UserCheck,
   Ship,
-  BookCheck,
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */

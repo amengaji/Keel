@@ -13,7 +13,6 @@ import { AdminVesselsPage } from "./admin/pages/AdminVesselsPage";
 import { AdminVesselDetailPage } from "./admin/pages/AdminVesselDetailPage";
 import { AdminCadetsPage } from "./admin/pages/AdminCadetsPage";
 import { AdminCadetDetailPage } from "./admin/pages/AdminCadetDetailPage";
-import { AdminCadetProfilePage } from "./admin/pages/AdminCadetProfilePage";
 import { AdminVesselCreatePage } from "./admin/pages/AdminVesselCreatePage";
 import { AdminTraineeCreatePage } from "./admin/pages/AdminTraineeCreatePage";
 import { AuditLayout } from "./admin/audit/AuditLayout";
@@ -108,11 +107,6 @@ export default function App() {
             path="cadets/create"
             element={<AdminTraineeCreatePage />}
           />
-          {/* NEW: Cadet Identity Profile (Phase 3A) */}
-          <Route
-            path="cadets/:cadetId/profile"
-            element={<AdminCadetProfilePage />}
-          />          
           <Route
             path="cadets/:cadetId"
             element={<AdminCadetDetailPage />}

@@ -43,6 +43,8 @@ export async function fetchAdminCadets() {
         u.id            AS cadet_id,
         u.email         AS cadet_email,
         u.full_name     AS cadet_name,
+        u.gender        AS gender,
+        u.nationality   AS nationality,
         u."createdAt"   AS created_at,
         u."updatedAt"   AS updated_at,
         r.role_name     AS role_name

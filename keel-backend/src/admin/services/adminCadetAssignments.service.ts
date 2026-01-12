@@ -43,27 +43,9 @@ export async function assignCadetToVessel(
       throw new Error("Vessel not found");
     }
 
-    // ------------------ CHECK TRB ACTIVITY (PHASE 4A-4 LOCK) ------------------
-    const [trbRows] = await sequelize.query(
-      `
-        SELECT 1
-        FROM admin_trb_cadets_v
-        WHERE cadet_id = :cadetId
-        LIMIT 1
-      `,
-      {
-        replacements: { cadetId },
-        transaction,
-      }
-    );
-
-    if (Array.isArray(trbRows) && trbRows.length > 0) {
-      throw new Error(
-        "Cadet has existing training activity and cannot be reassigned"
-      );
-    }
-
     // ------------------ CHECK EXISTING ACTIVE ASSIGNMENT ------------------
+    // We only care if they currently have an "ACTIVE" assignment.
+    // We removed the TRB activity check to allow reassignment/first assignment.
     const existing = await CadetVesselAssignment.findOne({
       where: {
         cadet_id: cadetId,
@@ -73,7 +55,7 @@ export async function assignCadetToVessel(
     });
 
     if (existing) {
-      throw new Error("Cadet already has an active vessel assignment");
+      throw new Error("Cadet already has an active vessel assignment. Close the current one first.");
     }
 
     // ------------------ CREATE ASSIGNMENT ------------------

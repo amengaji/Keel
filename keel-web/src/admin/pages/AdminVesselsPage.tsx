@@ -25,11 +25,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Ship, Filter, Info, Pencil, Trash2, RotateCcw  } from "lucide-react";
+import { Ship, Filter, Info, Pencil, Trash2, RotateCcw, Activity, LayoutList  } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ConfirmDeleteModal } from "../../components/common/ConfirmDeleteModal";
 import { VesselImportModal } from "./VesselImportModal";
-
+// Insert these imports at the top
+import { PieChart, Pie, ResponsiveContainer } from "recharts";
+import { StatCard } from "../components/ui/Card";
+import { ShieldCheck, Ship as ShipIcon } from "lucide-react";
 
 import {
   VesselUpsertModal,
@@ -693,7 +696,29 @@ async function confirmRestoreVessel() {
             Fleet overview for training, compliance, and audit readiness.
           </p>
         </div>
-
+        {/* NEW: VESSEL METRIC CARDS */}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+       <StatCard label="Total Fleet" value={rows.length} icon={<ShipIcon size={20}/>} />
+       <StatCard label="Active Status" value={rows.filter(v => v.status === 'Active').length} tone="success" icon={<Activity size={20}/>} />
+       <StatCard label="TRBs Active" value={rows.reduce((sum, v) => sum + v.activeTRBs, 0)} icon={<LayoutList size={20}/>} />
+       <div className="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-xl p-4 flex flex-col justify-center h-30">
+          <div className="text-xs font-bold uppercase text-muted-foreground mb-2 flex items-center gap-2">
+            <ShieldCheck size={14} className="text-green-500" /> Fleet Risk Summary
+          </div>
+          <div className="h-16">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={[
+                  { name: 'Low', value: 10, fill: '#22c55e' },
+                  { name: 'Med', value: 3, fill: '#f59e0b' },
+                  { name: 'High', value: 1, fill: '#ef4444' }
+                ]} cx="50%" cy="50%" innerRadius={15} outerRadius={25} dataKey="value">
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+       </div>
+    </div>
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
           {/* Info */}

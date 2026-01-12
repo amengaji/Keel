@@ -21,12 +21,11 @@ import {
 /**
  * GET /api/v1/admin/cadets
  */
-export async function getAdminCadets(
-  req: Request,
-  res: Response
-) {
+export async function getAdminCadets(req: Request, res: Response) {
   try {
     const data = await fetchAdminCadets();
+    // This ensures the response is ALWAYS JSON
+    res.setHeader('Content-Type', 'application/json');
     res.json({ success: true, data });
   } catch (error) {
     console.error(error);
