@@ -137,7 +137,7 @@ export async function previewVesselImportXlsx(file: ExcelBinary) {
   const imoList: string[] = [];
 
   // 1. PARSE STEP
-  sheet.eachRow((row, index) => {
+  sheet.eachRow((row: any, index: number) => {
     if (index === 1) return; // Skip header
 
     const values = row.values as any[];

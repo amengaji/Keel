@@ -48,7 +48,7 @@ export async function previewTaskImportXlsx(file: Buffer) {
 
   const rows: any[] = [];
   
-  sheet.eachRow((row, index) => {
+  sheet.eachRow((row: any, index: number) => {
     if (index === 1) return; // Skip header
 
     const v = row.values as any[];
